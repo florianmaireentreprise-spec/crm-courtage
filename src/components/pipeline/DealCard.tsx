@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trash2, Calendar } from "lucide-react";
 import { deleteDeal } from "@/app/(app)/pipeline/actions";
+import { TYPES_PRODUITS } from "@/lib/constants";
 import type { DealWithClient } from "@/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -73,15 +74,27 @@ export function DealCard({ deal, index }: Props) {
                 </div>
               )}
 
-              {deal.produitsCibles && (
-                <div className="flex flex-wrap gap-1">
-                  {deal.produitsCibles.split(",").map((p) => (
-                    <Badge key={p.trim()} variant="secondary" className="text-[10px]">
-                      {p.trim()}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              {deal.produitsCibles && (() => {
+                let produits: string[] = [];
+                try {
+                  produits = JSON.parse(deal.produitsCibles);
+                } catch {
+                  produits = deal.produitsCibles.split(",").map((s) => s.trim());
+                }
+                return (
+                  <div className="flex flex-wrap gap-1">
+                    {produits.map((p) => {
+                      const key = p as keyof typeof TYPES_PRODUITS;
+                      const label = TYPES_PRODUITS[key]?.label ?? p;
+                      return (
+                        <Badge key={p} variant="secondary" className="text-[10px]">
+                          {label}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
