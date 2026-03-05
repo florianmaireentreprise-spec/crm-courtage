@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  prenom       String
+  nom          String
+  role         String   @default("gerant")
+  dateCreation DateTime @default(now())
+}
+
+model Client {
+  id                   String    @id @default(cuid())
+  // Entreprise
+  raisonSociale        String
+  siret                String?   @unique
+  formeJuridique       String?
+  secteurActivite      String?
+  nbSalaries           Int?
+  chiffreAffaires      Float?
+  conventionCollective String?
+  // Dirigeant / contact principal
+  civilite             String?
+  prenom               String
+  nom                  String
+  email                String?
+  telephone            String?
+  adresse              String?
+  codePostal           String?
+  ville                String?
+  dateNaissance        DateTime?
+  // Métadonnées
+  sourceAcquisition    String?
+  prescripteur         String?
+  notes                String?
+  statut               String   @default("prospect")
+  dateCreation         DateTime @default(now())
+  dateMaj              DateTime @updatedAt
+  assigneA             String?
+  // Relations
+  contrats             Contrat[]
+  deals                Deal[]
+  taches               Tache[]
+}
+
+model Contrat {
+  id                 String       @id @default(cuid())
+  clientId           String
+  client             Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Produit
+  typeProduit        String
+  compagnieId        String?
+  compagnie          Compagnie?   @relation(fields: [compagnieId], references: [id])
+  nomProduit         String?
+  numeroContrat      String?
+  // Financier
+  primeAnnuelle      Float
+  tauxCommApport     Float?
+  tauxCommGestion    Float?
+  commissionAnnuelle Float?
+  modeVersement      String?
+  frequenceVersement String?
+  // Dates
+  dateEffet          DateTime
+  dateEcheance       DateTime?
+  dateResiliation    DateTime?
+  // Détails collectif
+  nbBeneficiaires    Int?
+  cotisationUnitaire Float?
+  // Statut
+  statut             String       @default("actif")
+  notes              String?
+  dateCreation       DateTime     @default(now())
+  dateMaj            DateTime     @updatedAt
+  // Relations
+  commissions        Commission[]
+}
+
+model Compagnie {
+  id                 String    @id @default(cuid())
+  nom                String    @unique
+  type               String?
+  contactNom         String?
+  contactEmail       String?
+  contactTelephone   String?
+  // Conditions négociées
+  conventionSignee   Boolean   @default(false)
+  dateConvention     DateTime?
+  seuilSurcommission Int?
+  tauxSurcommission  Float?
+  // Suivi
+  nbContratsActifs   Int       @default(0)
+  primesCumulees     Float     @default(0)
+  notes              String?
+  // Relations
+  contrats           Contrat[]
+}
+
+model Deal {
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Pipeline
+  titre           String
+  etape           String    @default("PROSPECTION")
+  montantEstime   Float?
+  probabilite     Int?
+  produitsCibles  String?
+  // Dates
+  dateCreation    DateTime  @default(now())
+  dateMaj         DateTime  @updatedAt
+  dateClosingPrev DateTime?
+  dateClosingReel DateTime?
+  // Suivi
+  motifPerte      String?
+  notes           String?
+  assigneA        String?
+}
+
+model Commission {
+  id            String    @id @default(cuid())
+  contratId     String
+  contrat       Contrat   @relation(fields: [contratId], references: [id], onDelete: Cascade)
+  // Montant
+  montant       Float
+  type          String
+  periode       String
+  dateVersement DateTime?
+  statut        String    @default("prevu")
+  notes         String?
+  dateCreation  DateTime  @default(now())
+}
+
+model Tache {
+  id              String    @id @default(cuid())
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  // Contenu
+  titre           String
+  description     String?
+  type            String
+  priorite        String    @default("normale")
+  // Dates
+  dateEcheance    DateTime
+  dateRealisation DateTime?
+  statut          String    @default("a_faire")
+  assigneA        String?
+  recurrence      String?
+  dateCreation    DateTime  @default(now())
+}

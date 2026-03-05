@@ -1,0 +1,151 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Check, Trash2, Plus } from "lucide-react";
+import { TYPES_TACHE, PRIORITES } from "@/lib/constants";
+import { markTacheDone, deleteTache } from "@/app/(app)/relances/actions";
+import { TacheForm } from "./TacheForm";
+import type { TacheWithClient } from "@/types";
+import { format, isBefore, isToday, startOfDay } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type Props = {
+  taches: TacheWithClient[];
+  clients: { id: string; raisonSociale: string }[];
+  users: { id: string; prenom: string; nom: string }[];
+};
+
+export function TacheList({ taches, clients, users }: Props) {
+  const [showForm, setShowForm] = useState(false);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterPriorite, setFilterPriorite] = useState<string>("all");
+
+  const now = startOfDay(new Date());
+
+  const filtered = taches.filter((t) => {
+    if (filterType !== "all" && t.type !== filterType) return false;
+    if (filterPriorite !== "all" && t.priorite !== filterPriorite) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-3">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              {TYPES_TACHE.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterPriorite} onValueChange={setFilterPriorite}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Priorité" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              {PRIORITES.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button size="sm" onClick={() => setShowForm(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nouvelle tâche
+        </Button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          Aucune tâche à afficher
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((tache) => {
+            const prioriteConfig = PRIORITES.find((p) => p.id === tache.priorite);
+            const typeConfig = TYPES_TACHE.find((t) => t.id === tache.type);
+            const isOverdue = isBefore(tache.dateEcheance, now) && !isToday(tache.dateEcheance);
+
+            return (
+              <Card key={tache.id} className={isOverdue ? "border-red-300" : ""}>
+                <CardContent className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-green-600"
+                      onClick={() => markTacheDone(tache.id)}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{tache.titre}</p>
+                        <Badge variant="outline" className="text-[10px]">
+                          {typeConfig?.label}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {tache.client?.raisonSociale ?? "Sans client"}
+                        {" — "}
+                        <span className={isOverdue ? "text-red-600 font-medium" : ""}>
+                          {isToday(tache.dateEcheance)
+                            ? "Aujourd'hui"
+                            : format(tache.dateEcheance, "dd MMM yyyy", { locale: fr })}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: prioriteConfig?.color, color: prioriteConfig?.color }}
+                    >
+                      {prioriteConfig?.label}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteTache(tache.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <TacheForm
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          clients={clients}
+          users={users}
+        />
+      )}
+    </div>
+  );
+}
