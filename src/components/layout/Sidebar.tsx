@@ -12,6 +12,8 @@ import {
   Clock,
   Building2,
   Settings,
+  TrendingUp,
+  Mail,
 } from "lucide-react";
 
 const navigation = [
@@ -21,6 +23,8 @@ const navigation = [
   { name: "Pipeline", href: "/pipeline", icon: Target },
   { name: "Commissions", href: "/commissions", icon: Coins },
   { name: "Relances", href: "/relances", icon: Clock },
+  { name: "Objectifs", href: "/objectifs", icon: TrendingUp },
+  { name: "Emails", href: "/emails", icon: Mail },
   { name: "Compagnies", href: "/compagnies", icon: Building2 },
   { name: "Paramètres", href: "/parametres", icon: Settings },
 ];

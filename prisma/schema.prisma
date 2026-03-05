@@ -49,6 +49,7 @@ model Client {
   contrats             Contrat[]
   deals                Deal[]
   taches               Tache[]
+  emails               Email[]
 }
 
 model Contrat {
@@ -143,6 +144,8 @@ model Tache {
   id              String    @id @default(cuid())
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  emailId         String?
+  email           Email?    @relation("EmailTaches", fields: [emailId], references: [id], onDelete: SetNull)
   // Contenu
   titre           String
   description     String?
@@ -155,4 +158,53 @@ model Tache {
   assigneA        String?
   recurrence      String?
   dateCreation    DateTime  @default(now())
+}
+
+model Objectif {
+  id           String   @id @default(cuid())
+  userId       String?
+  type         String
+  periode      String
+  annee        Int
+  mois         Int?
+  trimestre    Int?
+  valeurCible  Float
+  dateCreation DateTime @default(now())
+  dateMaj      DateTime @updatedAt
+}
+
+model GmailConnection {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  gmailEmail   String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+  dateConnecte DateTime @default(now())
+  dateMaj      DateTime @updatedAt
+}
+
+model Email {
+  id              String    @id @default(cuid())
+  userId          String
+  gmailId         String    @unique
+  threadId        String
+  sujet           String
+  expediteur      String
+  destinataires   String
+  dateEnvoi       DateTime
+  extrait         String?
+  // Analyse IA
+  resume          String?
+  actionsItems    String?
+  reponseProposee String?
+  // Relations
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  taches          Tache[]   @relation("EmailTaches")
+  // Statut
+  analyseStatut   String    @default("non_analyse")
+  lu              Boolean   @default(false)
+  dateCreation    DateTime  @default(now())
+  dateMaj         DateTime  @updatedAt
 }

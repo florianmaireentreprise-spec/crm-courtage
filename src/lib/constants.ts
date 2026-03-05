@@ -114,3 +114,18 @@ export const STATUTS_COMMISSION = [
   { id: "verse", label: "Versé", color: "#10B981" },
   { id: "en_attente", label: "En attente", color: "#94A3B8" },
 ] as const;
+
+export const TYPES_OBJECTIF = [
+  { id: "CA_ANNUEL", label: "CA récurrent annuel", format: "currency", icon: "Euro", color: "#10B981" },
+  { id: "NB_CLIENTS", label: "Nouveaux clients", format: "number", icon: "Users", color: "#3B82F6" },
+  { id: "NB_CONTRATS", label: "Contrats signés", format: "number", icon: "FileText", color: "#8B5CF6" },
+  { id: "PIPELINE", label: "Pipeline pondéré", format: "currency", icon: "Target", color: "#F59E0B" },
+] as const;
+
+export type TypeObjectif = (typeof TYPES_OBJECTIF)[number]["id"];
+
+export const PERIODES_OBJECTIF = [
+  { id: "ANNUEL", label: "Annuel" },
+  { id: "TRIMESTRIEL", label: "Trimestriel" },
+  { id: "MENSUEL", label: "Mensuel" },
+] as const;
