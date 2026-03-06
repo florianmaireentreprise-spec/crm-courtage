@@ -8,8 +8,10 @@ async function main() {
   await prisma.commission.deleteMany();
   await prisma.tache.deleteMany();
   await prisma.deal.deleteMany();
+  await prisma.dirigeant.deleteMany();
   await prisma.contrat.deleteMany();
   await prisma.client.deleteMany();
+  await prisma.prescripteur.deleteMany();
   await prisma.compagnie.deleteMany();
   await prisma.user.deleteMany();
 
@@ -140,6 +142,37 @@ async function main() {
 
   const [mutex, apicil, april, generali, swisslife, axa, malakoff] = compagnies;
 
+  // --- Prescripteurs ---
+  const prescripteur1 = await prisma.prescripteur.create({
+    data: {
+      prenom: "Robert",
+      nom: "Schmitt",
+      entreprise: "Cabinet Comptable Alsace",
+      type: "EXPERT_COMPTABLE",
+      email: "r.schmitt@cabinet-alsace.fr",
+      telephone: "03 88 56 78 90",
+      ville: "Strasbourg",
+      dossiersEnvoyes: 3,
+      clientsSignes: 2,
+      commissionsGenerees: 1200,
+    },
+  });
+
+  const prescripteur2 = await prisma.prescripteur.create({
+    data: {
+      prenom: "Stéphane",
+      nom: "Koch",
+      entreprise: "Réseau BNI Strasbourg Centre",
+      type: "BNI",
+      email: "s.koch@bni-strasbourg.fr",
+      telephone: "06 78 90 12 34",
+      ville: "Strasbourg",
+      dossiersEnvoyes: 2,
+      clientsSignes: 1,
+      commissionsGenerees: 480,
+    },
+  });
+
   // --- Clients ---
   const client1 = await prisma.client.create({
     data: {
@@ -160,7 +193,7 @@ async function main() {
       ville: "Strasbourg",
       dateNaissance: new Date("1975-03-15"),
       sourceAcquisition: "Expert-comptable",
-      prescripteur: "Cabinet Comptable Alsace",
+      prescripteurId: prescripteur1.id,
       statut: "client_actif",
       assigneA: user1.id,
     },
@@ -208,7 +241,7 @@ async function main() {
       ville: "Strasbourg",
       dateNaissance: new Date("1968-11-05"),
       sourceAcquisition: "BNI / Réseau affaires",
-      prescripteur: "Réseau BNI Strasbourg Centre",
+      prescripteurId: prescripteur2.id,
       statut: "client_actif",
       assigneA: user2.id,
     },
@@ -233,7 +266,6 @@ async function main() {
       ville: "Colmar",
       dateNaissance: new Date("1970-05-18"),
       sourceAcquisition: "Parrainage client",
-      prescripteur: "Jean Dupont (Boulangerie Dupont)",
       statut: "client_actif",
       assigneA: user2.id,
     },
@@ -260,6 +292,35 @@ async function main() {
       sourceAcquisition: "Cold call",
       statut: "prospect",
       assigneA: user1.id,
+    },
+  });
+
+  // --- Dirigeants ---
+  await prisma.dirigeant.create({
+    data: {
+      clientId: client1.id,
+      prenom: "Jean",
+      nom: "Dupont",
+      statutProfessionnel: "TNS_GERANT_MAJORITAIRE",
+      regimeRetraite: "RSI / SSI",
+      prevoyancePerso: "Contrat Apicil TNS",
+      protectionActuelle: "Madelin April",
+      epargneActuelle: "Pas de PER",
+      besoinsPatrimoniaux: "Optimiser retraite, protéger famille en cas de décès",
+    },
+  });
+
+  await prisma.dirigeant.create({
+    data: {
+      clientId: client3.id,
+      prenom: "François",
+      nom: "Muller",
+      statutProfessionnel: "TNS_LIBERAL",
+      regimeRetraite: "CIPAV",
+      prevoyancePerso: "Contrat April Prévoyance",
+      protectionActuelle: "April Santé TNS Premium",
+      epargneActuelle: "Assurance vie Generali",
+      besoinsPatrimoniaux: "Développer épargne retraite, étudier PER Madelin",
     },
   });
 
@@ -556,7 +617,6 @@ async function main() {
 
   // --- Commissions ---
   for (const contrat of contrats) {
-    // Commission apport (mois 1)
     if (contrat.tauxCommApport) {
       await prisma.commission.create({
         data: {
@@ -569,7 +629,6 @@ async function main() {
         },
       });
     }
-    // Commission gestion (année en cours)
     if (contrat.tauxCommGestion) {
       await prisma.commission.create({
         data: {
@@ -588,12 +647,13 @@ async function main() {
     data: {
       clientId: client5.id,
       titre: "Santé collective + Prévoyance Garage Auto Plus",
-      etape: "AUDIT_REALISE",
+      etape: "AUDIT",
       montantEstime: 2500,
       probabilite: 60,
       produitsCibles: JSON.stringify(["SANTE_COLLECTIVE", "PREVOYANCE_COLLECTIVE"]),
       dateClosingPrev: new Date("2026-04-15"),
       assigneA: user1.id,
+      sourceProspect: "COLD_CALL",
       notes: "Audit réalisé le 25/02. Le dirigeant compare avec son contrat actuel chez AG2R.",
     },
   });
@@ -602,13 +662,13 @@ async function main() {
     data: {
       clientId: client4.id,
       titre: "PER Dirigeant Philippe Bernard",
-      etape: "DEVIS_ENVOYE",
+      etape: "RECOMMANDATION",
       montantEstime: 600,
       probabilite: 70,
       produitsCibles: JSON.stringify(["PER"]),
       dateClosingPrev: new Date("2026-03-31"),
       assigneA: user2.id,
-      notes: "Devis Generali envoyé le 01/03. Relancer semaine prochaine.",
+      notes: "Proposition envoyée le 01/03. Relancer semaine prochaine.",
     },
   });
 
@@ -616,12 +676,13 @@ async function main() {
     data: {
       clientId: client2.id,
       titre: "Protection Juridique Tech Solutions",
-      etape: "RDV_PRIS",
+      etape: "QUALIFICATION",
       montantEstime: 200,
       probabilite: 40,
       produitsCibles: JSON.stringify(["PROTECTION_JURIDIQUE"]),
       dateClosingPrev: new Date("2026-05-01"),
       assigneA: user1.id,
+      sourceProspect: "LINKEDIN",
     },
   });
 
@@ -629,12 +690,14 @@ async function main() {
     data: {
       clientId: client1.id,
       titre: "PER Madelin Jean Dupont",
-      etape: "NEGOCE",
+      etape: "RECOMMANDATION",
       montantEstime: 450,
       probabilite: 80,
       produitsCibles: JSON.stringify(["PER"]),
       dateClosingPrev: new Date("2026-03-20"),
       assigneA: user1.id,
+      prescripteurId: prescripteur1.id,
+      sourceProspect: "EXPERT_COMPTABLE",
       notes: "Négociation sur les frais d'entrée. Le client hésite entre Generali et SwissLife.",
     },
   });
@@ -689,7 +752,7 @@ async function main() {
     prisma.tache.create({
       data: {
         clientId: client1.id,
-        titre: "Finaliser négociation PER Dupont",
+        titre: "Finaliser proposition PER Dupont",
         type: "SIGNATURE",
         priorite: "haute",
         dateEcheance: addDays(today, 3),
@@ -719,9 +782,11 @@ async function main() {
   ]);
 
   console.log("Seed completed successfully!");
-  console.log(`- ${2} users`);
+  console.log(`- 2 users`);
   console.log(`- ${compagnies.length} compagnies`);
+  console.log(`- 2 prescripteurs`);
   console.log(`- 5 clients`);
+  console.log(`- 2 dirigeants`);
   console.log(`- ${contrats.length} contrats`);
   console.log(`- ${contrats.length * 2} commissions`);
   console.log(`- 4 deals`);
