@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cabinet JDHM - Protection sociale & patrimoine des dirigeants",
+  title: "GargarineV1 - Protection sociale & patrimoine des dirigeants",
   description: "Cabinet de conseil en protection sociale et strategie patrimoniale des dirigeants",
 };
 

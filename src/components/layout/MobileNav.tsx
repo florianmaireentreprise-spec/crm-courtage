@@ -54,7 +54,7 @@ export function MobileNav() {
         <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground">
           <div className="flex h-16 items-center px-4 border-b border-sidebar-border">
             <div className="flex flex-col">
-              <span className="font-semibold text-sm">Cabinet JDHM</span>
+              <span className="font-semibold text-sm">GargarineV1</span>
               <span className="text-[10px] text-sidebar-foreground/60">Protection sociale & patrimoine</span>
             </div>
           </div>

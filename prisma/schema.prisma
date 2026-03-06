@@ -270,6 +270,17 @@ model Objectif {
   dateMaj      DateTime @updatedAt
 }
 
+model ReseauObjectif {
+  id                  String   @id @default(cuid())
+  categorie           String   @unique // correspond a CATEGORIES_RESEAU id
+  contactsObjectif    Int      @default(0)
+  tauxConversionObj   Float    @default(0) // % objectif
+  potentielUnitaire   Float    @default(0) // CA moyen par client converti
+  notes               String?
+  dateCreation        DateTime @default(now())
+  dateMaj             DateTime @updatedAt
+}
+
 model GmailConnection {
   id           String   @id @default(cuid())
   userId       String   @unique

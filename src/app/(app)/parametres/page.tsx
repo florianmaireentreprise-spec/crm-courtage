@@ -56,7 +56,7 @@ export default async function ParametresPage() {
           <CardTitle className="text-base">Informations Cabinet</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <p><span className="text-muted-foreground">Raison sociale :</span> Cabinet JDHM</p>
+          <p><span className="text-muted-foreground">Raison sociale :</span> GargarineV1</p>
           <p><span className="text-muted-foreground">Forme juridique :</span> SARL</p>
           <p><span className="text-muted-foreground">Gérants :</span> Florian MAIRE & Jérémy DELCOURT</p>
           <p><span className="text-muted-foreground">Zone :</span> Grand Est, France</p>

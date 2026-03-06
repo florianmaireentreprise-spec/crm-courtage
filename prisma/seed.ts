@@ -18,7 +18,7 @@ async function main() {
   // --- Users ---
   const user1 = await prisma.user.create({
     data: {
-      email: "florian@cabinet-jdhm.fr",
+      email: "florian@gargarine.fr",
       password: hashSync("admin123", 10),
       prenom: "Florian",
       nom: "Maire",
@@ -28,7 +28,7 @@ async function main() {
 
   const user2 = await prisma.user.create({
     data: {
-      email: "associe@cabinet-jdhm.fr",
+      email: "associe@gargarine.fr",
       password: hashSync("admin123", 10),
       prenom: "Thomas",
       nom: "Durand",

@@ -85,7 +85,7 @@ export function buildAnalysisPrompt(
     }
   }
 
-  return `Tu es un assistant CRM pour le Cabinet JDHM, courtier en assurances pour TPE/PME.
+  return `Tu es un assistant CRM pour GargarineV1, courtier en assurances pour TPE/PME.
 
 Analyse cet email ${direction === "sortant" ? "ENVOYÉ PAR le cabinet" : "REÇU PAR le cabinet"} et réponds UNIQUEMENT en JSON valide avec cette structure exacte :
 {

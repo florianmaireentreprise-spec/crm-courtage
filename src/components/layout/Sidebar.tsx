@@ -46,7 +46,7 @@ export function Sidebar() {
             <BarChart3 className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm leading-tight">Cabinet JDHM</span>
+            <span className="font-semibold text-sm leading-tight">GargarineV1</span>
             <span className="text-[10px] text-sidebar-foreground/60 leading-tight">Protection sociale & patrimoine</span>
           </div>
         </Link>
