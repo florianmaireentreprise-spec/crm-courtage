@@ -342,6 +342,59 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Veille concurrentielle</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="courtierActuel">Courtier actuel</Label>
+            <Input
+              id="courtierActuel"
+              name="courtierActuel"
+              defaultValue={client?.courtierActuel ?? ""}
+              placeholder="Nom du courtier concurrent"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="assureurActuelSante">Assureur actuel sante</Label>
+            <Input
+              id="assureurActuelSante"
+              name="assureurActuelSante"
+              defaultValue={client?.assureurActuelSante ?? ""}
+              placeholder="AXA, Malakoff, Harmonie..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dateDerniereRevision">Date derniere revision</Label>
+            <Input
+              id="dateDerniereRevision"
+              name="dateDerniereRevision"
+              type="date"
+              defaultValue={
+                client?.dateDerniereRevision
+                  ? new Date(client.dateDerniereRevision).toISOString().split("T")[0]
+                  : ""
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="motifChangement">Motif de changement</Label>
+            <Select name="motifChangement" defaultValue={client?.motifChangement ?? ""}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selectionner..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prix">Prix</SelectItem>
+                <SelectItem value="service">Service</SelectItem>
+                <SelectItem value="couverture">Couverture</SelectItem>
+                <SelectItem value="conseil">Conseil</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex gap-3">
         <Button type="submit">
           {client ? "Mettre a jour" : "Creer le client"}

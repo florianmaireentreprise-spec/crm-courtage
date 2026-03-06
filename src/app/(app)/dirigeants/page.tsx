@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, UserCheck, Building2, Shield, PiggyBank, Pencil } from "lucide-react";
 import { STATUTS_DIRIGEANT } from "@/lib/constants";
+import { calculerCouverture360, getCouvertureColor } from "@/lib/couverture360";
 
 export default async function DirigeantsPage() {
   const dirigeants = await prisma.dirigeant.findMany({
@@ -15,6 +16,7 @@ export default async function DirigeantsPage() {
           raisonSociale: true,
           statut: true,
           nbSalaries: true,
+          contrats: { select: { typeProduit: true, statut: true } },
         },
       },
     },
@@ -79,6 +81,8 @@ export default async function DirigeantsPage() {
         <div className="space-y-2">
           {dirigeants.map((d) => {
             const statutLabel = STATUTS_DIRIGEANT.find((s) => s.id === d.statutProfessionnel)?.label;
+            const couverture = calculerCouverture360(d.client.contrats);
+            const couvertureColor = getCouvertureColor(couverture.score);
             return (
               <Card key={d.id} className="hover:bg-muted/30 transition-colors">
                 <CardContent className="py-3">
@@ -99,12 +103,12 @@ export default async function DirigeantsPage() {
                           <Building2 className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">{d.client.raisonSociale}</span>
                         </div>
-                        {d.protectionActuelle && (
-                          <div className="flex items-center gap-1">
-                            <Shield className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">{d.protectionActuelle}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1">
+                          <Shield className="h-3 w-3" style={{ color: couvertureColor }} />
+                          <span className="text-xs font-medium" style={{ color: couvertureColor }}>
+                            360° : {couverture.couverts.length}/6 ({couverture.score}%)
+                          </span>
+                        </div>
                         {d.montantEpargne != null && d.montantEpargne > 0 && (
                           <div className="flex items-center gap-1">
                             <PiggyBank className="h-3 w-3 text-muted-foreground" />
@@ -116,9 +120,13 @@ export default async function DirigeantsPage() {
                       </div>
                     </Link>
                     <div className="flex items-center gap-2">
-                      {!d.dateAuditDirigeant && (
+                      {couverture.score < 100 ? (
                         <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">
                           Audit a faire
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">
+                          Couvert
                         </Badge>
                       )}
                       <Link href={`/dirigeants/${d.id}/modifier`}>

@@ -4,9 +4,18 @@ import { useState } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { KanbanColumn } from "./KanbanColumn";
 import { DealForm } from "./DealForm";
-import { moveDeal } from "@/app/(app)/pipeline/actions";
+import { moveDeal, createContractsFromDeal } from "@/app/(app)/pipeline/actions";
 import type { PipelineColumn } from "@/types";
+import { TYPES_PRODUITS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +39,19 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [lossDialog, setLossDialog] = useState<{ dealId: string; targetEtape: string } | null>(null);
   const [motifPerte, setMotifPerte] = useState("");
+  const [signatureDialog, setSignatureDialog] = useState<{ dealId: string; products: string[] } | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [creatingContracts, setCreatingContracts] = useState(false);
+
+  function getDealProducts(dealId: string): string[] {
+    for (const col of columns) {
+      const deal = col.deals.find((d) => d.id === dealId);
+      if (deal?.produitsCibles) {
+        try { return JSON.parse(deal.produitsCibles); } catch { return deal.produitsCibles.split(",").map((s) => s.trim()).filter(Boolean); }
+      }
+    }
+    return [];
+  }
 
   async function onDragEnd(result: DropResult) {
     const { draggableId, destination, source } = result;
@@ -42,6 +64,16 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
       return;
     }
 
+    if (newEtape === "SIGNATURE") {
+      const products = getDealProducts(draggableId);
+      await moveDeal(draggableId, newEtape);
+      if (products.length > 0) {
+        setSelectedProducts([...products]);
+        setSignatureDialog({ dealId: draggableId, products });
+      }
+      return;
+    }
+
     await moveDeal(draggableId, newEtape);
   }
 
@@ -50,6 +82,15 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
     await moveDeal(lossDialog.dealId, lossDialog.targetEtape, motifPerte || undefined);
     setLossDialog(null);
     setMotifPerte("");
+  }
+
+  async function handleCreateContracts() {
+    if (!signatureDialog || selectedProducts.length === 0) return;
+    setCreatingContracts(true);
+    await createContractsFromDeal(signatureDialog.dealId, selectedProducts);
+    setCreatingContracts(false);
+    setSignatureDialog(null);
+    setSelectedProducts([]);
   }
 
   const totalDeals = columns.reduce((sum, c) => sum + c.deals.length, 0);
@@ -115,6 +156,47 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
             </Button>
             <Button variant="destructive" onClick={handleLossConfirm}>
               Confirmer la perte
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!signatureDialog} onOpenChange={() => { setSignatureDialog(null); setSelectedProducts([]); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Creer les contrats</DialogTitle>
+            <DialogDescription>
+              L&apos;opportunite est signee. Voulez-vous creer les contrats associes ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {signatureDialog?.products.map((productId) => {
+              const config = TYPES_PRODUITS[productId as keyof typeof TYPES_PRODUITS];
+              return (
+                <div key={productId} className="flex items-center gap-3">
+                  <Checkbox
+                    id={`product-${productId}`}
+                    checked={selectedProducts.includes(productId)}
+                    onCheckedChange={(checked) => {
+                      setSelectedProducts((prev) =>
+                        checked ? [...prev, productId] : prev.filter((p) => p !== productId)
+                      );
+                    }}
+                  />
+                  <label htmlFor={`product-${productId}`} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config?.color }} />
+                    {config?.label ?? productId}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setSignatureDialog(null); setSelectedProducts([]); }}>
+              Passer
+            </Button>
+            <Button onClick={handleCreateContracts} disabled={selectedProducts.length === 0 || creatingContracts}>
+              {creatingContracts ? "Creation..." : `Creer ${selectedProducts.length} contrat(s)`}
             </Button>
           </DialogFooter>
         </DialogContent>

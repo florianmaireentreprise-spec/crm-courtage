@@ -73,6 +73,10 @@ export type DashboardKPIs = {
   nbTachesEnRetard: number;
   nbPrescripteurs: number;
   nbDirigeants: number;
+  panierMoyen: number;
+  tauxMultiEquipement: string;
+  contratsARenouveler30j: number;
+  totalPotentiel: number;
 };
 
 // For the pipeline kanban

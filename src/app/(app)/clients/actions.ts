@@ -42,6 +42,10 @@ export async function createClient(formData: FormData) {
       statut: data.statut,
       assigneA: data.assigneA || null,
       categorieReseau: data.categorieReseau || null,
+      courtierActuel: data.courtierActuel || null,
+      assureurActuelSante: data.assureurActuelSante || null,
+      dateDerniereRevision: data.dateDerniereRevision ? new Date(data.dateDerniereRevision) : null,
+      motifChangement: data.motifChangement || null,
     },
   });
 
@@ -87,6 +91,10 @@ export async function updateClient(id: string, formData: FormData) {
       statut: data.statut,
       assigneA: data.assigneA || null,
       categorieReseau: data.categorieReseau || null,
+      courtierActuel: data.courtierActuel || null,
+      assureurActuelSante: data.assureurActuelSante || null,
+      dateDerniereRevision: data.dateDerniereRevision ? new Date(data.dateDerniereRevision) : null,
+      motifChangement: data.motifChangement || null,
     },
   });
 

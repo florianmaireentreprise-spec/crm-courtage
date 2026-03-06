@@ -109,6 +109,7 @@ export const TYPES_TACHE = [
   { id: "DEV_CLIENT", label: "Developpement client" },
   { id: "ECHEANCE_CONTRAT", label: "Echeance contrat" },
   { id: "SUIVI_PRESCRIPTEUR", label: "Suivi prescripteur" },
+  { id: "FIDELISATION_CLIENT", label: "Fidelisation client" },
   { id: "AUTRE", label: "Autre" },
 ] as const;
 

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { STATUTS_CLIENT, TYPES_PRODUITS } from "@/lib/constants";
+import { STATUTS_CLIENT } from "@/lib/constants";
+import { calculerScoreProspect, getScoreColor } from "@/lib/scoring";
+import { calculerPotentielCA } from "@/lib/potentiel";
 
 export default async function ClientsPage({
   searchParams,
@@ -93,6 +95,8 @@ export default async function ClientsPage({
               <th className="text-left p-3 font-medium hidden lg:table-cell">Ville</th>
               <th className="text-center p-3 font-medium">Contrats</th>
               <th className="text-right p-3 font-medium hidden md:table-cell">CA récurrent</th>
+              <th className="text-center p-3 font-medium hidden lg:table-cell">Score</th>
+              <th className="text-right p-3 font-medium hidden lg:table-cell">Potentiel</th>
               <th className="text-center p-3 font-medium">Statut</th>
             </tr>
           </thead>
@@ -105,6 +109,9 @@ export default async function ClientsPage({
                 (sum, c) => sum + (c.commissionAnnuelle ?? 0),
                 0
               );
+              const score = calculerScoreProspect(client, client.contrats);
+              const scoreColor = getScoreColor(score);
+              const potentiel = calculerPotentielCA(client, client.contrats);
               return (
                 <tr key={client.id} className="border-b hover:bg-muted/30">
                   <td className="p-3">
@@ -127,6 +134,18 @@ export default async function ClientsPage({
                       maximumFractionDigits: 0,
                     }).format(caRecurrent)}
                   </td>
+                  <td className="p-3 text-center hidden lg:table-cell">
+                    <Badge variant="outline" style={{ borderColor: scoreColor, color: scoreColor }}>
+                      {score}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-right hidden lg:table-cell">
+                    {potentiel > 0 ? (
+                      <span className="text-sm text-emerald-600 font-medium">
+                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(potentiel)}
+                      </span>
+                    ) : "-"}
+                  </td>
                   <td className="p-3 text-center">
                     <Badge
                       variant="outline"
@@ -143,7 +162,7 @@ export default async function ClientsPage({
             })}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                <td colSpan={8} className="p-8 text-center text-muted-foreground">
                   Aucun client trouvé
                 </td>
               </tr>

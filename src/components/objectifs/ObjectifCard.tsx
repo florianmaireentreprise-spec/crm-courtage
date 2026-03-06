@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Trash2, Pencil } from "lucide-react";
 import { RadialBarChart, RadialBar, ResponsiveContainer } from "recharts";
 import { TYPES_OBJECTIF, PERIODES_OBJECTIF } from "@/lib/constants";
@@ -15,10 +14,33 @@ type Props = {
   objectif: Objectif;
   valeurActuelle: number;
   forecast: ForecastResult;
+  projectedPace: number;
   onEdit: (objectif: Objectif) => void;
 };
 
-export function ObjectifCard({ objectif, valeurActuelle, forecast, onEdit }: Props) {
+/**
+ * Determine progress bar color based on how actual compares to projected pace.
+ * - Green: on track (actual >= projected pace)
+ * - Orange: behind by up to 40% (actual < projected but >= 60% of projected)
+ * - Red: behind by more than 40% (actual < 60% of projected)
+ */
+function getProgressColor(valeurActuelle: number, projectedPace: number): string {
+  if (projectedPace <= 0) return "#10B981"; // no target pace yet, show green
+  const ratio = valeurActuelle / projectedPace;
+  if (ratio >= 1) return "#10B981"; // green — on track or ahead
+  if (ratio >= 0.6) return "#F59E0B"; // orange — behind by up to 40%
+  return "#EF4444"; // red — behind by more than 40%
+}
+
+function getProgressLabel(valeurActuelle: number, projectedPace: number): "on-track" | "warning" | "danger" {
+  if (projectedPace <= 0) return "on-track";
+  const ratio = valeurActuelle / projectedPace;
+  if (ratio >= 1) return "on-track";
+  if (ratio >= 0.6) return "warning";
+  return "danger";
+}
+
+export function ObjectifCard({ objectif, valeurActuelle, forecast, projectedPace, onEdit }: Props) {
   const typeConfig = TYPES_OBJECTIF.find((t) => t.id === objectif.type);
   const periodeConfig = PERIODES_OBJECTIF.find((p) => p.id === objectif.periode);
   const progressPct = Math.min(100, (valeurActuelle / objectif.valeurCible) * 100);
@@ -29,9 +51,17 @@ export function ObjectifCard({ objectif, valeurActuelle, forecast, onEdit }: Pro
       ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n)
       : new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
+  const barColor = forecast.atteint ? "#10B981" : getProgressColor(valeurActuelle, projectedPace);
+  const paceStatus = getProgressLabel(valeurActuelle, projectedPace);
+
   const gaugeData = [
-    { value: progressPct, fill: forecast.atteint ? "#10B981" : typeConfig?.color ?? "#3B82F6" },
+    { value: progressPct, fill: barColor },
   ];
+
+  // Build the pace tracking message
+  const paceMessage = forecast.atteint
+    ? null
+    : `Tu es a ${fmt(valeurActuelle)}, tu devrais etre a ${fmt(projectedPace)} pour atteindre l'objectif`;
 
   return (
     <Card>
@@ -79,13 +109,37 @@ export function ObjectifCard({ objectif, valeurActuelle, forecast, onEdit }: Pro
           <div className="flex-1 space-y-1">
             <p className="text-2xl font-bold">{fmt(valeurActuelle)}</p>
             <p className="text-xs text-muted-foreground">sur {fmt(objectif.valeurCible)}</p>
-            <p className="text-sm font-medium" style={{ color: typeConfig?.color }}>
+            <p className="text-sm font-medium" style={{ color: barColor }}>
               {progressPct.toFixed(0)}%
             </p>
           </div>
         </div>
 
-        <Progress value={progressPct} className="h-2" />
+        {/* Color-coded progress bar */}
+        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progressPct}%`,
+              backgroundColor: barColor,
+            }}
+          />
+        </div>
+
+        {/* Pace tracking message */}
+        {paceMessage && (
+          <p
+            className={`text-xs font-medium ${
+              paceStatus === "on-track"
+                ? "text-green-600 dark:text-green-400"
+                : paceStatus === "warning"
+                ? "text-orange-500 dark:text-orange-400"
+                : "text-red-500 dark:text-red-400"
+            }`}
+          >
+            {paceMessage}
+          </p>
+        )}
 
         <ForecastBadge forecast={forecast} />
       </CardContent>

@@ -7,6 +7,21 @@ import { TYPES_PRODUITS, STATUTS_CONTRAT } from "@/lib/constants";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
+function getRenewalAlert(daysToRenewal: number | null, statut: string) {
+  if (statut !== "actif" || daysToRenewal === null) return null;
+
+  if (daysToRenewal < 0) {
+    return { label: "En retard", className: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700" };
+  }
+  if (daysToRenewal < 30) {
+    return { label: "Renouvellement proche", className: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700" };
+  }
+  if (daysToRenewal < 60) {
+    return { label: "À préparer", className: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700" };
+  }
+  return { label: "OK", className: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700" };
+}
+
 export default async function ContratsPage() {
   const contrats = await prisma.contrat.findMany({
     include: { client: true, compagnie: true },
@@ -45,9 +60,11 @@ export default async function ContratsPage() {
               const daysToRenewal = contrat.dateEcheance
                 ? differenceInDays(contrat.dateEcheance, new Date())
                 : null;
+              const renewalAlert = getRenewalAlert(daysToRenewal, contrat.statut);
+              const isOverdue = contrat.statut === "actif" && daysToRenewal !== null && daysToRenewal < 0;
 
               return (
-                <tr key={contrat.id} className="border-b hover:bg-muted/30">
+                <tr key={contrat.id} className={`border-b hover:bg-muted/30 ${isOverdue ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
                   <td className="p-3">
                     <Link href={`/clients/${contrat.clientId}`} className="hover:underline">
                       {contrat.client.raisonSociale}
@@ -70,9 +87,16 @@ export default async function ContratsPage() {
                   </td>
                   <td className="p-3 text-center hidden lg:table-cell">
                     {contrat.dateEcheance ? (
-                      <span className={daysToRenewal !== null && daysToRenewal <= 30 ? "text-destructive font-medium" : ""}>
-                        {format(contrat.dateEcheance, "dd/MM/yyyy")}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-muted-foreground text-xs">
+                          {format(contrat.dateEcheance, "dd/MM/yyyy")}
+                        </span>
+                        {renewalAlert && (
+                          <Badge variant="outline" className={`text-xs ${renewalAlert.className}`}>
+                            {renewalAlert.label}
+                          </Badge>
+                        )}
+                      </div>
                     ) : (
                       "-"
                     )}

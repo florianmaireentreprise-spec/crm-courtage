@@ -57,6 +57,11 @@ model Client {
   noteEmails           String?
   // Reseau personnel
   categorieReseau      String?
+  // Veille concurrentielle
+  courtierActuel       String?
+  assureurActuelSante  String?
+  dateDerniereRevision DateTime?
+  motifChangement      String?   // prix, service, couverture, conseil
   // Relations
   contrats             Contrat[]
   deals                Deal[]

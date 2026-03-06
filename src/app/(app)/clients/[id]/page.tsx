@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar } from "lucide-react";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring";
+import { calculerPotentielCA } from "@/lib/potentiel";
 
 export default async function ClientDetailPage({
   params,
@@ -47,6 +49,9 @@ export default async function ClientDetailPage({
     .filter((c) => c.statut === "actif")
     .reduce((sum, c) => sum + (c.commissionAnnuelle ?? 0), 0);
   const categorieReseau = CATEGORIES_RESEAU.find((c) => c.id === client.categorieReseau);
+  const score = calculerScoreProspect(client, client.contrats);
+  const scoreColor = getScoreColor(score);
+  const potentiel = calculerPotentielCA(client, client.contrats);
 
   return (
     <div className="space-y-6">
@@ -106,6 +111,22 @@ export default async function ClientDetailPage({
             <p className="text-xs text-muted-foreground">Opportunites</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold" style={{ color: scoreColor }}>{score}</p>
+            <p className="text-xs text-muted-foreground">Score ({getScoreLabel(score)})</p>
+          </CardContent>
+        </Card>
+        {potentiel > 0 && (
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-2xl font-bold text-emerald-600">
+                {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(potentiel)}
+              </p>
+              <p className="text-xs text-muted-foreground">Potentiel CA</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -227,6 +248,43 @@ export default async function ClientDetailPage({
                 {!client.dirigeant.dateAuditDirigeant && (
                   <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">
                     Audit dirigeant a faire
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Veille concurrentielle */}
+          {(client.courtierActuel || client.assureurActuelSante || client.motifChangement) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Veille concurrentielle
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {client.courtierActuel && (
+                  <div>
+                    <span className="text-muted-foreground">Courtier actuel : </span>
+                    <span>{client.courtierActuel}</span>
+                  </div>
+                )}
+                {client.assureurActuelSante && (
+                  <div>
+                    <span className="text-muted-foreground">Assureur sante : </span>
+                    <span>{client.assureurActuelSante}</span>
+                  </div>
+                )}
+                {client.dateDerniereRevision && (
+                  <div>
+                    <span className="text-muted-foreground">Derniere revision : </span>
+                    <span>{format(client.dateDerniereRevision, "dd/MM/yyyy")}</span>
+                  </div>
+                )}
+                {client.motifChangement && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Motif : {client.motifChangement}
                   </Badge>
                 )}
               </CardContent>

@@ -30,6 +30,11 @@ export const clientSchema = z.object({
   statut: z.string().default("prospect"),
   assigneA: z.string().optional().nullable(),
   categorieReseau: z.string().optional().nullable(),
+  // Veille concurrentielle
+  courtierActuel: z.string().optional().nullable(),
+  assureurActuelSante: z.string().optional().nullable(),
+  dateDerniereRevision: z.string().optional().nullable(),
+  motifChangement: z.string().optional().nullable(),
 });
 
 export type ClientFormData = z.infer<typeof clientSchema>;
