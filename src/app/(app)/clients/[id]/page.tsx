@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare } from "lucide-react";
-import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES } from "@/lib/constants";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar } from "lucide-react";
+import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -35,6 +35,8 @@ export default async function ClientDetailPage({
         orderBy: { dateEnvoi: "desc" },
         take: 10,
       },
+      dirigeant: true,
+      prescripteur: true,
     },
   });
 
@@ -44,6 +46,7 @@ export default async function ClientDetailPage({
   const caRecurrent = client.contrats
     .filter((c) => c.statut === "actif")
     .reduce((sum, c) => sum + (c.commissionAnnuelle ?? 0), 0);
+  const categorieReseau = CATEGORIES_RESEAU.find((c) => c.id === client.categorieReseau);
 
   return (
     <div className="space-y-6">
@@ -57,10 +60,15 @@ export default async function ClientDetailPage({
             >
               {statutConfig?.label}
             </Badge>
+            {categorieReseau && (
+              <Badge variant="secondary" className="text-[10px]" style={{ backgroundColor: categorieReseau.color + "20", color: categorieReseau.color }}>
+                Reseau: {categorieReseau.label}
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground mt-1">
             {client.civilite} {client.prenom} {client.nom}
-            {client.formeJuridique && ` — ${client.formeJuridique}`}
+            {client.formeJuridique && ` \u2014 ${client.formeJuridique}`}
           </p>
         </div>
         <Link href={`/clients/${id}/modifier`}>
@@ -89,89 +97,168 @@ export default async function ClientDetailPage({
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold">{client.nbSalaries ?? "-"}</p>
-            <p className="text-xs text-muted-foreground">Salariés</p>
+            <p className="text-xs text-muted-foreground">Salaries</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold">{client.deals.length}</p>
-            <p className="text-xs text-muted-foreground">Opportunités</p>
+            <p className="text-xs text-muted-foreground">Opportunites</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base">Coordonnées</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {client.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <a href={`mailto:${client.email}`} className="hover:underline">{client.email}</a>
-              </div>
-            )}
-            {client.telephone && (
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <a href={`tel:${client.telephone}`} className="hover:underline">{client.telephone}</a>
-              </div>
-            )}
-            {client.adresse && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{client.adresse}, {client.codePostal} {client.ville}</span>
-              </div>
-            )}
-            {client.secteurActivite && (
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span>{client.secteurActivite}</span>
-              </div>
-            )}
-            {client.siret && (
-              <div className="text-muted-foreground">SIRET : {client.siret}</div>
-            )}
-            {client.sourceAcquisition && (
-              <div className="text-muted-foreground">Source : {client.sourceAcquisition}</div>
-            )}
-            {client.prescripteur && (
-              <div className="text-muted-foreground">Prescripteur : {client.prescripteur}</div>
-            )}
-            {client.derniereInteraction && (
-              <div className="text-muted-foreground">
-                Dernier contact : {format(client.derniereInteraction, "dd MMM yyyy", { locale: fr })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Notes IA */}
-        {client.noteEmails && (
-          <Card className="lg:col-span-1">
+        <div className="space-y-4">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Notes IA (emails)
-              </CardTitle>
+              <CardTitle className="text-base">Coordonnees</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground whitespace-pre-wrap space-y-1">
-                {client.noteEmails.split("\n").map((line, i) => (
-                  <p key={i} className="text-xs">{line}</p>
-                ))}
-              </div>
+            <CardContent className="space-y-3 text-sm">
+              {client.email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <a href={`mailto:${client.email}`} className="hover:underline">{client.email}</a>
+                </div>
+              )}
+              {client.telephone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <a href={`tel:${client.telephone}`} className="hover:underline">{client.telephone}</a>
+                </div>
+              )}
+              {client.adresse && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span>{client.adresse}, {client.codePostal} {client.ville}</span>
+                </div>
+              )}
+              {client.secteurActivite && (
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span>{client.secteurActivite}</span>
+                </div>
+              )}
+              {client.siret && (
+                <div className="text-muted-foreground">SIRET : {client.siret}</div>
+              )}
+              {client.conventionCollective && (
+                <div className="text-muted-foreground">CCN : {client.conventionCollective}</div>
+              )}
+              {client.sourceAcquisition && (
+                <div className="text-muted-foreground">Source : {client.sourceAcquisition}</div>
+              )}
+              {client.prescripteur && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Handshake className="h-3 w-3" />
+                  <Link href={`/prescripteurs/${client.prescripteur.id}`} className="hover:underline">
+                    Prescripteur : {client.prescripteur.prenom} {client.prescripteur.nom}
+                  </Link>
+                </div>
+              )}
+              {client.derniereInteraction && (
+                <div className="text-muted-foreground">
+                  Dernier contact : {format(client.derniereInteraction, "dd MMM yyyy", { locale: fr })}
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+
+          {/* Couverture actuelle */}
+          {(client.mutuelleActuelle || client.prevoyanceActuelle) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Couverture actuelle
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {client.mutuelleActuelle && (
+                  <div>
+                    <span className="text-muted-foreground">Mutuelle : </span>
+                    <span>{client.mutuelleActuelle}</span>
+                    {client.dateEcheanceMutuelle && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (ech. {format(client.dateEcheanceMutuelle, "dd/MM/yyyy")})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {client.prevoyanceActuelle && (
+                  <div>
+                    <span className="text-muted-foreground">Prevoyance : </span>
+                    <span>{client.prevoyanceActuelle}</span>
+                    {client.dateEcheancePrevoyance && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (ech. {format(client.dateEcheancePrevoyance, "dd/MM/yyyy")})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dirigeant */}
+          {client.dirigeant && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Dirigeant
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="font-medium">
+                  {client.dirigeant.civilite} {client.dirigeant.prenom} {client.dirigeant.nom}
+                </p>
+                {client.dirigeant.statutProfessionnel && (
+                  <p className="text-muted-foreground">
+                    {STATUTS_DIRIGEANT.find((s) => s.id === client.dirigeant!.statutProfessionnel)?.label}
+                  </p>
+                )}
+                {client.dirigeant.protectionActuelle && (
+                  <p className="text-muted-foreground text-xs">{client.dirigeant.protectionActuelle}</p>
+                )}
+                {client.dirigeant.besoinsPatrimoniaux && (
+                  <p className="text-muted-foreground text-xs">Besoins : {client.dirigeant.besoinsPatrimoniaux}</p>
+                )}
+                {!client.dirigeant.dateAuditDirigeant && (
+                  <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">
+                    Audit dirigeant a faire
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Notes IA */}
+          {client.noteEmails && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Notes IA (emails)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap space-y-1">
+                  {client.noteEmails.split("\n").map((line, i) => (
+                    <p key={i} className="text-xs">{line}</p>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <div className="lg:col-span-2">
           <Tabs defaultValue="contrats">
             <TabsList>
               <TabsTrigger value="contrats">Contrats ({client.contrats.length})</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline ({client.deals.length})</TabsTrigger>
-              <TabsTrigger value="taches">Tâches ({client.taches.length})</TabsTrigger>
+              <TabsTrigger value="taches">Taches ({client.taches.length})</TabsTrigger>
               <TabsTrigger value="emails">Emails ({client.emails.length})</TabsTrigger>
             </TabsList>
 
@@ -195,8 +282,16 @@ export default async function ClientDetailPage({
                                 <span className="font-medium text-sm">{typeConfig?.label}</span>
                               </div>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {contrat.compagnie?.nom} — {contrat.nomProduit}
+                                {contrat.compagnie?.nom} \u2014 {contrat.nomProduit}
                               </p>
+                              {contrat.dateEcheance && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Echeance : {format(contrat.dateEcheance, "dd/MM/yyyy")}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="text-right">
                               <p className="font-medium text-sm">
@@ -218,7 +313,7 @@ export default async function ClientDetailPage({
 
             <TabsContent value="pipeline" className="mt-4">
               {client.deals.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">Aucune opportunité</p>
+                <p className="text-sm text-muted-foreground p-4">Aucune opportunite</p>
               ) : (
                 <div className="space-y-2">
                   {client.deals.map((deal) => {
@@ -251,7 +346,7 @@ export default async function ClientDetailPage({
 
             <TabsContent value="taches" className="mt-4">
               {client.taches.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">Aucune tâche en cours</p>
+                <p className="text-sm text-muted-foreground p-4">Aucune tache en cours</p>
               ) : (
                 <div className="space-y-2">
                   {client.taches.map((tache) => {
@@ -260,9 +355,14 @@ export default async function ClientDetailPage({
                       <Card key={tache.id}>
                         <CardContent className="py-3 flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{tache.titre}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{tache.titre}</p>
+                              {tache.autoGenerated && (
+                                <Badge variant="secondary" className="text-[10px]">Auto</Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Échéance : {format(tache.dateEcheance, "dd MMM yyyy", { locale: fr })}
+                              Echeance : {format(tache.dateEcheance, "dd MMM yyyy", { locale: fr })}
                             </p>
                           </div>
                           <Badge
@@ -281,7 +381,7 @@ export default async function ClientDetailPage({
 
             <TabsContent value="emails" className="mt-4">
               {client.emails.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">Aucun email lié à ce client</p>
+                <p className="text-sm text-muted-foreground p-4">Aucun email lie a ce client</p>
               ) : (
                 <div className="space-y-2">
                   {client.emails.map((email) => (
@@ -298,7 +398,7 @@ export default async function ClientDetailPage({
                               <p className="font-medium text-sm truncate">{email.sujet}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 truncate">
-                              {email.direction === "sortant" ? "→ " : ""}{email.expediteur}
+                              {email.direction === "sortant" ? "\u2192 " : ""}{email.expediteur}
                             </p>
                             {email.resume && (
                               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.resume}</p>
@@ -309,7 +409,7 @@ export default async function ClientDetailPage({
                               {format(email.dateEnvoi, "dd MMM", { locale: fr })}
                             </span>
                             {email.analyseStatut === "analyse" && (
-                              <Badge variant="secondary" className="text-[10px]">Analysé</Badge>
+                              <Badge variant="secondary" className="text-[10px]">Analyse</Badge>
                             )}
                           </div>
                         </div>

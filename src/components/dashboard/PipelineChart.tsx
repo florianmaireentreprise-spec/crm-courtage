@@ -21,7 +21,7 @@ type DealsByEtape = {
 
 export function PipelineChart({ data }: { data: DealsByEtape }) {
   const chartData = ETAPES_PIPELINE
-    .filter((e) => e.id !== "SIGNE" && e.id !== "PERDU")
+    .filter((e) => !["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"].includes(e.id))
     .map((etape) => {
       const found = data.find((d) => d.etape === etape.id);
       return {

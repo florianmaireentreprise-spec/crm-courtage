@@ -16,16 +16,18 @@ import {
   SOURCES_ACQUISITION,
   FORMES_JURIDIQUES,
   STATUTS_CLIENT,
+  CATEGORIES_RESEAU,
 } from "@/lib/constants";
 import type { Client, User } from "@prisma/client";
 
 type Props = {
   client?: Client;
   users: Pick<User, "id" | "prenom" | "nom">[];
+  prescripteurs?: { id: string; prenom: string; nom: string; entreprise: string | null }[];
   action: (formData: FormData) => Promise<{ error?: Record<string, string[]> } | void>;
 };
 
-export function ClientForm({ client, users, action }: Props) {
+export function ClientForm({ client, users, prescripteurs, action }: Props) {
   return (
     <form action={action} className="space-y-6">
       <Card>
@@ -50,7 +52,7 @@ export function ClientForm({ client, users, action }: Props) {
             <Label htmlFor="formeJuridique">Forme juridique</Label>
             <Select name="formeJuridique" defaultValue={client?.formeJuridique ?? ""}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner..." />
+                <SelectValue placeholder="Selectionner..." />
               </SelectTrigger>
               <SelectContent>
                 {FORMES_JURIDIQUES.map((f) => (
@@ -62,7 +64,7 @@ export function ClientForm({ client, users, action }: Props) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="secteurActivite">Secteur d&apos;activité</Label>
+            <Label htmlFor="secteurActivite">Secteur d&apos;activite</Label>
             <Input
               id="secteurActivite"
               name="secteurActivite"
@@ -70,7 +72,7 @@ export function ClientForm({ client, users, action }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="nbSalaries">Nb salariés</Label>
+            <Label htmlFor="nbSalaries">Nb salaries</Label>
             <Input
               id="nbSalaries"
               name="nbSalaries"
@@ -79,7 +81,7 @@ export function ClientForm({ client, users, action }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="chiffreAffaires">CA annuel estimé</Label>
+            <Label htmlFor="chiffreAffaires">CA annuel estime</Label>
             <Input
               id="chiffreAffaires"
               name="chiffreAffaires"
@@ -100,14 +102,66 @@ export function ClientForm({ client, users, action }: Props) {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Couverture actuelle (Qualification)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="mutuelleActuelle">Mutuelle actuelle</Label>
+            <Input
+              id="mutuelleActuelle"
+              name="mutuelleActuelle"
+              defaultValue={client?.mutuelleActuelle ?? ""}
+              placeholder="Assureur, formule..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prevoyanceActuelle">Prevoyance actuelle</Label>
+            <Input
+              id="prevoyanceActuelle"
+              name="prevoyanceActuelle"
+              defaultValue={client?.prevoyanceActuelle ?? ""}
+              placeholder="Assureur, garanties..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dateEcheanceMutuelle">Date echeance mutuelle</Label>
+            <Input
+              id="dateEcheanceMutuelle"
+              name="dateEcheanceMutuelle"
+              type="date"
+              defaultValue={
+                client?.dateEcheanceMutuelle
+                  ? new Date(client.dateEcheanceMutuelle).toISOString().split("T")[0]
+                  : ""
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dateEcheancePrevoyance">Date echeance prevoyance</Label>
+            <Input
+              id="dateEcheancePrevoyance"
+              name="dateEcheancePrevoyance"
+              type="date"
+              defaultValue={
+                client?.dateEcheancePrevoyance
+                  ? new Date(client.dateEcheancePrevoyance).toISOString().split("T")[0]
+                  : ""
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Dirigeant / Contact principal</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="civilite">Civilité</Label>
+            <Label htmlFor="civilite">Civilite</Label>
             <Select name="civilite" defaultValue={client?.civilite ?? ""}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner..." />
+                <SelectValue placeholder="Selectionner..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="M.">M.</SelectItem>
@@ -117,7 +171,7 @@ export function ClientForm({ client, users, action }: Props) {
           </div>
           <div />
           <div className="space-y-2">
-            <Label htmlFor="prenom">Prénom *</Label>
+            <Label htmlFor="prenom">Prenom *</Label>
             <Input
               id="prenom"
               name="prenom"
@@ -144,7 +198,7 @@ export function ClientForm({ client, users, action }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="telephone">Téléphone</Label>
+            <Label htmlFor="telephone">Telephone</Label>
             <Input
               id="telephone"
               name="telephone"
@@ -193,7 +247,7 @@ export function ClientForm({ client, users, action }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Métadonnées</CardTitle>
+          <CardTitle className="text-base">Metadonnees</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -218,7 +272,7 @@ export function ClientForm({ client, users, action }: Props) {
               defaultValue={client?.sourceAcquisition ?? ""}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner..." />
+                <SelectValue placeholder="Selectionner..." />
               </SelectTrigger>
               <SelectContent>
                 {SOURCES_ACQUISITION.map((s) => (
@@ -229,19 +283,43 @@ export function ClientForm({ client, users, action }: Props) {
               </SelectContent>
             </Select>
           </div>
+          {prescripteurs && prescripteurs.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="prescripteurId">Prescripteur</Label>
+              <Select name="prescripteurId" defaultValue={client?.prescripteurId ?? ""}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucun prescripteur" />
+                </SelectTrigger>
+                <SelectContent>
+                  {prescripteurs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.prenom} {p.nom}{p.entreprise ? ` (${p.entreprise})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
-            <Label htmlFor="prescripteur">Prescripteur</Label>
-            <Input
-              id="prescripteur"
-              name="prescripteur"
-              defaultValue={client?.prescripteur ?? ""}
-            />
+            <Label htmlFor="categorieReseau">Categorie reseau personnel</Label>
+            <Select name="categorieReseau" defaultValue={client?.categorieReseau ?? ""}>
+              <SelectTrigger>
+                <SelectValue placeholder="Hors reseau" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES_RESEAU.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="assigneA">Assigné à</Label>
+            <Label htmlFor="assigneA">Assigne a</Label>
             <Select name="assigneA" defaultValue={client?.assigneA ?? ""}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner..." />
+                <SelectValue placeholder="Selectionner..." />
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
@@ -266,7 +344,7 @@ export function ClientForm({ client, users, action }: Props) {
 
       <div className="flex gap-3">
         <Button type="submit">
-          {client ? "Mettre à jour" : "Créer le client"}
+          {client ? "Mettre a jour" : "Creer le client"}
         </Button>
       </div>
     </form>

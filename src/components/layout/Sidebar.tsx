@@ -14,19 +14,25 @@ import {
   Settings,
   TrendingUp,
   Mail,
+  UserCheck,
+  Handshake,
+  Network,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Clients", href: "/clients", icon: Users },
-  { name: "Contrats", href: "/contrats", icon: FileText },
   { name: "Pipeline", href: "/pipeline", icon: Target },
+  { name: "Clients", href: "/clients", icon: Users },
+  { name: "Dirigeants", href: "/dirigeants", icon: UserCheck },
+  { name: "Prescripteurs", href: "/prescripteurs", icon: Handshake },
+  { name: "Reseau", href: "/reseau", icon: Network },
+  { name: "Contrats", href: "/contrats", icon: FileText },
   { name: "Commissions", href: "/commissions", icon: Coins },
   { name: "Relances", href: "/relances", icon: Clock },
   { name: "Objectifs", href: "/objectifs", icon: TrendingUp },
   { name: "Emails", href: "/emails", icon: Mail },
   { name: "Compagnies", href: "/compagnies", icon: Building2 },
-  { name: "Paramètres", href: "/parametres", icon: Settings },
+  { name: "Parametres", href: "/parametres", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -34,15 +40,18 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sidebar text-sidebar-foreground">
-      <div className="flex h-16 items-center px-6 border-b border-sidebar-border">
+      <div className="flex h-16 items-center px-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary flex-shrink-0">
             <BarChart3 className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
-          <span className="font-semibold text-lg">CRM Courtage</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-sm leading-tight">Cabinet JDHM</span>
+            <span className="text-[10px] text-sidebar-foreground/60 leading-tight">Protection sociale & patrimoine</span>
+          </div>
         </Link>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navigation.map((item) => {
           const isActive =
             item.href === "/"

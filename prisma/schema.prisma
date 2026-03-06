@@ -27,6 +27,11 @@ model Client {
   nbSalaries           Int?
   chiffreAffaires      Float?
   conventionCollective String?
+  // Couverture actuelle (qualification)
+  mutuelleActuelle     String?
+  prevoyanceActuelle   String?
+  dateEcheanceMutuelle DateTime?
+  dateEcheancePrevoyance DateTime?
   // Dirigeant / contact principal
   civilite             String?
   prenom               String
@@ -37,9 +42,10 @@ model Client {
   codePostal           String?
   ville                String?
   dateNaissance        DateTime?
-  // Métadonnées
+  // Metadonnees
   sourceAcquisition    String?
-  prescripteur         String?
+  prescripteurId       String?
+  prescripteur         Prescripteur? @relation(fields: [prescripteurId], references: [id], onDelete: SetNull)
   notes                String?
   statut               String   @default("prospect")
   dateCreation         DateTime @default(now())
@@ -48,11 +54,73 @@ model Client {
   // Enrichissement email
   derniereInteraction  DateTime?
   noteEmails           String?
+  // Reseau personnel
+  categorieReseau      String?
   // Relations
   contrats             Contrat[]
   deals                Deal[]
   taches               Tache[]
   emails               Email[]
+  dirigeant            Dirigeant?
+}
+
+model Dirigeant {
+  id                  String    @id @default(cuid())
+  clientId            String    @unique
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Identite
+  civilite            String?
+  prenom              String
+  nom                 String
+  email               String?
+  telephone           String?
+  dateNaissance       DateTime?
+  // Statut
+  statutProfessionnel String?   // TNS / assimile_salarie
+  // Protection actuelle
+  mutuellePerso       String?
+  prevoyancePerso     String?
+  protectionActuelle  String?   // description libre
+  // Retraite & Epargne
+  regimeRetraite      String?
+  complementaireRetraite String?
+  epargneActuelle     String?
+  montantEpargne      Float?
+  // Besoins
+  besoinsPatrimoniaux String?
+  objectifsRetraite   String?
+  // Suivi
+  dateAuditDirigeant  DateTime?
+  notes               String?
+  dateCreation        DateTime  @default(now())
+  dateMaj             DateTime  @updatedAt
+}
+
+model Prescripteur {
+  id                  String    @id @default(cuid())
+  // Identite
+  type                String    // expert_comptable / avocat / partenaire / client_prescripteur
+  civilite            String?
+  prenom              String
+  nom                 String
+  entreprise          String?
+  email               String?
+  telephone           String?
+  adresse             String?
+  ville               String?
+  // Performance
+  dossiersEnvoyes     Int       @default(0)
+  clientsSignes       Int       @default(0)
+  commissionsGenerees Float     @default(0)
+  // Suivi
+  derniereRecommandation DateTime?
+  notes               String?
+  statut              String    @default("actif")
+  dateCreation        DateTime  @default(now())
+  dateMaj             DateTime  @updatedAt
+  // Relations
+  clients             Client[]
+  deals               Deal[]
 }
 
 model Contrat {
@@ -76,7 +144,8 @@ model Contrat {
   dateEffet          DateTime
   dateEcheance       DateTime?
   dateResiliation    DateTime?
-  // Détails collectif
+  dateRenouvellement DateTime?
+  // Details collectif
   nbBeneficiaires    Int?
   cotisationUnitaire Float?
   // Statut
@@ -95,7 +164,7 @@ model Compagnie {
   contactNom         String?
   contactEmail       String?
   contactTelephone   String?
-  // Conditions négociées
+  // Conditions negociees
   conventionSignee   Boolean   @default(false)
   dateConvention     DateTime?
   seuilSurcommission Int?
@@ -109,24 +178,45 @@ model Compagnie {
 }
 
 model Deal {
-  id              String    @id @default(cuid())
-  clientId        String
-  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id                    String       @id @default(cuid())
+  clientId              String
+  client                Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Pipeline
-  titre           String
-  etape           String    @default("PROSPECTION")
-  montantEstime   Float?
-  probabilite     Int?
-  produitsCibles  String?
+  titre                 String
+  etape                 String       @default("PROSPECT_IDENTIFIE")
+  montantEstime         Float?
+  probabilite           Int?
+  produitsCibles        String?
+  // Source prospect
+  sourceProspect        String?      // reseau_personnel / prescripteur / recommandation / prospection
+  prescripteurId        String?
+  prescripteur          Prescripteur? @relation(fields: [prescripteurId], references: [id], onDelete: SetNull)
+  // Qualification
+  qualificationNotes    String?
+  problematiqueDirigeant String?
+  // Audit
+  checklistAudit        String?      // JSON: {mutuelle: bool, prevoyance: bool, dirigeant: bool, retraite: bool}
+  rapportAudit          String?
+  syntheseClient        String?
+  // Recommandation
+  propositionCommerciale String?
+  comparatifAssureurs   String?
+  simulationCotisations String?
+  // Signature
+  assureurChoisi        String?
+  commissionsAttendues  Float?
+  documentsNotes        String?
   // Dates
-  dateCreation    DateTime  @default(now())
-  dateMaj         DateTime  @updatedAt
-  dateClosingPrev DateTime?
-  dateClosingReel DateTime?
+  dateCreation          DateTime     @default(now())
+  dateMaj               DateTime     @updatedAt
+  dateClosingPrev       DateTime?
+  dateClosingReel       DateTime?
+  dateSignature         DateTime?
+  dateOnboarding        DateTime?
   // Suivi
-  motifPerte      String?
-  notes           String?
-  assigneA        String?
+  motifPerte            String?
+  notes                 String?
+  assigneA              String?
 }
 
 model Commission {
@@ -160,6 +250,9 @@ model Tache {
   statut          String    @default("a_faire")
   assigneA        String?
   recurrence      String?
+  // Auto-generation
+  autoGenerated   Boolean   @default(false)
+  sourceAuto      String?   // echeance_contrat / revision_annuelle / relance_prospect / dev_client / onboarding
   dateCreation    DateTime  @default(now())
 }
 

@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, FileText, TrendingUp, Target, Clock, Euro } from "lucide-react";
+import { Users, FileText, TrendingUp, Target, Clock, Euro, UserCheck, Handshake } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 
 function formatCurrency(amount: number) {
@@ -13,7 +13,7 @@ function formatCurrency(amount: number) {
 const kpiConfig = [
   {
     key: "caRecurrentMensuel" as const,
-    label: "CA récurrent mensuel",
+    label: "CA recurrent mensuel",
     icon: Euro,
     format: formatCurrency,
     color: "text-emerald-600",
@@ -21,7 +21,7 @@ const kpiConfig = [
   },
   {
     key: "caRecurrentAnnuel" as const,
-    label: "CA récurrent annuel",
+    label: "CA recurrent annuel",
     icon: TrendingUp,
     format: formatCurrency,
     color: "text-blue-600",
@@ -53,17 +53,33 @@ const kpiConfig = [
   },
   {
     key: "nbTachesEnRetard" as const,
-    label: "Tâches en retard",
+    label: "Taches en retard",
     icon: Clock,
     format: (v: number) => v.toString(),
     color: "text-red-600",
     bg: "bg-red-50",
   },
+  {
+    key: "nbPrescripteurs" as const,
+    label: "Prescripteurs actifs",
+    icon: Handshake,
+    format: (v: number) => v.toString(),
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+  },
+  {
+    key: "nbDirigeants" as const,
+    label: "Dirigeants suivis",
+    icon: UserCheck,
+    format: (v: number) => v.toString(),
+    color: "text-pink-600",
+    bg: "bg-pink-50",
+  },
 ];
 
 export function KPICards({ kpis }: { kpis: DashboardKPIs }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
       {kpiConfig.map((config) => (
         <Card key={config.key}>
           <CardContent className="pt-4 pb-4">

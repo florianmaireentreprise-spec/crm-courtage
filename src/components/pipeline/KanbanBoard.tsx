@@ -23,9 +23,10 @@ type Props = {
   columns: PipelineColumn[];
   clients: { id: string; raisonSociale: string }[];
   users: { id: string; prenom: string; nom: string }[];
+  prescripteurs: { id: string; prenom: string; nom: string; entreprise: string | null }[];
 };
 
-export function KanbanBoard({ columns, clients, users }: Props) {
+export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [lossDialog, setLossDialog] = useState<{ dealId: string; targetEtape: string } | null>(null);
   const [motifPerte, setMotifPerte] = useState("");
@@ -51,20 +52,30 @@ export function KanbanBoard({ columns, clients, users }: Props) {
     setMotifPerte("");
   }
 
+  const totalDeals = columns.reduce((sum, c) => sum + c.deals.length, 0);
+  const totalMontant = columns
+    .filter((c) => !["PERDU"].includes(c.id))
+    .reduce((sum, c) => sum + c.deals.reduce((s, d) => s + (d.montantEstime ?? 0), 0), 0);
+
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">
-          {columns.reduce((sum, c) => sum + c.deals.length, 0)} opportunités
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-muted-foreground">
+            {totalDeals} opportunites
+          </p>
+          <p className="text-sm font-medium">
+            Pipeline : {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalMontant)}
+          </p>
+        </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nouvelle opportunité
+          Nouvelle opportunite
         </Button>
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
+        <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
           {columns.map((col) => (
             <KanbanColumn key={col.id} column={col} />
           ))}
@@ -77,6 +88,7 @@ export function KanbanBoard({ columns, clients, users }: Props) {
           onClose={() => setShowForm(false)}
           clients={clients}
           users={users}
+          prescripteurs={prescripteurs}
         />
       )}
 
@@ -85,7 +97,7 @@ export function KanbanBoard({ columns, clients, users }: Props) {
           <DialogHeader>
             <DialogTitle>Motif de perte</DialogTitle>
             <DialogDescription>
-              Pourquoi cette opportunité a-t-elle été perdue ?
+              Pourquoi cette opportunite a-t-elle ete perdue ?
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

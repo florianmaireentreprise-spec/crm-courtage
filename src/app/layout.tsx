@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CRM Courtage - Cabinet JDHM",
-  description: "CRM pour cabinet de courtage en assurances",
+  title: "Cabinet JDHM - Protection sociale & patrimoine des dirigeants",
+  description: "Cabinet de conseil en protection sociale et strategie patrimoniale des dirigeants",
 };
 
 export default function RootLayout({

@@ -17,6 +17,8 @@ async function getDashboardData() {
     dealsByEtape,
     renewals,
     tachesAujourdhui,
+    nbPrescripteurs,
+    nbDirigeants,
   ] = await Promise.all([
     prisma.client.count({ where: { statut: "client_actif" } }),
     prisma.contrat.count({ where: { statut: "actif" } }),
@@ -26,7 +28,7 @@ async function getDashboardData() {
     }),
     prisma.deal.aggregate({
       _sum: { montantEstime: true },
-      where: { etape: { notIn: ["SIGNE", "PERDU"] } },
+      where: { etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
     }),
     prisma.tache.count({
       where: {
@@ -44,7 +46,7 @@ async function getDashboardData() {
       by: ["etape"],
       _count: true,
       _sum: { montantEstime: true },
-      where: { etape: { notIn: ["SIGNE", "PERDU"] } },
+      where: { etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
     }),
     prisma.contrat.findMany({
       where: {
@@ -68,6 +70,8 @@ async function getDashboardData() {
       orderBy: [{ priorite: "asc" }, { dateEcheance: "asc" }],
       take: 10,
     }),
+    prisma.prescripteur.count({ where: { statut: "actif" } }),
+    prisma.dirigeant.count(),
   ]);
 
   const caGestion = commissionsGestion._sum.montant ?? 0;
@@ -80,6 +84,8 @@ async function getDashboardData() {
       nbContratsActifs: contratsActifs,
       pipelineEnCours: Math.round(dealsOuverts._sum.montantEstime ?? 0),
       nbTachesEnRetard: tachesEnRetard,
+      nbPrescripteurs,
+      nbDirigeants,
     },
     contratsByType,
     dealsByEtape,
@@ -93,7 +99,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Tableau de bord</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Cabinet de conseil en protection sociale et strategie patrimoniale des dirigeants</h1>
+        <p className="text-muted-foreground text-sm mt-1">Tableau de bord - Cabinet JDHM</p>
+      </div>
       <KPICards kpis={data.kpis} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RevenueChart data={data.contratsByType} />

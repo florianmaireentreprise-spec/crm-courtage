@@ -4,9 +4,9 @@ import { Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar } from "lucide-react";
+import { Trash2, Calendar, Users, Handshake } from "lucide-react";
 import { deleteDeal } from "@/app/(app)/pipeline/actions";
-import { TYPES_PRODUITS } from "@/lib/constants";
+import { TYPES_PRODUITS, SOURCES_PROSPECT } from "@/lib/constants";
 import type { DealWithClient } from "@/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,6 +17,8 @@ type Props = {
 };
 
 export function DealCard({ deal, index }: Props) {
+  const sourceLabel = SOURCES_PROSPECT.find((s) => s.id === deal.sourceProspect)?.label;
+
   return (
     <Draggable draggableId={deal.id} index={index}>
       {(provided, snapshot) => (
@@ -46,7 +48,17 @@ export function DealCard({ deal, index }: Props) {
                 </Button>
               </div>
 
-              <p className="text-xs text-muted-foreground">{deal.client.raisonSociale}</p>
+              <div className="flex items-center gap-1">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">{deal.client.raisonSociale}</p>
+              </div>
+
+              {sourceLabel && (
+                <div className="flex items-center gap-1">
+                  <Handshake className="h-3 w-3 text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground">{sourceLabel}</p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 {deal.montantEstime ? (

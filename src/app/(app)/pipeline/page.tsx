@@ -13,6 +13,7 @@ export default async function PipelinePage() {
     id: etape.id,
     label: etape.label,
     color: etape.color,
+    description: etape.description,
     deals: deals.filter((d) => d.etape === etape.id),
   }));
 
@@ -25,10 +26,16 @@ export default async function PipelinePage() {
     select: { id: true, prenom: true, nom: true },
   });
 
+  const prescripteurs = await prisma.prescripteur.findMany({
+    select: { id: true, prenom: true, nom: true, entreprise: true },
+    where: { statut: "actif" },
+    orderBy: { nom: "asc" },
+  });
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Pipeline commercial</h1>
-      <KanbanBoard columns={columns} clients={clients} users={users} />
+      <KanbanBoard columns={columns} clients={clients} users={users} prescripteurs={prescripteurs} />
     </div>
   );
 }

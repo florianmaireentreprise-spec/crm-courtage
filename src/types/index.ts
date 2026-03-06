@@ -6,10 +6,12 @@ import type {
   Commission,
   Tache,
   User,
+  Dirigeant,
+  Prescripteur,
 } from "@prisma/client";
 
 // Re-export Prisma types
-export type { Client, Contrat, Compagnie, Deal, Commission, Tache, User };
+export type { Client, Contrat, Compagnie, Deal, Commission, Tache, User, Dirigeant, Prescripteur };
 
 // Client with relations
 export type ClientWithContrats = Client & {
@@ -20,6 +22,8 @@ export type ClientWithRelations = Client & {
   contrats: (Contrat & { compagnie: Compagnie | null; commissions: Commission[] })[];
   deals: Deal[];
   taches: Tache[];
+  dirigeant: Dirigeant | null;
+  prescripteur: Prescripteur | null;
 };
 
 // Contrat with relations
@@ -32,6 +36,7 @@ export type ContratWithRelations = Contrat & {
 // Deal with client
 export type DealWithClient = Deal & {
   client: Client;
+  prescripteur?: Prescripteur | null;
 };
 
 // Commission with contrat and client
@@ -47,6 +52,17 @@ export type TacheWithClient = Tache & {
   client: Client | null;
 };
 
+// Dirigeant with client
+export type DirigeantWithClient = Dirigeant & {
+  client: Client;
+};
+
+// Prescripteur with relations
+export type PrescripteurWithRelations = Prescripteur & {
+  clients: Client[];
+  deals: Deal[];
+};
+
 // Dashboard KPIs
 export type DashboardKPIs = {
   caRecurrentMensuel: number;
@@ -55,6 +71,8 @@ export type DashboardKPIs = {
   nbContratsActifs: number;
   pipelineEnCours: number;
   nbTachesEnRetard: number;
+  nbPrescripteurs: number;
+  nbDirigeants: number;
 };
 
 // For the pipeline kanban
@@ -62,5 +80,6 @@ export type PipelineColumn = {
   id: string;
   label: string;
   color: string;
+  description?: string;
   deals: DealWithClient[];
 };

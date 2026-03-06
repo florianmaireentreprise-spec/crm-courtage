@@ -8,8 +8,14 @@ export const clientSchema = z.object({
   nbSalaries: z.coerce.number().int().min(0).optional().nullable(),
   chiffreAffaires: z.coerce.number().min(0).optional().nullable(),
   conventionCollective: z.string().optional().nullable(),
+  // Couverture actuelle
+  mutuelleActuelle: z.string().optional().nullable(),
+  prevoyanceActuelle: z.string().optional().nullable(),
+  dateEcheanceMutuelle: z.string().optional().nullable(),
+  dateEcheancePrevoyance: z.string().optional().nullable(),
+  // Dirigeant
   civilite: z.string().optional().nullable(),
-  prenom: z.string().min(1, "Le prénom est requis"),
+  prenom: z.string().min(1, "Le prenom est requis"),
   nom: z.string().min(1, "Le nom est requis"),
   email: z.string().email("Email invalide").optional().nullable().or(z.literal("")),
   telephone: z.string().optional().nullable(),
@@ -17,11 +23,13 @@ export const clientSchema = z.object({
   codePostal: z.string().optional().nullable(),
   ville: z.string().optional().nullable(),
   dateNaissance: z.string().optional().nullable(),
+  // Metadonnees
   sourceAcquisition: z.string().optional().nullable(),
-  prescripteur: z.string().optional().nullable(),
+  prescripteurId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   statut: z.string().default("prospect"),
   assigneA: z.string().optional().nullable(),
+  categorieReseau: z.string().optional().nullable(),
 });
 
 export type ClientFormData = z.infer<typeof clientSchema>;
