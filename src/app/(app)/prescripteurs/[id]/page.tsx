@@ -3,10 +3,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, MapPin, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Phone, MapPin, Building2, Pencil } from "lucide-react";
 import { TYPES_PRESCRIPTEUR, ETAPES_PIPELINE } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { DeletePrescripteurButton } from "@/components/prescripteurs/DeletePrescripteurButton";
+import { deletePrescripteur } from "../actions";
 
 export default async function PrescripteurDetailPage({
   params,
@@ -37,22 +40,35 @@ export default async function PrescripteurDetailPage({
     ? Math.round((prescripteur.clientsSignes / prescripteur.dossiersEnvoyes) * 100)
     : 0;
 
+  const deleteAction = deletePrescripteur.bind(null, prescripteur.id);
+
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">
-            {prescripteur.civilite} {prescripteur.prenom} {prescripteur.nom}
-          </h1>
-          {typeConfig && (
-            <Badge variant="outline" style={{ borderColor: typeConfig.color, color: typeConfig.color }}>
-              {typeConfig.label}
-            </Badge>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">
+              {prescripteur.civilite} {prescripteur.prenom} {prescripteur.nom}
+            </h1>
+            {typeConfig && (
+              <Badge variant="outline" style={{ borderColor: typeConfig.color, color: typeConfig.color }}>
+                {typeConfig.label}
+              </Badge>
+            )}
+          </div>
+          {prescripteur.entreprise && (
+            <p className="text-muted-foreground mt-1">{prescripteur.entreprise}</p>
           )}
         </div>
-        {prescripteur.entreprise && (
-          <p className="text-muted-foreground mt-1">{prescripteur.entreprise}</p>
-        )}
+        <div className="flex items-center gap-2">
+          <Link href={`/prescripteurs/${prescripteur.id}/modifier`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+          </Link>
+          <DeletePrescripteurButton action={deleteAction} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

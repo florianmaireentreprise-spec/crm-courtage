@@ -66,5 +66,52 @@ export async function createDirigeant(formData: FormData) {
   });
 
   revalidatePath("/dirigeants");
+  revalidatePath("/clients");
+  redirect("/dirigeants");
+}
+
+export async function updateDirigeant(id: string, formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  // For update, clientId is not required (can't change it)
+  const updateSchema = dirigeantSchema.omit({ clientId: true });
+  const parsed = updateSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const data = parsed.data;
+  await prisma.dirigeant.update({
+    where: { id },
+    data: {
+      civilite: data.civilite || null,
+      prenom: data.prenom,
+      nom: data.nom,
+      email: data.email || null,
+      telephone: data.telephone || null,
+      dateNaissance: data.dateNaissance ? new Date(data.dateNaissance) : null,
+      statutProfessionnel: data.statutProfessionnel || null,
+      mutuellePerso: data.mutuellePerso || null,
+      prevoyancePerso: data.prevoyancePerso || null,
+      protectionActuelle: data.protectionActuelle || null,
+      regimeRetraite: data.regimeRetraite || null,
+      complementaireRetraite: data.complementaireRetraite || null,
+      epargneActuelle: data.epargneActuelle || null,
+      montantEpargne: data.montantEpargne ?? null,
+      besoinsPatrimoniaux: data.besoinsPatrimoniaux || null,
+      objectifsRetraite: data.objectifsRetraite || null,
+      notes: data.notes || null,
+    },
+  });
+
+  revalidatePath("/dirigeants");
+  revalidatePath("/clients");
+  redirect("/dirigeants");
+}
+
+export async function deleteDirigeant(id: string) {
+  await prisma.dirigeant.delete({ where: { id } });
+  revalidatePath("/dirigeants");
+  revalidatePath("/clients");
   redirect("/dirigeants");
 }

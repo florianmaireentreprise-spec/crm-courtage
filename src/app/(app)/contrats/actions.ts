@@ -105,6 +105,69 @@ export async function createContrat(formData: FormData) {
   redirect(`/contrats/${contrat.id}`);
 }
 
+export async function updateContrat(id: string, formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = contratSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const data = parsed.data;
+  const commissionAnnuelle = data.primeAnnuelle * (data.tauxCommGestion ?? 0);
+
+  const oldContrat = await prisma.contrat.findUnique({ where: { id } });
+
+  await prisma.contrat.update({
+    where: { id },
+    data: {
+      clientId: data.clientId,
+      typeProduit: data.typeProduit,
+      compagnieId: data.compagnieId || null,
+      nomProduit: data.nomProduit || null,
+      numeroContrat: data.numeroContrat || null,
+      primeAnnuelle: data.primeAnnuelle,
+      tauxCommApport: data.tauxCommApport ?? null,
+      tauxCommGestion: data.tauxCommGestion ?? null,
+      commissionAnnuelle,
+      modeVersement: data.modeVersement || null,
+      frequenceVersement: data.frequenceVersement || null,
+      dateEffet: new Date(data.dateEffet),
+      dateEcheance: data.dateEcheance ? new Date(data.dateEcheance) : null,
+      nbBeneficiaires: data.nbBeneficiaires ?? null,
+      cotisationUnitaire: data.cotisationUnitaire ?? null,
+      statut: data.statut,
+      notes: data.notes || null,
+    },
+  });
+
+  // Update compagnie stats if compagnie changed
+  const compagnieIds = new Set<string>();
+  if (oldContrat?.compagnieId) compagnieIds.add(oldContrat.compagnieId);
+  if (data.compagnieId) compagnieIds.add(data.compagnieId);
+
+  for (const cId of compagnieIds) {
+    const stats = await prisma.contrat.aggregate({
+      where: { compagnieId: cId, statut: "actif" },
+      _count: true,
+      _sum: { primeAnnuelle: true },
+    });
+    await prisma.compagnie.update({
+      where: { id: cId },
+      data: {
+        nbContratsActifs: stats._count,
+        primesCumulees: stats._sum.primeAnnuelle ?? 0,
+      },
+    });
+  }
+
+  revalidatePath("/contrats");
+  revalidatePath("/clients");
+  revalidatePath("/commissions");
+  revalidatePath("/");
+  redirect(`/contrats/${id}`);
+}
+
 export async function deleteContrat(id: string) {
   const contrat = await prisma.contrat.findUnique({ where: { id } });
   await prisma.contrat.delete({ where: { id } });

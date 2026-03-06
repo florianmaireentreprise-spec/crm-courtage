@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Pencil } from "lucide-react";
 import { TYPES_PRODUITS, STATUTS_CONTRAT, TYPES_COMMISSION, STATUTS_COMMISSION } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -31,21 +33,29 @@ export default async function ContratDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: typeConfig?.color }} />
-          <h1 className="text-2xl font-bold">{typeConfig?.label}</h1>
-          <Badge variant="outline" style={{ borderColor: statutConfig?.color, color: statutConfig?.color }}>
-            {statutConfig?.label}
-          </Badge>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: typeConfig?.color }} />
+            <h1 className="text-2xl font-bold">{typeConfig?.label}</h1>
+            <Badge variant="outline" style={{ borderColor: statutConfig?.color, color: statutConfig?.color }}>
+              {statutConfig?.label}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground mt-1">
+            <Link href={`/clients/${contrat.clientId}`} className="hover:underline">
+              {contrat.client.raisonSociale}
+            </Link>
+            {contrat.compagnie && ` — ${contrat.compagnie.nom}`}
+            {contrat.nomProduit && ` — ${contrat.nomProduit}`}
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1">
-          <Link href={`/clients/${contrat.clientId}`} className="hover:underline">
-            {contrat.client.raisonSociale}
-          </Link>
-          {contrat.compagnie && ` — ${contrat.compagnie.nom}`}
-          {contrat.nomProduit && ` — ${contrat.nomProduit}`}
-        </p>
+        <Link href={`/contrats/${id}/modifier`}>
+          <Button variant="outline" size="sm">
+            <Pencil className="h-4 w-4 mr-2" />
+            Modifier
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
