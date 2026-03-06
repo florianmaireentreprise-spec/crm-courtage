@@ -49,11 +49,12 @@ export function RevenueChart({ data }: { data: ContratsByType }) {
                 fontSize={11}
               />
               <Tooltip
-                formatter={(value: number) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(value: any) =>
                   new Intl.NumberFormat("fr-FR", {
                     style: "currency",
                     currency: "EUR",
-                  }).format(value)
+                  }).format(value ?? 0)
                 }
               />
               <Bar dataKey="commission" fill="var(--color-chart-1)" radius={4} />

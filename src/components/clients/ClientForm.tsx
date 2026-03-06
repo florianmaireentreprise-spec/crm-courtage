@@ -29,7 +29,7 @@ type Props = {
 
 export function ClientForm({ client, users, prescripteurs, action }: Props) {
   return (
-    <form action={action} className="space-y-6">
+    <form action={async (formData) => { await action(formData); }} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Entreprise</CardTitle>

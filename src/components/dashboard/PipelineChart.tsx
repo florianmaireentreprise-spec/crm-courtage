@@ -45,13 +45,14 @@ export function PipelineChart({ data }: { data: DealsByEtape }) {
               <XAxis dataKey="name" fontSize={11} />
               <YAxis fontSize={12} />
               <Tooltip
-                formatter={(value: number, name: string) => [
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(value: any, name: any) => [
                   name === "montant"
                     ? new Intl.NumberFormat("fr-FR", {
                         style: "currency",
                         currency: "EUR",
-                      }).format(value)
-                    : value,
+                      }).format(value ?? 0)
+                    : (value ?? 0),
                   name === "montant" ? "Montant" : "Deals",
                 ]}
               />

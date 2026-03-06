@@ -43,11 +43,12 @@ export function ProductPieChart({ data }: { data: ContratsByType }) {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(value: any) =>
                   new Intl.NumberFormat("fr-FR", {
                     style: "currency",
                     currency: "EUR",
-                  }).format(value)
+                  }).format(value ?? 0)
                 }
               />
               <Legend fontSize={11} />
