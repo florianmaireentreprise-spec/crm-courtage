@@ -45,6 +45,9 @@ model Client {
   dateCreation         DateTime @default(now())
   dateMaj              DateTime @updatedAt
   assigneA             String?
+  // Enrichissement email
+  derniereInteraction  DateTime?
+  noteEmails           String?
   // Relations
   contrats             Contrat[]
   deals                Deal[]
@@ -194,6 +197,10 @@ model Email {
   destinataires   String
   dateEnvoi       DateTime
   extrait         String?
+  // Classification
+  direction       String    @default("entrant")
+  pertinence      String    @default("normal")
+  scoreRelevance  Int       @default(0)
   // Analyse IA
   resume          String?
   actionsItems    String?

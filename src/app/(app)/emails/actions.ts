@@ -5,33 +5,24 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage } from "@/lib/gmail";
-import { buildAnalysisPrompt, parseAIResponse } from "@/lib/ai";
+import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/ai";
 import { google } from "googleapis";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ── Patterns to exclude (newsletters, automated, noreply) ──
 const EXCLUDED_PATTERNS = [
-  /noreply@/i,
-  /no-reply@/i,
-  /ne-pas-repondre@/i,
-  /newsletter@/i,
-  /notification@/i,
-  /mailer-daemon@/i,
-  /postmaster@/i,
-  /unsubscribe/i,
-  /feedback@/i,
-  /marketing@/i,
-  /promo@?/i,
+  /noreply@/i, /no-reply@/i, /ne-pas-repondre@/i,
+  /newsletter@/i, /notification@/i, /mailer-daemon@/i,
+  /postmaster@/i, /unsubscribe/i, /marketing@/i, /promo@/i,
 ];
 
 const INSURANCE_KEYWORDS = [
   "contrat", "police", "sinistre", "devis", "cotisation", "prime",
   "résiliation", "avenant", "souscription", "adhésion", "garantie",
   "mutuelle", "prévoyance", "santé", "retraite", "assurance",
-  "courtage", "compagnie", "indemnisation", "déclaration",
-  "attestation", "carte verte", "tiers", "rcpro", "rcp",
-  "multirisque", "habitation", "auto", "flotte", "responsabilité",
-  "dommage", "protection juridique", "TNS", "madelin",
+  "courtage", "indemnisation", "déclaration", "attestation",
+  "rcpro", "multirisque", "protection juridique", "madelin",
+  "urgent", "important", "signature", "rdv", "rendez-vous",
 ];
 
 function extractEmailAddress(from: string): string {
@@ -40,38 +31,28 @@ function extractEmailAddress(from: string): string {
 }
 
 function isExcludedSender(from: string): boolean {
-  return EXCLUDED_PATTERNS.some((pattern) => pattern.test(from));
+  return EXCLUDED_PATTERNS.some((p) => p.test(from));
 }
 
-function computeRelevanceScore(
-  expediteur: string,
-  destinataires: string,
+function classifyPertinence(
+  hasClient: boolean,
   sujet: string,
-  extrait: string | null,
-  matchedClientId: string | null
-): number {
+  extrait: string | null
+): { pertinence: string; scoreRelevance: number } {
   let score = 0;
+  if (hasClient) score += 50;
 
-  // Matched with an existing client → very relevant
-  if (matchedClientId) score += 50;
+  const text = `${sujet} ${extrait ?? ""}`.toLowerCase();
+  if (INSURANCE_KEYWORDS.some((kw) => text.includes(kw))) score += 20;
 
-  // Insurance keywords in subject
-  const sujetLower = sujet.toLowerCase();
-  for (const kw of INSURANCE_KEYWORDS) {
-    if (sujetLower.includes(kw)) { score += 10; break; }
-  }
+  let pertinence = "normal";
+  if (hasClient) pertinence = "client";
+  else if (score >= 20) pertinence = "important";
 
-  // Insurance keywords in body
-  const extraitLower = (extrait ?? "").toLowerCase();
-  for (const kw of INSURANCE_KEYWORDS) {
-    if (extraitLower.includes(kw)) { score += 5; break; }
-  }
-
-  // Excluded sender → penalize heavily
-  if (isExcludedSender(expediteur)) score -= 40;
-
-  return Math.max(0, Math.min(100, score));
+  return { pertinence, scoreRelevance: Math.min(100, score) };
 }
+
+// ── Auth helpers ──
 
 export async function startGmailOAuth() {
   const session = await auth();
@@ -88,12 +69,8 @@ export async function startGmailOAuth() {
   redirect(authUrl);
 }
 
-async function getConnection(userId: string) {
-  return prisma.gmailConnection.findUnique({ where: { userId } });
-}
-
 async function buildAuthedClient(userId: string) {
-  const connection = await getConnection(userId);
+  const connection = await prisma.gmailConnection.findUnique({ where: { userId } });
   if (!connection) throw new Error("Gmail non connecté");
 
   const oauth2Client = buildOAuth2Client();
@@ -112,12 +89,11 @@ async function buildAuthedClient(userId: string) {
     await prisma.gmailConnection.update({ where: { userId }, data: updates });
   });
 
-  return oauth2Client;
+  return { oauth2Client, gmailEmail: connection.gmailEmail };
 }
 
 async function matchClientByEmail(emailAddress: string): Promise<string | null> {
   const addr = extractEmailAddress(emailAddress);
-  // Try direct email match
   const client = await prisma.client.findFirst({
     where: {
       OR: [
@@ -130,12 +106,14 @@ async function matchClientByEmail(emailAddress: string): Promise<string | null> 
   return client?.id ?? null;
 }
 
+// ── SYNC ──
+
 export async function syncEmails() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
 
   const userId = session.user.id;
-  const oauth2Client = await buildAuthedClient(userId);
+  const { oauth2Client, gmailEmail } = await buildAuthedClient(userId);
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
   const [inbox, sent] = await Promise.all([
@@ -150,6 +128,7 @@ export async function syncEmails() {
 
   let newCount = 0;
   let clientMatchCount = 0;
+  const newEmailIds: string[] = [];
 
   for (const msg of allMessages) {
     if (!msg.id) continue;
@@ -157,97 +136,255 @@ export async function syncEmails() {
     if (existing) continue;
 
     const full = await gmail.users.messages.get({
-      userId: "me",
-      id: msg.id,
-      format: "full",
+      userId: "me", id: msg.id, format: "full",
     });
 
     const parsed = parseGmailMessage(full.data);
 
-    // Skip excluded senders (noreply, newsletters, etc.)
     if (isExcludedSender(parsed.expediteur)) continue;
 
-    // Auto-match with existing clients
-    const clientId =
-      (await matchClientByEmail(parsed.expediteur)) ??
-      (await matchClientByEmail(parsed.destinataires));
+    // Determine direction
+    const senderAddr = extractEmailAddress(parsed.expediteur);
+    const myAddr = gmailEmail.toLowerCase();
+    const direction = senderAddr === myAddr ? "sortant" : "entrant";
+
+    // Match client
+    const clientId = direction === "sortant"
+      ? await matchClientByEmail(parsed.destinataires)
+      : await matchClientByEmail(parsed.expediteur);
 
     if (clientId) clientMatchCount++;
 
-    await prisma.email.create({
-      data: { ...parsed, userId, clientId },
+    // Classify pertinence
+    const { pertinence, scoreRelevance } = classifyPertinence(
+      !!clientId, parsed.sujet, parsed.extrait
+    );
+
+    const email = await prisma.email.create({
+      data: {
+        ...parsed,
+        userId,
+        clientId,
+        direction,
+        pertinence,
+        scoreRelevance,
+      },
     });
+
+    // Update client's last interaction date
+    if (clientId) {
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { derniereInteraction: parsed.dateEnvoi },
+      });
+    }
+
+    newEmailIds.push(email.id);
     newCount++;
   }
 
+  // Auto-process important/client emails
+  const autoProcessed = await autoProcessEmails(userId, newEmailIds);
+
   revalidatePath("/emails");
-  return { success: true, newCount, clientMatchCount };
+  revalidatePath("/clients");
+  revalidatePath("/relances");
+  return { success: true, newCount, clientMatchCount, autoProcessed };
 }
 
-export async function analyzeEmail(emailId: string) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Non authentifié" };
+// ── AUTO-PROCESS: analyze client & important emails automatically ──
 
+async function autoProcessEmails(userId: string, emailIds: string[]): Promise<number> {
+  const emailsToProcess = await prisma.email.findMany({
+    where: {
+      id: { in: emailIds },
+      analyseStatut: "non_analyse",
+      pertinence: { in: ["client", "important"] },
+    },
+  });
+
+  let processed = 0;
+
+  for (const email of emailsToProcess) {
+    try {
+      await analyzeEmailInternal(email.id, userId);
+      processed++;
+    } catch (err) {
+      console.error(`Auto-process failed for email ${email.id}:`, err);
+    }
+  }
+
+  return processed;
+}
+
+// ── ANALYZE (internal, reusable) ──
+
+async function analyzeEmailInternal(emailId: string, userId: string) {
   const email = await prisma.email.findUnique({
     where: { id: emailId },
     include: { client: true },
   });
-  if (!email) return { error: "Email introuvable" };
+  if (!email) throw new Error("Email introuvable");
 
   await prisma.email.update({
     where: { id: emailId },
     data: { analyseStatut: "en_cours" },
   });
 
-  try {
-    const clients = await prisma.client.findMany({
-      select: { id: true, raisonSociale: true, email: true, prenom: true, nom: true },
+  // Build enriched context
+  const allClients = await prisma.client.findMany({
+    select: { id: true, raisonSociale: true, email: true, prenom: true, nom: true },
+  });
+
+  let contextData: Parameters<typeof buildAnalysisPrompt>[5] = undefined;
+
+  if (email.clientId) {
+    const clientTaches = await prisma.tache.findMany({
+      where: { clientId: email.clientId, statut: { in: ["a_faire", "en_cours"] } },
+      select: { id: true, titre: true, statut: true, dateEcheance: true },
+      orderBy: { dateEcheance: "asc" },
+      take: 10,
     });
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const prompt = buildAnalysisPrompt(
-      email.sujet,
-      email.expediteur,
-      email.extrait,
-      clients
-    );
-
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+    const clientContrats = await prisma.contrat.findMany({
+      where: { clientId: email.clientId, statut: "actif" },
+      select: { id: true, typeProduit: true, nomProduit: true, statut: true },
+      take: 10,
     });
 
-    const firstBlock = response.content[0];
-    const rawText = firstBlock.type === "text" ? firstBlock.text : "";
-    const result = parseAIResponse(rawText);
+    const recentEmails = await prisma.email.findMany({
+      where: { clientId: email.clientId, id: { not: emailId } },
+      select: { sujet: true, direction: true, dateEnvoi: true },
+      orderBy: { dateEnvoi: "desc" },
+      take: 5,
+    });
 
-    for (const item of result.actionItems) {
-      await prisma.tache.create({
-        data: {
-          titre: item,
-          type: "AUTRE",
-          priorite: "normale",
-          dateEcheance: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          clientId: result.clientId ?? email.clientId ?? null,
-          emailId: emailId,
-        },
-      });
-    }
+    const matchedClient = allClients.find((c) => c.id === email.clientId);
 
-    await prisma.email.update({
-      where: { id: emailId },
+    contextData = {
+      clientMatched: matchedClient ? {
+        ...matchedClient,
+        taches: clientTaches,
+        contrats: clientContrats,
+      } : undefined,
+      recentEmails,
+    };
+  }
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const prompt = buildAnalysisPrompt(
+    email.sujet,
+    email.expediteur,
+    email.extrait,
+    email.direction,
+    allClients,
+    contextData,
+  );
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const firstBlock = response.content[0];
+  const rawText = firstBlock.type === "text" ? firstBlock.text : "";
+  const result = parseAIResponse(rawText);
+
+  await processAnalysisResult(emailId, email.clientId, result);
+}
+
+// ── PROCESS ANALYSIS RESULT: enrich CRM from AI output ──
+
+async function processAnalysisResult(
+  emailId: string,
+  existingClientId: string | null,
+  result: AIEmailAnalysis
+) {
+  const resolvedClientId = result.clientId ?? existingClientId;
+
+  // 1. Create tasks from action items
+  for (const item of result.actionItems) {
+    await prisma.tache.create({
       data: {
-        resume: result.resume,
-        actionsItems: JSON.stringify(result.actionItems),
-        reponseProposee: result.draftReply,
-        clientId: result.clientId ?? email.clientId ?? null,
-        analyseStatut: "analyse",
+        titre: item,
+        type: "AUTRE",
+        priorite: "normale",
+        dateEcheance: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        clientId: resolvedClientId,
+        emailId: emailId,
       },
     });
+  }
 
+  // 2. Close tasks identified by AI
+  if (result.tachesAFermer.length > 0) {
+    await prisma.tache.updateMany({
+      where: {
+        id: { in: result.tachesAFermer },
+        statut: { in: ["a_faire", "en_cours"] },
+      },
+      data: {
+        statut: "terminee",
+        dateRealisation: new Date(),
+      },
+    });
+  }
+
+  // 3. Enrich client data
+  if (resolvedClientId && result.enrichissementClient) {
+    const updates: Record<string, unknown> = {};
+
+    if (result.enrichissementClient.notes) {
+      const currentClient = await prisma.client.findUnique({
+        where: { id: resolvedClientId },
+        select: { noteEmails: true },
+      });
+      const existing = currentClient?.noteEmails ?? "";
+      const date = new Date().toISOString().slice(0, 10);
+      const newNote = `[${date}] ${result.enrichissementClient.notes}`;
+      // Keep last 5 notes (rolling summary)
+      const lines = existing ? existing.split("\n") : [];
+      lines.push(newNote);
+      updates.noteEmails = lines.slice(-5).join("\n");
+    }
+
+    if (result.enrichissementClient.statutSuggere) {
+      updates.statut = result.enrichissementClient.statutSuggere;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.client.update({
+        where: { id: resolvedClientId },
+        data: updates,
+      });
+    }
+  }
+
+  // 4. Update email with analysis results
+  await prisma.email.update({
+    where: { id: emailId },
+    data: {
+      resume: result.resume,
+      actionsItems: JSON.stringify(result.actionItems),
+      reponseProposee: result.draftReply,
+      clientId: resolvedClientId,
+      analyseStatut: "analyse",
+    },
+  });
+}
+
+// ── PUBLIC ACTIONS ──
+
+export async function analyzeEmail(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  try {
+    await analyzeEmailInternal(emailId, session.user.id);
     revalidatePath("/emails");
     revalidatePath("/relances");
+    revalidatePath("/clients");
     return { success: true };
   } catch (err) {
     console.error("Email analysis error:", err);

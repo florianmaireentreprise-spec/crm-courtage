@@ -39,6 +39,9 @@ export default async function EmailsPage() {
   const totalEmails = emails.length;
   const clientEmails = emails.filter((e) => e.clientId).length;
   const nonAnalyzed = emails.filter((e) => e.analyseStatut === "non_analyse").length;
+  const autoAnalyzed = emails.filter((e) => e.analyseStatut === "analyse" && (e.pertinence === "client" || e.pertinence === "important")).length;
+  const entrants = emails.filter((e) => e.direction === "entrant").length;
+  const sortants = emails.filter((e) => e.direction === "sortant").length;
 
   return (
     <div className="space-y-6">
@@ -92,7 +95,7 @@ export default async function EmailsPage() {
       ) : (
         <EmailList
           emails={emails}
-          stats={{ total: totalEmails, clients: clientEmails, nonAnalyzed }}
+          stats={{ total: totalEmails, clients: clientEmails, nonAnalyzed, autoAnalyzed, entrants, sortants }}
         />
       )}
     </div>

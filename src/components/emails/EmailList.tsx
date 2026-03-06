@@ -11,30 +11,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Mail, Sparkles, Filter } from "lucide-react";
+import { Users, Mail, Sparkles, Filter, ArrowUpRight, ArrowDownLeft, Zap } from "lucide-react";
 import type { Email, Client } from "@prisma/client";
 
 type EmailWithClient = Email & { client: Client | null };
 
 type Props = {
   emails: EmailWithClient[];
-  stats?: { total: number; clients: number; nonAnalyzed: number };
+  stats?: {
+    total: number;
+    clients: number;
+    nonAnalyzed: number;
+    autoAnalyzed: number;
+    entrants: number;
+    sortants: number;
+  };
 };
 
-type FilterTab = "all" | "clients" | "important" | "other";
+type FilterTab = "clients" | "important" | "all" | "other";
 
 export function EmailList({ emails, stats }: Props) {
   const [activeTab, setActiveTab] = useState<FilterTab>("clients");
   const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [filterDirection, setFilterDirection] = useState<string>("all");
 
-  // Separate emails by relevance
-  const clientEmails = emails.filter((e) => e.clientId);
-  const importantEmails = emails.filter((e) => !e.clientId && isImportant(e));
-  const otherEmails = emails.filter((e) => !e.clientId && !isImportant(e));
+  // Classify by pertinence (use DB field)
+  const clientEmails = emails.filter((e) => e.pertinence === "client");
+  const importantEmails = emails.filter((e) => e.pertinence === "important");
+  const otherEmails = emails.filter((e) => e.pertinence === "normal" || e.pertinence === "ignore");
 
   const filtered = getFilteredEmails()
     .filter((e) => {
       if (filterStatut !== "all" && e.analyseStatut !== filterStatut) return false;
+      if (filterDirection !== "all" && e.direction !== filterDirection) return false;
       return true;
     });
 
@@ -54,14 +63,13 @@ export function EmailList({ emails, stats }: Props) {
     }
   }
 
-  const nonAnalyseCount = filtered.filter((e) => e.analyseStatut === "non_analyse").length;
   const nonLuCount = filtered.filter((e) => !e.lu).length;
 
   return (
     <div className="space-y-4">
       {/* Stats summary */}
       {stats && (
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap gap-3 text-sm">
           <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
             <Mail className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{stats.total}</span>
@@ -70,8 +78,21 @@ export function EmailList({ emails, stats }: Props) {
           <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
             <Users className="h-4 w-4 text-blue-500" />
             <span className="font-medium text-blue-600">{stats.clients}</span>
-            <span className="text-muted-foreground">liés à un client</span>
+            <span className="text-muted-foreground">clients</span>
           </div>
+          <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
+            <ArrowDownLeft className="h-4 w-4 text-green-500" />
+            <span className="font-medium">{stats.entrants}</span>
+            <ArrowUpRight className="h-4 w-4 text-blue-500 ml-1" />
+            <span className="font-medium">{stats.sortants}</span>
+          </div>
+          {stats.autoAnalyzed > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+              <Zap className="h-4 w-4 text-green-600" />
+              <span className="font-medium text-green-600">{stats.autoAnalyzed}</span>
+              <span className="text-muted-foreground">auto-analysés</span>
+            </div>
+          )}
           {stats.nonAnalyzed > 0 && (
             <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
               <Sparkles className="h-4 w-4 text-orange-500" />
@@ -82,7 +103,7 @@ export function EmailList({ emails, stats }: Props) {
         </div>
       )}
 
-      {/* Filter tabs */}
+      {/* Filter tabs + selectors */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 bg-muted p-1 rounded-lg">
           {tabs.map((tab) => (
@@ -109,9 +130,19 @@ export function EmailList({ emails, stats }: Props) {
           {nonLuCount > 0 && (
             <span className="text-xs text-blue-600 font-medium">{nonLuCount} non lus</span>
           )}
+          <Select value={filterDirection} onValueChange={setFilterDirection}>
+            <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectValue placeholder="Direction" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              <SelectItem value="entrant">Reçus</SelectItem>
+              <SelectItem value="sortant">Envoyés</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={filterStatut} onValueChange={setFilterStatut}>
-            <SelectTrigger className="w-[150px] h-8 text-xs">
-              <SelectValue placeholder="Statut analyse" />
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous statuts</SelectItem>
@@ -127,7 +158,7 @@ export function EmailList({ emails, stats }: Props) {
       {/* Contextual hint */}
       {activeTab === "clients" && clientEmails.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Emails automatiquement associés à vos clients par adresse email
+          Emails liés à vos clients — analysés automatiquement, tâches créées et mises à jour
         </p>
       )}
 
@@ -145,18 +176,4 @@ export function EmailList({ emails, stats }: Props) {
       )}
     </div>
   );
-}
-
-/** Check if an email is "important" based on insurance keywords */
-function isImportant(email: EmailWithClient): boolean {
-  const KEYWORDS = [
-    "contrat", "police", "sinistre", "devis", "cotisation", "prime",
-    "résiliation", "avenant", "souscription", "adhésion", "garantie",
-    "mutuelle", "prévoyance", "santé", "retraite", "assurance",
-    "courtage", "indemnisation", "déclaration", "attestation",
-    "rcpro", "multirisque", "protection juridique", "madelin",
-    "urgent", "important", "signature", "rdv", "rendez-vous",
-  ];
-  const text = `${email.sujet} ${email.extrait ?? ""}`.toLowerCase();
-  return KEYWORDS.some((kw) => text.includes(kw));
 }

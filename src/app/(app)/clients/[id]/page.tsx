@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2 } from "lucide-react";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -30,6 +30,10 @@ export default async function ClientDetailPage({
       taches: {
         where: { statut: { in: ["a_faire", "en_cours"] } },
         orderBy: { dateEcheance: "asc" },
+      },
+      emails: {
+        orderBy: { dateEnvoi: "desc" },
+        take: 10,
       },
     },
   });
@@ -135,8 +139,32 @@ export default async function ClientDetailPage({
             {client.prescripteur && (
               <div className="text-muted-foreground">Prescripteur : {client.prescripteur}</div>
             )}
+            {client.derniereInteraction && (
+              <div className="text-muted-foreground">
+                Dernier contact : {format(client.derniereInteraction, "dd MMM yyyy", { locale: fr })}
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Notes IA */}
+        {client.noteEmails && (
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Notes IA (emails)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap space-y-1">
+                {client.noteEmails.split("\n").map((line, i) => (
+                  <p key={i} className="text-xs">{line}</p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="lg:col-span-2">
           <Tabs defaultValue="contrats">
@@ -144,6 +172,7 @@ export default async function ClientDetailPage({
               <TabsTrigger value="contrats">Contrats ({client.contrats.length})</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline ({client.deals.length})</TabsTrigger>
               <TabsTrigger value="taches">Tâches ({client.taches.length})</TabsTrigger>
+              <TabsTrigger value="emails">Emails ({client.emails.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="contrats" className="mt-4">
@@ -246,6 +275,47 @@ export default async function ClientDetailPage({
                       </Card>
                     );
                   })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="emails" className="mt-4">
+              {client.emails.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4">Aucun email lié à ce client</p>
+              ) : (
+                <div className="space-y-2">
+                  {client.emails.map((email) => (
+                    <Card key={email.id}>
+                      <CardContent className="py-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              {email.direction === "sortant" ? (
+                                <ArrowUpRight className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                              ) : (
+                                <ArrowDownLeft className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                              )}
+                              <p className="font-medium text-sm truncate">{email.sujet}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {email.direction === "sortant" ? "→ " : ""}{email.expediteur}
+                            </p>
+                            {email.resume && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.resume}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className="text-xs text-muted-foreground">
+                              {format(email.dateEnvoi, "dd MMM", { locale: fr })}
+                            </span>
+                            {email.analyseStatut === "analyse" && (
+                              <Badge variant="secondary" className="text-[10px]">Analysé</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </TabsContent>
