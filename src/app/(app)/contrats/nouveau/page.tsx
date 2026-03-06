@@ -49,7 +49,7 @@ export default function NouveauContratPage() {
   return (
     <div className="max-w-3xl space-y-4">
       <h1 className="text-2xl font-bold">Nouveau contrat</h1>
-      <form action={createContrat} className="space-y-6">
+      <form action={async (formData) => { await createContrat(formData); }} className="space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Informations générales</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
