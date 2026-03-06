@@ -19,7 +19,7 @@ export default function NouveauPrescripteurPage() {
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold">Nouveau prescripteur</h1>
 
-      <form action={createPrescripteur} className="space-y-6">
+      <form action={async (formData) => { "use server"; await createPrescripteur(formData); }} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Identite</CardTitle>
