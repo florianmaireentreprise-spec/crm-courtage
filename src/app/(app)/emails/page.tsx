@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildOAuth2Client } from "@/lib/gmail";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailList } from "@/components/emails/EmailList";
 import { Mail, Inbox } from "lucide-react";
@@ -14,6 +15,18 @@ export default async function EmailsPage() {
     ? await prisma.gmailConnection.findUnique({ where: { userId } })
     : null;
 
+  // Generate Google OAuth URL server-side (session works here)
+  let gmailAuthUrl: string | null = null;
+  if (userId && !connection) {
+    const oauth2Client = buildOAuth2Client();
+    gmailAuthUrl = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+      prompt: "consent",
+      state: userId,
+    });
+  }
+
   const emails = connection && userId
     ? await prisma.email.findMany({
         where: { userId },
@@ -21,6 +34,11 @@ export default async function EmailsPage() {
         orderBy: { dateEnvoi: "desc" },
       })
     : [];
+
+  // Count stats for the header
+  const totalEmails = emails.length;
+  const clientEmails = emails.filter((e) => e.clientId).length;
+  const nonAnalyzed = emails.filter((e) => e.analyseStatut === "non_analyse").length;
 
   return (
     <div className="space-y-6">
@@ -35,6 +53,7 @@ export default async function EmailsPage() {
         <GmailConnectButton
           isConnected={!!connection}
           gmailEmail={connection?.gmailEmail}
+          authUrl={gmailAuthUrl}
         />
       </div>
 
@@ -71,7 +90,10 @@ export default async function EmailsPage() {
           </div>
         </div>
       ) : (
-        <EmailList emails={emails} />
+        <EmailList
+          emails={emails}
+          stats={{ total: totalEmails, clients: clientEmails, nonAnalyzed }}
+        />
       )}
     </div>
   );

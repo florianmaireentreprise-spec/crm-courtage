@@ -9,9 +9,10 @@ import { useState } from "react";
 type Props = {
   isConnected: boolean;
   gmailEmail?: string | null;
+  authUrl?: string | null;
 };
 
-export function GmailConnectButton({ isConnected, gmailEmail }: Props) {
+export function GmailConnectButton({ isConnected, gmailEmail, authUrl }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
 
@@ -26,12 +27,10 @@ export function GmailConnectButton({ isConnected, gmailEmail }: Props) {
 
   if (!isConnected) {
     return (
-      <a href="/api/gmail/auth">
-        <Button>
-          <Mail className="h-4 w-4 mr-2" />
-          Connecter Gmail
-        </Button>
-      </a>
+      <Button onClick={() => { if (authUrl) window.location.href = authUrl; }}>
+        <Mail className="h-4 w-4 mr-2" />
+        Connecter Gmail
+      </Button>
     );
   }
 

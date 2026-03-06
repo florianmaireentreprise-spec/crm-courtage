@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
 
     oauth2Client.setCredentials(tokens);
 
-    // Get Gmail email address
-    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-    const userInfo = await oauth2.userinfo.get();
-    const gmailEmail = userInfo.data.email ?? "inconnu";
+    // Get Gmail email address via Gmail API (we already have gmail.readonly scope)
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    const profile = await gmail.users.getProfile({ userId: "me" });
+    const gmailEmail = profile.data.emailAddress ?? "inconnu";
 
     await prisma.gmailConnection.upsert({
       where: { userId },
@@ -50,8 +50,9 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.redirect(new URL("/emails?connected=1", baseUrl));
-  } catch (err) {
-    console.error("Gmail OAuth callback error:", err);
-    return NextResponse.redirect(new URL("/emails?error=token_exchange", baseUrl));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Gmail OAuth callback error:", message, err);
+    return NextResponse.redirect(new URL(`/emails?error=${encodeURIComponent(message)}`, baseUrl));
   }
 }
