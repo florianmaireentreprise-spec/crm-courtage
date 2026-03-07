@@ -4,11 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { FileBarChart, TrendingUp, TrendingDown, Users, Target, Clock, AlertTriangle } from "lucide-react";
 import type { RapportData } from "@/lib/rapport-hebdo";
 
+export const dynamic = "force-dynamic";
+
 export default async function RapportsPage() {
-  const rapports = await prisma.rapportHebdo.findMany({
-    orderBy: { dateGeneration: "desc" },
-    take: 12,
-  });
+  let rapports: { id: string; semaine: string; contenu: string; resumeIA: string | null; actionsIA: string | null; dateGeneration: Date }[] = [];
+  try {
+    rapports = await prisma.rapportHebdo.findMany({
+      orderBy: { dateGeneration: "desc" },
+      take: 12,
+    });
+  } catch {
+    // Table may not exist yet if migration hasn't run
+  }
 
   return (
     <div className="space-y-6">
