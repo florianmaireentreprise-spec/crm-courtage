@@ -17,6 +17,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!login|api/auth|api/gmail/callback|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|api/auth|api/gmail/callback|api/emails/inbox-zero-webhook|_next/static|_next/image|favicon.ico).*)",
   ],
 };
