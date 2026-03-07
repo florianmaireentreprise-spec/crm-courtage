@@ -317,6 +317,15 @@ async function analyzeEmailInternal(emailId: string, userId: string) {
 
 // ── PROCESS ANALYSIS RESULT: enrich CRM from AI output ──
 
+async function matchPrescripteurByEmail(emailAddress: string): Promise<string | null> {
+  const addr = extractEmailAddress(emailAddress);
+  const prescripteur = await prisma.prescripteur.findFirst({
+    where: { email: { equals: addr, mode: "insensitive" } },
+    select: { id: true },
+  });
+  return prescripteur?.id ?? null;
+}
+
 async function processAnalysisResult(
   emailId: string,
   existingClientId: string | null,
@@ -382,7 +391,24 @@ async function processAnalysisResult(
     }
   }
 
-  // 4. Update email with analysis results (including v2 fields)
+  // 4. Auto-update prescripteur lead counter
+  if (result.type === "prescripteur") {
+    const email = await prisma.email.findUnique({ where: { id: emailId }, select: { expediteur: true } });
+    if (email) {
+      const prescripteurId = await matchPrescripteurByEmail(email.expediteur);
+      if (prescripteurId) {
+        await prisma.prescripteur.update({
+          where: { id: prescripteurId },
+          data: {
+            dossiersEnvoyes: { increment: 1 },
+            derniereRecommandation: new Date(),
+          },
+        });
+      }
+    }
+  }
+
+  // 5. Update email with analysis results (including v2 fields)
   await prisma.email.update({
     where: { id: emailId },
     data: {
