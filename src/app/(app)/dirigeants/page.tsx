@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, UserCheck, Building2, Shield, PiggyBank, Pencil } from "lucide-react";
 import { STATUTS_DIRIGEANT } from "@/lib/constants";
-import { calculerCouverture360, getCouvertureColor } from "@/lib/couverture360";
+import { calculerCouverture360, getCouvertureColor } from "@/lib/scoring/couverture360";
 
 export default async function DirigeantsPage() {
   const dirigeants = await prisma.dirigeant.findMany({

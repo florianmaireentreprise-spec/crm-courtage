@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { buildOAuth2Client } from "@/lib/gmail";
+import { buildOAuth2Client } from "@/lib/email/gmail";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {

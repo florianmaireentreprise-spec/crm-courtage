@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { buildOAuth2Client, parseGmailMessage } from "@/lib/gmail";
-import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/ai";
+import { buildOAuth2Client, parseGmailMessage } from "@/lib/email/gmail";
+import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/email/ai";
 import { google } from "googleapis";
 import Anthropic from "@anthropic-ai/sdk";
 

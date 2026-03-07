@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { inscrireClientSequence, initDefaultSequences } from "@/lib/sequences";
+import { inscrireClientSequence, initDefaultSequences } from "@/lib/automation/sequences";
 
 export async function getSequences() {
   return prisma.sequence.findMany({

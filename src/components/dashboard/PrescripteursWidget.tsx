@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Handshake, AlertTriangle, Heart, TrendingDown } from "lucide-react";
-import type { PrescripteurAlerte } from "@/lib/prescripteur-tracking";
+import type { PrescripteurAlerte } from "@/lib/automation/prescripteur-tracking";
 
 type Props = {
   alertes: PrescripteurAlerte[];

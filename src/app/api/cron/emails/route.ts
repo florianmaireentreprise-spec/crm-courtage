@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncAllUsersEmails } from "@/lib/email-sync";
+import { syncAllUsersEmails } from "@/lib/email/sync";
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

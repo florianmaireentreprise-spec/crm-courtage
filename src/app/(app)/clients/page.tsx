@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { STATUTS_CLIENT } from "@/lib/constants";
-import { calculerScoreProspect, getScoreColor } from "@/lib/scoring";
-import { calculerPotentielCA } from "@/lib/potentiel";
+import { calculerScoreProspect, getScoreColor } from "@/lib/scoring/prospect";
+import { calculerPotentielCA } from "@/lib/scoring/potentiel";
 
 export default async function ClientsPage({
   searchParams,

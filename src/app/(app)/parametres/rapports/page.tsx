@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileBarChart, TrendingUp, TrendingDown, Users, Target, Clock, AlertTriangle } from "lucide-react";
-import type { RapportData } from "@/lib/rapport-hebdo";
+import type { RapportData } from "@/lib/automation/rapport-hebdo";
 
 export const dynamic = "force-dynamic";
 

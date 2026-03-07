@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildOAuth2Client } from "@/lib/gmail";
+import { buildOAuth2Client } from "@/lib/email/gmail";
 import { auth } from "@/lib/auth";
 
 export const GET = auth(function GET(req) {

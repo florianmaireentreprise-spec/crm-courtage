@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCampagnesActives, lancerCampagne } from "@/lib/campagnes";
+import { getCampagnesActives, lancerCampagne } from "@/lib/automation/campagnes";
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

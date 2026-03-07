@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { buildOAuth2Client, parseGmailMessage } from "@/lib/gmail";
-import { analyzeEmailById } from "@/lib/email-sync";
+import { buildOAuth2Client, parseGmailMessage } from "@/lib/email/gmail";
+import { analyzeEmailById } from "@/lib/email/sync";
 import { google } from "googleapis";
 
 // ── Patterns to exclude (newsletters, automated, noreply) ──

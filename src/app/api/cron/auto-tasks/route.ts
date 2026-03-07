@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateAutoTasks } from "@/lib/auto-tasks";
+import { generateAutoTasks } from "@/lib/automation/auto-tasks";
 
 export async function GET(request: Request) {
   // Verification du secret CRON si configure

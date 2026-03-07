@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { genererRapportHebdo } from "@/lib/rapport-hebdo";
+import { genererRapportHebdo } from "@/lib/automation/rapport-hebdo";
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

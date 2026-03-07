@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { processSequences } from "@/lib/sequences";
+import { processSequences } from "@/lib/automation/sequences";
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

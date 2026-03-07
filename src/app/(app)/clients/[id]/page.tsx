@@ -9,8 +9,8 @@ import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, Me
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring";
-import { calculerPotentielCA } from "@/lib/potentiel";
+import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring/prospect";
+import { calculerPotentielCA } from "@/lib/scoring/potentiel";
 
 export default async function ClientDetailPage({
   params,
