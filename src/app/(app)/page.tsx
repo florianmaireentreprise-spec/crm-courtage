@@ -14,6 +14,10 @@ import { calculerScoreProspect, getScoreColor } from "@/lib/scoring";
 import { calculerPotentielCA } from "@/lib/potentiel";
 import { TYPES_PRODUITS } from "@/lib/constants";
 import { generateAutoTasks } from "@/lib/auto-tasks";
+import { getCampagnesActives } from "@/lib/campagnes";
+import { detecterPrescripteursARelancer } from "@/lib/prescripteur-tracking";
+import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
+import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
 
 async function getDashboardData() {
   const [
@@ -169,6 +173,17 @@ async function getDashboardData() {
     console.error("Erreur auto-tasks sur dashboard:", err)
   );
 
+  // Campagnes saisonnieres actives
+  const campagnesActives = getCampagnesActives();
+
+  // Alertes prescripteurs
+  let prescripteursAlertes: Awaited<ReturnType<typeof detecterPrescripteursARelancer>> = [];
+  try {
+    prescripteursAlertes = await detecterPrescripteursARelancer();
+  } catch (err) {
+    console.error("Erreur detection prescripteurs:", err);
+  }
+
   return {
     kpis: {
       caRecurrentMensuel: Math.round(caGestion / 12),
@@ -191,6 +206,8 @@ async function getDashboardData() {
     tachesAujourdhui,
     topProspects,
     opportunites: opportunites.slice(0, 8),
+    campagnesActives,
+    prescripteursAlertes,
   };
 }
 
@@ -214,6 +231,12 @@ export default async function DashboardPage() {
         <TasksWidget taches={data.tachesAujourdhui} />
       </div>
       <RenewalsWidget contrats={data.renewals} />
+
+      {/* Campagnes & Prescripteurs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CampagnesWidget campagnes={data.campagnesActives} />
+        <PrescripteursWidget alertes={data.prescripteursAlertes} />
+      </div>
 
       {/* Phase 2 widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

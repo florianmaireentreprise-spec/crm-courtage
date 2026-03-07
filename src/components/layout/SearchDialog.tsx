@@ -14,10 +14,10 @@ import {
 import { Building2, FileText, Target, Users, Mail, Search } from "lucide-react";
 
 type SearchResults = {
-  clients: { id: string; raisonSociale: string; nom: string | null; prenom: string | null; statut: string; ville: string | null }[];
+  clients: { id: string; raisonSociale: string; nom: string; prenom: string; statut: string; ville: string | null }[];
   contrats: { id: string; typeProduit: string; nomProduit: string | null; client: { raisonSociale: string } }[];
   deals: { id: string; titre: string; etape: string; client: { raisonSociale: string } }[];
-  prescripteurs: { id: string; nom: string; prenom: string; type: string | null; entreprise: string | null }[];
+  prescripteurs: { id: string; nom: string; prenom: string; type: string; entreprise: string | null }[];
   emails: { id: string; sujet: string; expediteur: string; dateEnvoi: string }[];
 };
 

@@ -47,7 +47,7 @@ export default async function ClientDetailPage({
   // Fetch completed tasks for the timeline
   const tachesTerminees = await prisma.tache.findMany({
     where: { clientId: id, statut: "terminee" },
-    orderBy: { dateMaj: "desc" },
+    orderBy: { dateRealisation: "desc" },
     take: 20,
   });
 
@@ -93,7 +93,7 @@ export default async function ClientDetailPage({
   // Tasks completed
   for (const t of tachesTerminees) {
     timeline.push({
-      date: t.dateMaj,
+      date: t.dateRealisation ?? t.dateCreation,
       type: "tache",
       icon: "CheckCircle2",
       title: t.titre,

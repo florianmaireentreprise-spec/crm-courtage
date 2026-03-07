@@ -17,6 +17,7 @@ import {
   UserCheck,
   Handshake,
   Network,
+  Zap,
 } from "lucide-react";
 
 const navigation = [
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Relances", href: "/relances", icon: Clock },
   { name: "Objectifs", href: "/objectifs", icon: TrendingUp },
   { name: "Emails", href: "/emails", icon: Mail },
+  { name: "Sequences", href: "/sequences", icon: Zap },
   { name: "Compagnies", href: "/compagnies", icon: Building2 },
   { name: "Parametres", href: "/parametres", icon: Settings },
 ];
