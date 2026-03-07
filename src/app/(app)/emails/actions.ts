@@ -183,13 +183,34 @@ export async function syncEmails() {
     newCount++;
   }
 
-  // Auto-process important/client emails
+  // Auto-process important/client emails (new ones + any previously missed)
   const autoProcessed = await autoProcessEmails(userId, newEmailIds);
+
+  // Also catch any previously unanalyzed client/important emails
+  const missedEmails = await prisma.email.findMany({
+    where: {
+      userId,
+      analyseStatut: "non_analyse",
+      pertinence: { in: ["client", "important"] },
+      id: { notIn: newEmailIds },
+    },
+    select: { id: true },
+  });
+
+  let missedProcessed = 0;
+  for (const email of missedEmails) {
+    try {
+      await analyzeEmailInternal(email.id, userId);
+      missedProcessed++;
+    } catch (err) {
+      console.error(`Auto-process missed email ${email.id}:`, err);
+    }
+  }
 
   revalidatePath("/emails");
   revalidatePath("/clients");
   revalidatePath("/relances");
-  return { success: true, newCount, clientMatchCount, autoProcessed };
+  return { success: true, newCount, clientMatchCount, autoProcessed: autoProcessed + missedProcessed };
 }
 
 // ── AUTO-PROCESS: analyze client & important emails automatically ──
@@ -442,6 +463,40 @@ export async function batchProcessEmails() {
 
   revalidatePath("/emails");
   return { success: true, processed };
+}
+
+// ── REANALYZE: process all unanalyzed client/important emails ──
+
+export async function reanalyzeUnprocessed() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const emailsToProcess = await prisma.email.findMany({
+    where: {
+      userId: session.user.id,
+      analyseStatut: { in: ["non_analyse", "erreur"] },
+      pertinence: { in: ["client", "important"] },
+    },
+    orderBy: { dateEnvoi: "desc" },
+  });
+
+  let processed = 0;
+  let erreurs = 0;
+
+  for (const email of emailsToProcess) {
+    try {
+      await analyzeEmailInternal(email.id, session.user.id);
+      processed++;
+    } catch (err) {
+      console.error(`Reanalyze failed for email ${email.id}:`, err);
+      erreurs++;
+    }
+  }
+
+  revalidatePath("/emails");
+  revalidatePath("/clients");
+  revalidatePath("/relances");
+  return { success: true, processed, erreurs, total: emailsToProcess.length };
 }
 
 export async function disconnectGmail() {

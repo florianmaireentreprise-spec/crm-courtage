@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Users, Mail, Sparkles, Filter, ArrowUpRight, ArrowDownLeft, Zap, AlertCircle, Loader2 } from "lucide-react";
-import { batchProcessEmails } from "@/app/(app)/emails/actions";
+import { batchProcessEmails, reanalyzeUnprocessed } from "@/app/(app)/emails/actions";
 import type { Email, Client } from "@prisma/client";
 
 type EmailWithClient = Email & { client: Client | null };
@@ -36,6 +36,7 @@ export function EmailList({ emails, stats }: Props) {
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [filterDirection, setFilterDirection] = useState<string>("all");
   const [batchProcessing, setBatchProcessing] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   const clientEmails = emails.filter((e) => e.pertinence === "client");
   const importantEmails = emails.filter((e) => e.pertinence === "important");
@@ -73,6 +74,15 @@ export function EmailList({ emails, stats }: Props) {
     setBatchProcessing(false);
   }
 
+  async function handleReanalyze() {
+    setReanalyzing(true);
+    await reanalyzeUnprocessed();
+    setReanalyzing(false);
+  }
+
+  const nonAnalyseClientCount = emails.filter(
+    (e) => (e.pertinence === "client" || e.pertinence === "important") && (e.analyseStatut === "non_analyse" || e.analyseStatut === "erreur")
+  ).length;
   const nonLuCount = filtered.filter((e) => !e.lu).length;
 
   return (
@@ -137,6 +147,22 @@ export function EmailList({ emails, stats }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          {nonAnalyseClientCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={handleReanalyze}
+              disabled={reanalyzing}
+            >
+              {reanalyzing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              Analyser tout ({nonAnalyseClientCount})
+            </Button>
+          )}
           {actionEmails.length > 0 && (
             <Button
               variant="outline"
