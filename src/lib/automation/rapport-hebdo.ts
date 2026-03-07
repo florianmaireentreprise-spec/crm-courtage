@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ── Types ──
 
@@ -146,13 +146,9 @@ export async function genererRapportHebdo(): Promise<RapportData> {
   let actionsIA: string | null = null;
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 512,
-      messages: [{
-        role: "user",
-        content: `Tu es l'assistant IA de GargarineV1, cabinet de courtage en assurances TPE/PME.
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const response = await model.generateContent(`Tu es l'assistant IA de GargarineV1, cabinet de courtage en assurances TPE/PME.
 
 Voici les metriques de la semaine ${rapport.semaine} :
 - Nouveaux prospects : ${rapport.prospects.nouveaux} (vs ${rapport.prospects.precedent} semaine precedente)
@@ -166,11 +162,9 @@ Reponds en JSON avec :
 {
   "resume": "Resume de la semaine en 3 lignes max, ton professionnel et encourageant",
   "actions": ["Action prioritaire 1", "Action prioritaire 2", "Action prioritaire 3"]
-}`,
-      }],
-    });
+}`);
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.response.text();
     const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const parsed = JSON.parse(clean);
     resumeIA = parsed.resume ?? null;

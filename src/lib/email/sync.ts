@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildOAuth2Client, parseGmailMessage } from "@/lib/email/gmail";
 import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/email/ai";
 import { google } from "googleapis";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ── Patterns to exclude (newsletters, automated, noreply) ──
 const EXCLUDED_PATTERNS = [
@@ -99,13 +99,13 @@ export async function analyzeEmailById(emailId: string) {
   if (!email) return;
 
   // Check API key before starting
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("ANTHROPIC_API_KEY is not set — skipping email analysis");
+  if (!process.env.GOOGLE_AI_API_KEY) {
+    console.error("GOOGLE_AI_API_KEY is not set — skipping email analysis");
     await prisma.email.update({
       where: { id: emailId },
       data: { analyseStatut: "erreur" },
     });
-    throw new Error("ANTHROPIC_API_KEY is not configured");
+    throw new Error("GOOGLE_AI_API_KEY is not configured");
   }
 
   await prisma.email.update({
@@ -153,7 +153,8 @@ export async function analyzeEmailById(emailId: string) {
       };
     }
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = buildAnalysisPrompt(
       email.sujet,
       email.expediteur,
@@ -163,14 +164,8 @@ export async function analyzeEmailById(emailId: string) {
       contextData,
     );
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const firstBlock = response.content[0];
-    const rawText = firstBlock.type === "text" ? firstBlock.text : "";
+    const response = await model.generateContent(prompt);
+    const rawText = response.response.text();
     const result = parseAIResponse(rawText);
 
     await processAnalysisResult(emailId, email.clientId, result, email.expediteur);
