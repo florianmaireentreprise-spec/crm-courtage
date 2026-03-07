@@ -361,7 +361,7 @@ async function processAnalysisResult(
     }
   }
 
-  // 4. Update email with analysis results
+  // 4. Update email with analysis results (including v2 fields)
   await prisma.email.update({
     where: { id: emailId },
     data: {
@@ -370,6 +370,14 @@ async function processAnalysisResult(
       reponseProposee: result.draftReply,
       clientId: resolvedClientId,
       analyseStatut: "analyse",
+      typeEmail: result.type,
+      urgence: result.urgence,
+      sentiment: result.sentiment,
+      actionRequise: result.actionRequise,
+      actionTraitee: false,
+      analyseIA: JSON.stringify(result),
+      dealUpdateSuggestion: result.dealUpdate ? JSON.stringify(result.dealUpdate) : null,
+      produitsMentionnes: result.produitsMentionnes.length > 0 ? JSON.stringify(result.produitsMentionnes) : null,
     },
   });
 }
@@ -399,6 +407,41 @@ export async function analyzeEmail(emailId: string) {
 export async function markEmailRead(emailId: string) {
   await prisma.email.update({ where: { id: emailId }, data: { lu: true } });
   revalidatePath("/emails");
+}
+
+export async function markActionTraitee(emailId: string) {
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { actionTraitee: true },
+  });
+  revalidatePath("/emails");
+}
+
+export async function batchProcessEmails() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  // Find all analyzed emails with pending actions
+  const pendingEmails = await prisma.email.findMany({
+    where: {
+      userId: session.user.id,
+      analyseStatut: "analyse",
+      actionRequise: true,
+      actionTraitee: false,
+    },
+  });
+
+  let processed = 0;
+  for (const email of pendingEmails) {
+    await prisma.email.update({
+      where: { id: email.id },
+      data: { actionTraitee: true },
+    });
+    processed++;
+  }
+
+  revalidatePath("/emails");
+  return { success: true, processed };
 }
 
 export async function disconnectGmail() {

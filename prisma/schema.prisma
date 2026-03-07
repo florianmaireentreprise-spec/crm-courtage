@@ -315,6 +315,14 @@ model Email {
   resume          String?
   actionsItems    String?
   reponseProposee String?
+  typeEmail       String?   // client, prospect, assureur, prescripteur, autre
+  urgence         String?   // haute, normale, basse
+  sentiment       String?   // positif, neutre, negatif
+  actionRequise   Boolean   @default(false)
+  actionTraitee   Boolean   @default(false)
+  analyseIA       String?   // JSON complet de l'analyse
+  dealUpdateSuggestion String? // JSON: { etape_suggeree, raison }
+  produitsMentionnes   String? // JSON array de produits detectes
   // Relations
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, ChevronDown, ChevronUp, Loader2, ArrowUpRight, ArrowDownLeft } from "lucide-react";
-import { analyzeEmail, markEmailRead } from "@/app/(app)/emails/actions";
+import { Sparkles, ChevronDown, ChevronUp, Loader2, ArrowUpRight, ArrowDownLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { analyzeEmail, markEmailRead, markActionTraitee } from "@/app/(app)/emails/actions";
 import { AnalysisPanel } from "./AnalysisPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -15,11 +15,18 @@ type Props = {
   email: Email & { client: Client | null };
 };
 
-const pertinenceConfig: Record<string, { label: string; class: string }> = {
-  client: { label: "Client", class: "bg-blue-100 text-blue-700 border-blue-200" },
-  important: { label: "Important", class: "bg-orange-100 text-orange-700 border-orange-200" },
-  normal: { label: "", class: "" },
-  ignore: { label: "Ignoré", class: "bg-gray-100 text-gray-500" },
+const typeConfig: Record<string, { label: string; class: string }> = {
+  client: { label: "Client", class: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300" },
+  prospect: { label: "Prospect", class: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300" },
+  assureur: { label: "Assureur", class: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  prescripteur: { label: "Prescripteur", class: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300" },
+  autre: { label: "", class: "" },
+};
+
+const urgenceConfig: Record<string, { label: string; class: string }> = {
+  haute: { label: "Urgent", class: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300" },
+  normale: { label: "", class: "" },
+  basse: { label: "", class: "" },
 };
 
 const statusColors: Record<string, string> = {
@@ -30,15 +37,16 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  non_analyse: "Non analysé",
+  non_analyse: "Non analyse",
   en_cours: "Analyse...",
-  analyse: "Analysé",
+  analyse: "Analyse",
   erreur: "Erreur",
 };
 
 export function EmailCard({ email }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [treated, setTreated] = useState(email.actionTraitee);
 
   async function handleAnalyze(e: React.MouseEvent) {
     e.stopPropagation();
@@ -53,11 +61,18 @@ export function EmailCard({ email }: Props) {
     setExpanded((prev) => !prev);
   }
 
+  async function handleMarkTreated(e: React.MouseEvent) {
+    e.stopPropagation();
+    await markActionTraitee(email.id);
+    setTreated(true);
+  }
+
   const isSortant = email.direction === "sortant";
-  const pert = pertinenceConfig[email.pertinence] ?? pertinenceConfig.normal;
+  const emailType = typeConfig[email.typeEmail ?? ""] ?? typeConfig.autre;
+  const emailUrgence = urgenceConfig[email.urgence ?? ""] ?? urgenceConfig.normale;
 
   return (
-    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30" : ""}`}>
+    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20" : ""} ${email.urgence === "haute" ? "border-l-4 border-l-red-400" : ""}`}>
       <CardContent className="p-4">
         <div
           className="flex items-start justify-between gap-3 cursor-pointer"
@@ -65,7 +80,6 @@ export function EmailCard({ email }: Props) {
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              {/* Direction badge */}
               {isSortant ? (
                 <ArrowUpRight className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
               ) : (
@@ -79,18 +93,30 @@ export function EmailCard({ email }: Props) {
               </p>
             </div>
             <p className="text-xs text-muted-foreground truncate">
-              {isSortant ? `→ ${email.destinataires.replace(/[[\]"]/g, "")}` : email.expediteur}
+              {isSortant ? `\u2192 ${email.destinataires.replace(/[[\]"]/g, "")}` : email.expediteur}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {format(new Date(email.dateEnvoi), "dd MMM yyyy à HH:mm", { locale: fr })}
+              {format(new Date(email.dateEnvoi), "dd MMM yyyy a HH:mm", { locale: fr })}
             </p>
+            {/* AI summary preview */}
+            {!expanded && email.resume && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">{email.resume}</p>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Pertinence badge */}
-            {pert.label && (
-              <Badge variant="outline" className={`text-[10px] ${pert.class}`}>
-                {pert.label}
+          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+            {/* Type badge */}
+            {emailType.label && (
+              <Badge variant="outline" className={`text-[10px] ${emailType.class}`}>
+                {emailType.label}
+              </Badge>
+            )}
+
+            {/* Urgence badge */}
+            {emailUrgence.label && (
+              <Badge variant="outline" className={`text-[10px] ${emailUrgence.class}`}>
+                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                {emailUrgence.label}
               </Badge>
             )}
 
@@ -101,13 +127,31 @@ export function EmailCard({ email }: Props) {
               </Badge>
             )}
 
+            {/* Action status */}
+            {email.actionRequise && !treated && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-orange-600 border-orange-200 hover:bg-orange-50"
+                onClick={handleMarkTreated}
+              >
+                <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                Traiter
+              </Button>
+            )}
+            {treated && email.actionRequise && (
+              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-600 border-green-200">
+                Traite
+              </Badge>
+            )}
+
             {/* Analysis status */}
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                 statusColors[email.analyseStatut] ?? statusColors.non_analyse
               }`}
             >
-              {statusLabels[email.analyseStatut] ?? "Non analysé"}
+              {statusLabels[email.analyseStatut] ?? "Non analyse"}
             </span>
 
             {email.analyseStatut === "non_analyse" && (
@@ -135,7 +179,7 @@ export function EmailCard({ email }: Props) {
         </div>
 
         {/* Preview */}
-        {!expanded && email.extrait && (
+        {!expanded && email.extrait && !email.resume && (
           <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{email.extrait}</p>
         )}
 

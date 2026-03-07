@@ -9,6 +9,14 @@ export type AIEmailAnalysis = {
     statutSuggere: string | null;
   } | null;
   contratMentionne: string | null;
+  // Nouveaux champs v2
+  type: "client" | "prospect" | "assureur" | "prescripteur" | "autre";
+  urgence: "haute" | "normale" | "basse";
+  sentiment: "positif" | "neutre" | "negatif";
+  actionRequise: boolean;
+  actionSuggeree: string | null;
+  dealUpdate: { etapeSuggeree: string; raison: string } | null;
+  produitsMentionnes: string[];
 };
 
 type ClientMini = {
@@ -90,6 +98,11 @@ export function buildAnalysisPrompt(
 Analyse cet email ${direction === "sortant" ? "ENVOYÉ PAR le cabinet" : "REÇU PAR le cabinet"} et réponds UNIQUEMENT en JSON valide avec cette structure exacte :
 {
   "resume": "Résumé en 3 lignes maximum en français",
+  "type": "client | prospect | assureur | prescripteur | autre",
+  "urgence": "haute | normale | basse",
+  "sentiment": "positif | neutre | negatif",
+  "actionRequise": true/false,
+  "actionSuggeree": "Description de l'action à faire ou null",
   "actionItems": ["Action 1", "Action 2"],
   "clientId": "ID_du_client_ou_null",
   "draftReply": "Proposition de réponse en français ou null",
@@ -98,7 +111,9 @@ Analyse cet email ${direction === "sortant" ? "ENVOYÉ PAR le cabinet" : "REÇU 
     "notes": "Info pertinente à retenir sur le client ou null",
     "statutSuggere": "nouveau_statut_ou_null"
   },
-  "contratMentionne": "TYPE_PRODUIT_ou_null"
+  "contratMentionne": "TYPE_PRODUIT_ou_null",
+  "dealUpdate": { "etapeSuggeree": "ETAPE_PIPELINE", "raison": "explication" } ou null,
+  "produitsMentionnes": ["SANTE_COLLECTIVE", "PER"]
 }
 
 EMAIL (${direction.toUpperCase()}) :
@@ -113,15 +128,26 @@ ${contextBlock}
 
 Instructions :
 - Le résumé doit être factuel, en français, maximum 3 lignes
+- type = catégorie de l'expéditeur : "client" (client existant), "prospect" (potentiel client), "assureur" (compagnie d'assurance), "prescripteur" (expert-comptable, avocat, partenaire), "autre"
+- urgence = "haute" si action immédiate requise ou deadline proche, "normale" sinon, "basse" si informatif
+- sentiment = tonalité générale de l'email
+- actionRequise = true si une action concrète est attendue du cabinet
+- actionSuggeree = description courte de l'action principale à faire (null si aucune)
 - actionItems = tâches concrètes à faire suite à cet email (ex: "Rappeler M. Dupont", "Envoyer devis santé collective"). Si email sortant = probablement moins d'actions.
 - clientId : trouver correspondance expéditeur/destinataire ↔ clients (email ou nom) — null si aucune
 - draftReply = réponse professionnelle adaptée au courtage — null si pas de réponse nécessaire ou si c'est un email SORTANT
 - tachesAFermer = IDs des tâches ouvertes du client que cet email résout (ex: si on a envoyé un devis, fermer la tâche "Envoyer devis"). Liste vide si aucune.
 - enrichissementClient.notes = info business à retenir (ex: "Le client souhaite renégocier sa mutuelle en septembre", "Changement de dirigeant prévu"). null si rien de notable.
 - enrichissementClient.statutSuggere = suggérer un changement de statut du client si pertinent (ex: "prospect" → "en_cours", "client_actif"). null si pas de changement.
-- contratMentionne = si l'email mentionne un type de produit d'assurance, indiquer le code (SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, RETRAITE_PER, PROTECTION_JURIDIQUE, RCP, ASSURANCE_VIE, MULTIRISQUE). null sinon.
+- contratMentionne = si l'email mentionne un type de produit d'assurance, indiquer le code (SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, PER, PROTECTION_JURIDIQUE, RCP_PRO, ASSURANCE_VIE). null sinon.
+- dealUpdate = si l'email justifie un changement d'étape pipeline (ex: email d'un assureur confirmant mise en place → SIGNATURE). null sinon.
+- produitsMentionnes = tous les codes produits mentionnés dans l'email. Liste vide si aucun.
 - Répondre UNIQUEMENT avec le JSON, sans texte avant ni après`;
 }
+
+const VALID_TYPES = ["client", "prospect", "assureur", "prescripteur", "autre"] as const;
+const VALID_URGENCES = ["haute", "normale", "basse"] as const;
+const VALID_SENTIMENTS = ["positif", "neutre", "negatif"] as const;
 
 export function parseAIResponse(text: string): AIEmailAnalysis {
   try {
@@ -143,6 +169,15 @@ export function parseAIResponse(text: string): AIEmailAnalysis {
           }
         : null,
       contratMentionne: typeof parsed.contratMentionne === "string" && parsed.contratMentionne !== "null" ? parsed.contratMentionne : null,
+      type: VALID_TYPES.includes(parsed.type) ? parsed.type : "autre",
+      urgence: VALID_URGENCES.includes(parsed.urgence) ? parsed.urgence : "normale",
+      sentiment: VALID_SENTIMENTS.includes(parsed.sentiment) ? parsed.sentiment : "neutre",
+      actionRequise: typeof parsed.actionRequise === "boolean" ? parsed.actionRequise : false,
+      actionSuggeree: typeof parsed.actionSuggeree === "string" && parsed.actionSuggeree !== "null" ? parsed.actionSuggeree : null,
+      dealUpdate: parsed.dealUpdate && typeof parsed.dealUpdate === "object" && parsed.dealUpdate.etapeSuggeree
+        ? { etapeSuggeree: parsed.dealUpdate.etapeSuggeree, raison: parsed.dealUpdate.raison ?? "" }
+        : null,
+      produitsMentionnes: Array.isArray(parsed.produitsMentionnes) ? parsed.produitsMentionnes : [],
     };
   } catch {
     return {
@@ -153,6 +188,13 @@ export function parseAIResponse(text: string): AIEmailAnalysis {
       tachesAFermer: [],
       enrichissementClient: null,
       contratMentionne: null,
+      type: "autre",
+      urgence: "normale",
+      sentiment: "neutre",
+      actionRequise: false,
+      actionSuggeree: null,
+      dealUpdate: null,
+      produitsMentionnes: [],
     };
   }
 }

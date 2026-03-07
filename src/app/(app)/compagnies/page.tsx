@@ -109,11 +109,33 @@ export default async function CompagniesPage() {
                     <TableCell className="text-right">{comp.contrats.length}</TableCell>
                     <TableCell className="text-right font-medium">{fmt(primes)}</TableCell>
                     <TableCell>
-                      {comp.seuilSurcommission ? (
-                        <span className="text-xs">
-                          {comp.seuilSurcommission} contrats → {((comp.tauxSurcommission ?? 0) * 100).toFixed(0)}%
-                        </span>
-                      ) : (
+                      {comp.seuilSurcommission ? (() => {
+                        const progression = Math.min(comp.contrats.length / comp.seuilSurcommission, 1);
+                        const pourcentage = Math.round(progression * 100);
+                        const barColor = pourcentage >= 100 ? "bg-green-500" : pourcentage >= 80 ? "bg-orange-500" : "bg-gray-300 dark:bg-gray-600";
+                        const textColor = pourcentage >= 100 ? "text-green-700 dark:text-green-400" : pourcentage >= 80 ? "text-orange-700 dark:text-orange-400" : "text-muted-foreground";
+                        return (
+                          <div className="space-y-1 min-w-[120px]">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className={textColor}>{comp.contrats.length}/{comp.seuilSurcommission}</span>
+                              <span className="text-muted-foreground">{((comp.tauxSurcommission ?? 0) * 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pourcentage}%` }} />
+                            </div>
+                            {pourcentage >= 80 && pourcentage < 100 && (
+                              <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800">
+                                Proche du seuil !
+                              </Badge>
+                            )}
+                            {pourcentage >= 100 && (
+                              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-600 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800">
+                                Seuil atteint
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })() : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
