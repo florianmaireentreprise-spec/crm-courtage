@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { clientSchema } from "@/lib/validators/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 export async function createClient(formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
@@ -104,6 +105,8 @@ export async function updateClient(id: string, formData: FormData) {
 }
 
 export async function deleteClient(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clients");
   redirect("/clients");

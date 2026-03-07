@@ -43,8 +43,8 @@ export default async function SequencesPage() {
       },
       orderBy: { dateCreation: "asc" },
     });
-  } catch {
-    // Tables may not exist yet if migration hasn't run
+  } catch (err) {
+    console.error("Erreur chargement sequences:", err);
   }
 
   clients = await prisma.client.findMany({

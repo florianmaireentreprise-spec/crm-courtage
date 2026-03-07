@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 
 const dirigeantSchema = z.object({
   clientId: z.string().min(1),
@@ -110,6 +111,8 @@ export async function updateDirigeant(id: string, formData: FormData) {
 }
 
 export async function deleteDirigeant(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
   await prisma.dirigeant.delete({ where: { id } });
   revalidatePath("/dirigeants");
   revalidatePath("/clients");

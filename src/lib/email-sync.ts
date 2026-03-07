@@ -72,8 +72,8 @@ async function matchPrescripteurByEmail(emailAddress: string): Promise<string | 
   return prescripteur?.id ?? null;
 }
 
-// ── Analyze a single email (no session needed) ──
-async function analyzeEmailCron(emailId: string) {
+// ── Analyze a single email (no session needed, reusable) ──
+export async function analyzeEmailById(emailId: string) {
   const email = await prisma.email.findUnique({
     where: { id: emailId },
     include: { client: true },
@@ -350,7 +350,7 @@ export async function syncEmailsForUser(userId: string): Promise<{
 
   for (const email of emailsToAnalyze) {
     try {
-      await analyzeEmailCron(email.id);
+      await analyzeEmailById(email.id);
       analyzed++;
     } catch (err) {
       console.error(`Cron analyze failed for email ${email.id}:`, err);

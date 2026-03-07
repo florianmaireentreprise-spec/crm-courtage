@@ -20,6 +20,35 @@ import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
 import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
 
 async function getDashboardData() {
+  try {
+    return await getDashboardDataInternal();
+  } catch (err) {
+    console.error("Erreur chargement dashboard:", err);
+    return getEmptyDashboard();
+  }
+}
+
+function getEmptyDashboard() {
+  return {
+    kpis: {
+      caRecurrentMensuel: 0, caRecurrentAnnuel: 0, nbClientsActifs: 0,
+      nbContratsActifs: 0, pipelineEnCours: 0, nbTachesEnRetard: 0,
+      nbPrescripteurs: 0, nbDirigeants: 0, panierMoyen: 0,
+      tauxMultiEquipement: "0", contratsARenouveler30j: 0, totalPotentiel: 0,
+    },
+    caEvolution: [] as { mois: string; reel: number; theorique: number }[],
+    contratsByType: [] as { typeProduit: string; _sum: { commissionAnnuelle: number | null }; _count: number }[],
+    dealsByEtape: [] as { etape: string; _count: number; _sum: { montantEstime: number | null } }[],
+    renewals: [] as never[],
+    tachesAujourdhui: [] as never[],
+    topProspects: [] as { id: string; raisonSociale: string; statut: string; score: number; potentiel: number }[],
+    opportunites: [] as Awaited<ReturnType<typeof detecterOpportunites>>,
+    campagnesActives: [] as ReturnType<typeof getCampagnesActives>,
+    prescripteursAlertes: [] as Awaited<ReturnType<typeof detecterPrescripteursARelancer>>,
+  };
+}
+
+async function getDashboardDataInternal() {
   const [
     clientsActifs,
     contratsActifs,

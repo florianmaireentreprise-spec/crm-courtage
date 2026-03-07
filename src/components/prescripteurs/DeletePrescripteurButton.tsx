@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useTransition } from "react";
 
 interface DeletePrescripteurButtonProps {
-  action: () => Promise<void>;
+  action: () => Promise<void | { error: string }>;
 }
 
 export function DeletePrescripteurButton({ action }: DeletePrescripteurButtonProps) {
@@ -13,7 +13,7 @@ export function DeletePrescripteurButton({ action }: DeletePrescripteurButtonPro
 
   const handleDelete = () => {
     if (!confirm("Supprimer ce prescripteur ? Cette action est irreversible.")) return;
-    startTransition(() => action());
+    startTransition(async () => { await action(); });
   };
 
   return (

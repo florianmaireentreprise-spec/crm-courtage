@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 
 const prescripteurSchema = z.object({
   type: z.string().min(1),
@@ -76,6 +77,8 @@ export async function updatePrescripteur(id: string, formData: FormData) {
 }
 
 export async function deletePrescripteur(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
   await prisma.prescripteur.delete({ where: { id } });
   revalidatePath("/prescripteurs");
   redirect("/prescripteurs");

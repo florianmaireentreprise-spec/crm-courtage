@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 
 const contratSchema = z.object({
   clientId: z.string().min(1),
@@ -169,6 +170,8 @@ export async function updateContrat(id: string, formData: FormData) {
 }
 
 export async function deleteContrat(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
   const contrat = await prisma.contrat.findUnique({ where: { id } });
   await prisma.contrat.delete({ where: { id } });
 

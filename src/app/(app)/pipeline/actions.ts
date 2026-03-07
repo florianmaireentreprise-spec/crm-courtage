@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
 
 const dealSchema = z.object({
   clientId: z.string().min(1),
@@ -60,7 +61,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
 
   if (newEtape === "AUDIT") {
     const deal = await prisma.deal.findUnique({ where: { id: dealId }, select: { clientId: true, client: { select: { raisonSociale: true } } } });
-    if (deal) {
+    if (deal?.client) {
       await prisma.tache.create({
         data: {
           clientId: deal.clientId,
@@ -77,7 +78,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
 
   if (newEtape === "RECOMMANDATION") {
     const deal = await prisma.deal.findUnique({ where: { id: dealId }, select: { clientId: true, client: { select: { raisonSociale: true } } } });
-    if (deal) {
+    if (deal?.client) {
       await prisma.tache.create({
         data: {
           clientId: deal.clientId,
@@ -212,6 +213,8 @@ export async function updateDealDetails(dealId: string, formData: FormData) {
 }
 
 export async function deleteDeal(dealId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
   await prisma.deal.delete({ where: { id: dealId } });
   revalidatePath("/pipeline");
 }

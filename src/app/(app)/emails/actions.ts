@@ -5,9 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage } from "@/lib/gmail";
-import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/ai";
+import { analyzeEmailById } from "@/lib/email-sync";
 import { google } from "googleapis";
-import Anthropic from "@anthropic-ai/sdk";
 
 // ── Patterns to exclude (newsletters, automated, noreply) ──
 const EXCLUDED_PATTERNS = [
@@ -200,7 +199,7 @@ export async function syncEmails() {
   let missedProcessed = 0;
   for (const email of missedEmails) {
     try {
-      await analyzeEmailInternal(email.id, userId);
+      await analyzeEmailById(email.id);
       missedProcessed++;
     } catch (err) {
       console.error(`Auto-process missed email ${email.id}:`, err);
@@ -228,7 +227,7 @@ async function autoProcessEmails(userId: string, emailIds: string[]): Promise<nu
 
   for (const email of emailsToProcess) {
     try {
-      await analyzeEmailInternal(email.id, userId);
+      await analyzeEmailById(email.id);
       processed++;
     } catch (err) {
       console.error(`Auto-process failed for email ${email.id}:`, err);
@@ -238,197 +237,6 @@ async function autoProcessEmails(userId: string, emailIds: string[]): Promise<nu
   return processed;
 }
 
-// ── ANALYZE (internal, reusable) ──
-
-async function analyzeEmailInternal(emailId: string, userId: string) {
-  const email = await prisma.email.findUnique({
-    where: { id: emailId },
-    include: { client: true },
-  });
-  if (!email) throw new Error("Email introuvable");
-
-  await prisma.email.update({
-    where: { id: emailId },
-    data: { analyseStatut: "en_cours" },
-  });
-
-  // Build enriched context
-  const allClients = await prisma.client.findMany({
-    select: { id: true, raisonSociale: true, email: true, prenom: true, nom: true },
-  });
-
-  let contextData: Parameters<typeof buildAnalysisPrompt>[5] = undefined;
-
-  if (email.clientId) {
-    const clientTaches = await prisma.tache.findMany({
-      where: { clientId: email.clientId, statut: { in: ["a_faire", "en_cours"] } },
-      select: { id: true, titre: true, statut: true, dateEcheance: true },
-      orderBy: { dateEcheance: "asc" },
-      take: 10,
-    });
-
-    const clientContrats = await prisma.contrat.findMany({
-      where: { clientId: email.clientId, statut: "actif" },
-      select: { id: true, typeProduit: true, nomProduit: true, statut: true },
-      take: 10,
-    });
-
-    const recentEmails = await prisma.email.findMany({
-      where: { clientId: email.clientId, id: { not: emailId } },
-      select: { sujet: true, direction: true, dateEnvoi: true },
-      orderBy: { dateEnvoi: "desc" },
-      take: 5,
-    });
-
-    const matchedClient = allClients.find((c) => c.id === email.clientId);
-
-    contextData = {
-      clientMatched: matchedClient ? {
-        ...matchedClient,
-        taches: clientTaches,
-        contrats: clientContrats,
-      } : undefined,
-      recentEmails,
-    };
-  }
-
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const prompt = buildAnalysisPrompt(
-    email.sujet,
-    email.expediteur,
-    email.extrait,
-    email.direction,
-    allClients,
-    contextData,
-  );
-
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const firstBlock = response.content[0];
-  const rawText = firstBlock.type === "text" ? firstBlock.text : "";
-  const result = parseAIResponse(rawText);
-
-  await processAnalysisResult(emailId, email.clientId, result);
-}
-
-// ── PROCESS ANALYSIS RESULT: enrich CRM from AI output ──
-
-async function matchPrescripteurByEmail(emailAddress: string): Promise<string | null> {
-  const addr = extractEmailAddress(emailAddress);
-  const prescripteur = await prisma.prescripteur.findFirst({
-    where: { email: { equals: addr, mode: "insensitive" } },
-    select: { id: true },
-  });
-  return prescripteur?.id ?? null;
-}
-
-async function processAnalysisResult(
-  emailId: string,
-  existingClientId: string | null,
-  result: AIEmailAnalysis
-) {
-  const resolvedClientId = result.clientId ?? existingClientId;
-
-  // 1. Create tasks from action items
-  for (const item of result.actionItems) {
-    await prisma.tache.create({
-      data: {
-        titre: item,
-        type: "AUTRE",
-        priorite: "normale",
-        dateEcheance: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        clientId: resolvedClientId,
-        emailId: emailId,
-      },
-    });
-  }
-
-  // 2. Close tasks identified by AI
-  if (result.tachesAFermer.length > 0) {
-    await prisma.tache.updateMany({
-      where: {
-        id: { in: result.tachesAFermer },
-        statut: { in: ["a_faire", "en_cours"] },
-      },
-      data: {
-        statut: "terminee",
-        dateRealisation: new Date(),
-      },
-    });
-  }
-
-  // 3. Enrich client data
-  if (resolvedClientId && result.enrichissementClient) {
-    const updates: Record<string, unknown> = {};
-
-    if (result.enrichissementClient.notes) {
-      const currentClient = await prisma.client.findUnique({
-        where: { id: resolvedClientId },
-        select: { noteEmails: true },
-      });
-      const existing = currentClient?.noteEmails ?? "";
-      const date = new Date().toISOString().slice(0, 10);
-      const newNote = `[${date}] ${result.enrichissementClient.notes}`;
-      // Keep last 5 notes (rolling summary)
-      const lines = existing ? existing.split("\n") : [];
-      lines.push(newNote);
-      updates.noteEmails = lines.slice(-5).join("\n");
-    }
-
-    if (result.enrichissementClient.statutSuggere) {
-      updates.statut = result.enrichissementClient.statutSuggere;
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await prisma.client.update({
-        where: { id: resolvedClientId },
-        data: updates,
-      });
-    }
-  }
-
-  // 4. Auto-update prescripteur lead counter
-  if (result.type === "prescripteur") {
-    const email = await prisma.email.findUnique({ where: { id: emailId }, select: { expediteur: true } });
-    if (email) {
-      const prescripteurId = await matchPrescripteurByEmail(email.expediteur);
-      if (prescripteurId) {
-        await prisma.prescripteur.update({
-          where: { id: prescripteurId },
-          data: {
-            dossiersEnvoyes: { increment: 1 },
-            derniereRecommandation: new Date(),
-          },
-        });
-      }
-    }
-  }
-
-  // 5. Update email with analysis results (including v2 fields)
-  await prisma.email.update({
-    where: { id: emailId },
-    data: {
-      resume: result.resume,
-      actionsItems: JSON.stringify(result.actionItems),
-      reponseProposee: result.draftReply,
-      clientId: resolvedClientId,
-      analyseStatut: "analyse",
-      typeEmail: result.type,
-      urgence: result.urgence,
-      sentiment: result.sentiment,
-      actionRequise: result.actionRequise,
-      actionTraitee: false,
-      analyseIA: JSON.stringify(result),
-      dealUpdateSuggestion: result.dealUpdate ? JSON.stringify(result.dealUpdate) : null,
-      produitsMentionnes: result.produitsMentionnes.length > 0 ? JSON.stringify(result.produitsMentionnes) : null,
-    },
-  });
-}
-
 // ── PUBLIC ACTIONS ──
 
 export async function analyzeEmail(emailId: string) {
@@ -436,7 +244,7 @@ export async function analyzeEmail(emailId: string) {
   if (!session?.user?.id) return { error: "Non authentifié" };
 
   try {
-    await analyzeEmailInternal(emailId, session.user.id);
+    await analyzeEmailById(emailId);
     revalidatePath("/emails");
     revalidatePath("/relances");
     revalidatePath("/clients");
@@ -511,7 +319,7 @@ export async function reanalyzeUnprocessed() {
 
   for (const email of emailsToProcess) {
     try {
-      await analyzeEmailInternal(email.id, session.user.id);
+      await analyzeEmailById(email.id);
       processed++;
     } catch (err) {
       console.error(`Reanalyze failed for email ${email.id}:`, err);

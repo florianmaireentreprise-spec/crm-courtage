@@ -13,8 +13,8 @@ export default async function RapportsPage() {
       orderBy: { dateGeneration: "desc" },
       take: 12,
     });
-  } catch {
-    // Table may not exist yet if migration hasn't run
+  } catch (err) {
+    console.error("Erreur chargement rapports:", err);
   }
 
   return (
