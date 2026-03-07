@@ -3,9 +3,9 @@ FROM node:22-alpine AS base
 # ── Étape 1 : installer les dépendances ──
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm install
 
 # ── Étape 2 : builder l'application ──
 FROM base AS builder
