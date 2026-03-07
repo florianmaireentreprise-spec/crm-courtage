@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildOAuth2Client } from "@/lib/email/gmail";
 import { auth } from "@/lib/auth";
+import { GMAIL_SCOPES } from "@/app/(app)/emails/actions";
 
 export const GET = auth(function GET(req) {
   const userId = req.auth?.user?.id;
@@ -14,7 +15,7 @@ export const GET = auth(function GET(req) {
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+    scope: GMAIL_SCOPES,
     prompt: "consent",
     state: userId,
   });

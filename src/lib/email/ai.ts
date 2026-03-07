@@ -17,6 +17,9 @@ export type AIEmailAnalysis = {
   actionSuggeree: string | null;
   dealUpdate: { etapeSuggeree: string; raison: string } | null;
   produitsMentionnes: string[];
+  // Champs expediteur extraits par l'IA
+  expediteurNom: string | null;
+  expediteurEntreprise: string | null;
 };
 
 type ClientMini = {
@@ -113,7 +116,9 @@ Analyse cet email ${direction === "sortant" ? "ENVOYÉ PAR le cabinet" : "REÇU 
   },
   "contratMentionne": "TYPE_PRODUIT_ou_null",
   "dealUpdate": { "etapeSuggeree": "ETAPE_PIPELINE", "raison": "explication" } ou null,
-  "produitsMentionnes": ["SANTE_COLLECTIVE", "PER"]
+  "produitsMentionnes": ["SANTE_COLLECTIVE", "PER"],
+  "expediteurNom": "Prénom ou nom de la personne qui envoie l'email",
+  "expediteurEntreprise": "Nom de l'entreprise de l'expéditeur ou null"
 }
 
 EMAIL (${direction.toUpperCase()}) :
@@ -142,6 +147,8 @@ Instructions :
 - contratMentionne = si l'email mentionne un type de produit d'assurance, indiquer le code (SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, PER, PROTECTION_JURIDIQUE, RCP_PRO, ASSURANCE_VIE). null sinon.
 - dealUpdate = si l'email justifie un changement d'étape pipeline (ex: email d'un assureur confirmant mise en place → SIGNATURE). null sinon.
 - produitsMentionnes = tous les codes produits mentionnés dans l'email. Liste vide si aucun.
+- expediteurNom = prénom ou nom de la personne (ex: "Jonathan", "Marie Dupont"). Extraire du champ "De:" ou du contenu de l'email. null si impossible à déterminer.
+- expediteurEntreprise = nom de l'entreprise de l'expéditeur (ex: "Suriteka", "Cabinet Dupont"). Extraire du champ "De:", de la signature ou du domaine email. null si impossible à déterminer.
 - Répondre UNIQUEMENT avec le JSON, sans texte avant ni après`;
 }
 
@@ -178,6 +185,8 @@ export function parseAIResponse(text: string): AIEmailAnalysis {
         ? { etapeSuggeree: parsed.dealUpdate.etapeSuggeree, raison: parsed.dealUpdate.raison ?? "" }
         : null,
       produitsMentionnes: Array.isArray(parsed.produitsMentionnes) ? parsed.produitsMentionnes : [],
+      expediteurNom: typeof parsed.expediteurNom === "string" && parsed.expediteurNom !== "null" ? parsed.expediteurNom : null,
+      expediteurEntreprise: typeof parsed.expediteurEntreprise === "string" && parsed.expediteurEntreprise !== "null" ? parsed.expediteurEntreprise : null,
     };
   } catch {
     return {
@@ -195,6 +204,8 @@ export function parseAIResponse(text: string): AIEmailAnalysis {
       actionSuggeree: null,
       dealUpdate: null,
       produitsMentionnes: [],
+      expediteurNom: null,
+      expediteurEntreprise: null,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google, type Auth } from "googleapis";
 import type { gmail_v1 } from "googleapis";
 
 export function buildOAuth2Client() {
@@ -34,6 +34,40 @@ export function extractBodyText(payload: gmail_v1.Schema$MessagePart): string {
   }
 
   return "";
+}
+
+export async function sendGmailReply(
+  oauth2Client: Auth.OAuth2Client,
+  to: string,
+  subject: string,
+  body: string,
+  threadId?: string,
+) {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+  const utf8Subject = `=?utf-8?B?${Buffer.from(`Re: ${subject}`).toString("base64")}?=`;
+  const messageParts = [
+    `To: ${to}`,
+    `Subject: ${utf8Subject}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `MIME-Version: 1.0`,
+    "",
+    body,
+  ];
+
+  const raw = Buffer.from(messageParts.join("\r\n"))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: {
+      raw,
+      threadId: threadId || undefined,
+    },
+  });
 }
 
 export function parseGmailMessage(msg: gmail_v1.Schema$Message) {

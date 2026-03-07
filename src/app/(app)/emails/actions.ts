@@ -4,11 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { buildOAuth2Client, parseGmailMessage } from "@/lib/email/gmail";
+import { buildOAuth2Client, parseGmailMessage, sendGmailReply } from "@/lib/email/gmail";
 import { analyzeEmailById } from "@/lib/email/sync";
 import { google } from "googleapis";
 
-// ── Patterns to exclude (newsletters, automated, noreply) ──
+export const GMAIL_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
+];
+
+// ── Helpers (shared with sync.ts) ──
+
 const EXCLUDED_PATTERNS = [
   /noreply@/i, /no-reply@/i, /ne-pas-repondre@/i,
   /newsletter@/i, /notification@/i, /mailer-daemon@/i,
@@ -60,7 +66,7 @@ export async function startGmailOAuth() {
   const oauth2Client = buildOAuth2Client();
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+    scope: GMAIL_SCOPES,
     prompt: "consent",
     state: session.user.id,
   });
@@ -142,19 +148,16 @@ export async function syncEmails() {
 
     if (isExcludedSender(parsed.expediteur)) continue;
 
-    // Determine direction
     const senderAddr = extractEmailAddress(parsed.expediteur);
     const myAddr = gmailEmail.toLowerCase();
     const direction = senderAddr === myAddr ? "sortant" : "entrant";
 
-    // Match client
     const clientId = direction === "sortant"
       ? await matchClientByEmail(parsed.destinataires)
       : await matchClientByEmail(parsed.expediteur);
 
     if (clientId) clientMatchCount++;
 
-    // Classify pertinence
     const { pertinence, scoreRelevance } = classifyPertinence(
       !!clientId, parsed.sujet, parsed.extrait
     );
@@ -170,7 +173,6 @@ export async function syncEmails() {
       },
     });
 
-    // Update client's last interaction date
     if (clientId) {
       await prisma.client.update({
         where: { id: clientId },
@@ -182,59 +184,31 @@ export async function syncEmails() {
     newCount++;
   }
 
-  // Auto-process important/client emails (new ones + any previously missed)
-  const autoProcessed = await autoProcessEmails(userId, newEmailIds);
-
-  // Also catch any previously unanalyzed client/important emails
-  const missedEmails = await prisma.email.findMany({
+  // Auto-analyze ALL new emails (not just client/important)
+  const emailsToProcess = await prisma.email.findMany({
     where: {
       userId,
-      analyseStatut: "non_analyse",
-      pertinence: { in: ["client", "important"] },
-      id: { notIn: newEmailIds },
+      analyseStatut: { in: ["non_analyse", "erreur"] },
     },
     select: { id: true },
+    orderBy: { dateEnvoi: "desc" },
+    take: 50,
   });
 
-  let missedProcessed = 0;
-  for (const email of missedEmails) {
+  let autoProcessed = 0;
+  for (const email of emailsToProcess) {
     try {
       await analyzeEmailById(email.id);
-      missedProcessed++;
+      autoProcessed++;
     } catch (err) {
-      console.error(`Auto-process missed email ${email.id}:`, err);
+      console.error(`Auto-process failed for email ${email.id}:`, err);
     }
   }
 
   revalidatePath("/emails");
   revalidatePath("/clients");
   revalidatePath("/relances");
-  return { success: true, newCount, clientMatchCount, autoProcessed: autoProcessed + missedProcessed };
-}
-
-// ── AUTO-PROCESS: analyze client & important emails automatically ──
-
-async function autoProcessEmails(userId: string, emailIds: string[]): Promise<number> {
-  const emailsToProcess = await prisma.email.findMany({
-    where: {
-      id: { in: emailIds },
-      analyseStatut: "non_analyse",
-      pertinence: { in: ["client", "important"] },
-    },
-  });
-
-  let processed = 0;
-
-  for (const email of emailsToProcess) {
-    try {
-      await analyzeEmailById(email.id);
-      processed++;
-    } catch (err) {
-      console.error(`Auto-process failed for email ${email.id}:`, err);
-    }
-  }
-
-  return processed;
+  return { success: true, newCount, clientMatchCount, autoProcessed };
 }
 
 // ── PUBLIC ACTIONS ──
@@ -276,7 +250,6 @@ export async function batchProcessEmails() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
 
-  // Find all analyzed emails with pending actions
   const pendingEmails = await prisma.email.findMany({
     where: {
       userId: session.user.id,
@@ -299,8 +272,6 @@ export async function batchProcessEmails() {
   return { success: true, processed };
 }
 
-// ── REANALYZE: process all unanalyzed client/important emails ──
-
 export async function reanalyzeUnprocessed() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
@@ -309,9 +280,9 @@ export async function reanalyzeUnprocessed() {
     where: {
       userId: session.user.id,
       analyseStatut: { in: ["non_analyse", "erreur"] },
-      pertinence: { in: ["client", "important"] },
     },
     orderBy: { dateEnvoi: "desc" },
+    take: 50,
   });
 
   let processed = 0;
@@ -338,4 +309,146 @@ export async function disconnectGmail() {
   if (!session?.user?.id) return;
   await prisma.gmailConnection.delete({ where: { userId: session.user.id } }).catch(() => {});
   revalidatePath("/emails");
+}
+
+// ── SEND REPLY via Gmail ──
+
+export async function sendReply(emailId: string, replyText: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  try {
+    const { oauth2Client } = await buildAuthedClient(session.user.id);
+
+    const toAddress = extractEmailAddress(email.expediteur);
+    await sendGmailReply(
+      oauth2Client,
+      toAddress,
+      email.sujet,
+      replyText,
+      email.threadId,
+    );
+
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { actionTraitee: true },
+    });
+
+    revalidatePath("/emails");
+    return { success: true };
+  } catch (err) {
+    console.error("Send reply error:", err);
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("insufficient") || message.includes("scope") || message.includes("403")) {
+      return { error: "Permissions insuffisantes. Deconnectez et reconnectez Gmail pour autoriser l'envoi d'emails." };
+    }
+    return { error: "Erreur lors de l'envoi de la reponse" };
+  }
+}
+
+// ── CREATE DEAL from email ──
+
+export async function createDealFromEmail(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+  if (!email.clientId) return { error: "Rattachez d'abord un client a cet email" };
+
+  const client = await prisma.client.findUnique({
+    where: { id: email.clientId },
+    select: { raisonSociale: true },
+  });
+
+  const produits: string[] = email.produitsMentionnes
+    ? (() => { try { return JSON.parse(email.produitsMentionnes); } catch { return []; } })()
+    : [];
+
+  const PRODUCT_LABELS: Record<string, string> = {
+    SANTE_COLLECTIVE: "Santé collective",
+    PREVOYANCE_COLLECTIVE: "Prévoyance collective",
+    PREVOYANCE_MADELIN: "Prévoyance Madelin",
+    SANTE_MADELIN: "Santé Madelin",
+    RCP_PRO: "RC Professionnelle",
+    PER: "PER",
+    ASSURANCE_VIE: "Assurance vie",
+    PROTECTION_JURIDIQUE: "Protection juridique",
+  };
+
+  const mainProduct = produits[0] || "SANTE_COLLECTIVE";
+  const productLabel = PRODUCT_LABELS[mainProduct] || mainProduct.replace(/_/g, " ");
+
+  const deal = await prisma.deal.create({
+    data: {
+      clientId: email.clientId,
+      titre: `${productLabel} — ${client?.raisonSociale || "Prospect"}`,
+      etape: "PROSPECT_IDENTIFIE",
+      produitsCibles: produits.join(", "),
+      sourceProspect: "email",
+      notes: `Créé depuis l'email: "${email.sujet}"`,
+    },
+  });
+
+  revalidatePath("/pipeline");
+  revalidatePath("/emails");
+  return { success: true, dealId: deal.id };
+}
+
+// ── CREATE CLIENT from email data ──
+
+export async function createClientFromEmail(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  // Parse analysis to get sender info
+  let expediteurNom = "";
+  let expediteurEntreprise = "";
+  if (email.analyseIA) {
+    try {
+      const analysis = JSON.parse(email.analyseIA);
+      expediteurNom = analysis.expediteurNom || "";
+      expediteurEntreprise = analysis.expediteurEntreprise || "";
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: extract from expediteur header
+  if (!expediteurNom) {
+    const match = email.expediteur.match(/^([^<]+)\s*</);
+    expediteurNom = match ? match[1].trim() : email.expediteur.split("@")[0];
+  }
+
+  const emailAddr = extractEmailAddress(email.expediteur);
+  const nameParts = expediteurNom.split(" ");
+  const prenom = nameParts[0] || expediteurNom;
+  const nom = nameParts.slice(1).join(" ") || prenom;
+
+  const client = await prisma.client.create({
+    data: {
+      raisonSociale: expediteurEntreprise || expediteurNom,
+      prenom,
+      nom,
+      email: emailAddr,
+      statut: "prospect",
+      sourceAcquisition: "Email entrant",
+      notes: `Créé depuis l'email: "${email.sujet}"`,
+      derniereInteraction: email.dateEnvoi,
+    },
+  });
+
+  // Link email to the new client
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { clientId: client.id },
+  });
+
+  revalidatePath("/emails");
+  revalidatePath("/clients");
+  return { success: true, clientId: client.id, clientName: client.raisonSociale };
 }

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildOAuth2Client } from "@/lib/email/gmail";
+import { GMAIL_SCOPES } from "./actions";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailList } from "@/components/emails/EmailList";
 import { Mail, Inbox } from "lucide-react";
@@ -21,7 +22,7 @@ export default async function EmailsPage() {
     const oauth2Client = buildOAuth2Client();
     gmailAuthUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
-      scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+      scope: GMAIL_SCOPES,
       prompt: "consent",
       state: userId,
     });
@@ -39,7 +40,7 @@ export default async function EmailsPage() {
   const totalEmails = emails.length;
   const clientEmails = emails.filter((e) => e.clientId).length;
   const nonAnalyzed = emails.filter((e) => e.analyseStatut === "non_analyse").length;
-  const autoAnalyzed = emails.filter((e) => e.analyseStatut === "analyse" && (e.pertinence === "client" || e.pertinence === "important")).length;
+  const autoAnalyzed = emails.filter((e) => e.analyseStatut === "analyse").length;
   const entrants = emails.filter((e) => e.direction === "entrant").length;
   const sortants = emails.filter((e) => e.direction === "sortant").length;
 

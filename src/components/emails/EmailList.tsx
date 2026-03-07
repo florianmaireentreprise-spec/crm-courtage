@@ -81,7 +81,7 @@ export function EmailList({ emails, stats }: Props) {
   }
 
   const nonAnalyseClientCount = emails.filter(
-    (e) => (e.pertinence === "client" || e.pertinence === "important") && (e.analyseStatut === "non_analyse" || e.analyseStatut === "erreur")
+    (e) => e.analyseStatut === "non_analyse" || e.analyseStatut === "erreur"
   ).length;
   const nonLuCount = filtered.filter((e) => !e.lu).length;
 
