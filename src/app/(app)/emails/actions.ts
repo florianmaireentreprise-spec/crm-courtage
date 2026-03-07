@@ -4,14 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { buildOAuth2Client, parseGmailMessage, sendGmailReply } from "@/lib/email/gmail";
+import { buildOAuth2Client, parseGmailMessage, sendGmailReply, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { analyzeEmailById } from "@/lib/email/sync";
 import { google } from "googleapis";
-
-export const GMAIL_SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.send",
-];
 
 // ── Helpers (shared with sync.ts) ──
 

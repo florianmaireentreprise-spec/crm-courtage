@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildOAuth2Client } from "@/lib/email/gmail";
-import { GMAIL_SCOPES } from "./actions";
+import { buildOAuth2Client, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailList } from "@/components/emails/EmailList";
 import { Mail, Inbox } from "lucide-react";

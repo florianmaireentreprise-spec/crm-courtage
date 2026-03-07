@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildOAuth2Client } from "@/lib/email/gmail";
+import { buildOAuth2Client, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { auth } from "@/lib/auth";
-import { GMAIL_SCOPES } from "@/app/(app)/emails/actions";
 
 export const GET = auth(function GET(req) {
   const userId = req.auth?.user?.id;

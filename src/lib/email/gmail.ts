@@ -1,6 +1,11 @@
 import { google, type Auth } from "googleapis";
 import type { gmail_v1 } from "googleapis";
 
+export const GMAIL_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
+];
+
 export function buildOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
