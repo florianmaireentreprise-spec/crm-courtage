@@ -13,6 +13,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Railway passe les variables comme build args automatiquement
+ARG DATABASE_URL
+ARG DIRECT_URL
+
 # Générer le client Prisma puis builder Next.js
 RUN npx prisma generate
 RUN npm run build
