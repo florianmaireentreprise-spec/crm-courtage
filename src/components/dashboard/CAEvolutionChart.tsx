@@ -40,14 +40,14 @@ export function CAEvolutionChart({ data }: { data: CAEvolutionData }) {
                 }
               />
               <Tooltip
-                formatter={(value: number | undefined) =>
-                  value != null
+                formatter={(value: number | string) =>
+                  typeof value === "number"
                     ? new Intl.NumberFormat("fr-FR", {
                         style: "currency",
                         currency: "EUR",
                         maximumFractionDigits: 0,
                       }).format(value)
-                    : ""
+                    : String(value ?? "")
                 }
               />
               <Legend />
