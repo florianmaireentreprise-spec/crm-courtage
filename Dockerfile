@@ -38,13 +38,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copier Prisma : schema, config, CLI et client (pour prisma db push au démarrage)
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Copier le client Prisma (runtime seulement, pas le CLI)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 
 USER nextjs
 

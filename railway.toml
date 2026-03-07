@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node ./node_modules/prisma/build/index.js db push && node server.js"
+startCommand = "node server.js"
 healthcheckPath = "/"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
