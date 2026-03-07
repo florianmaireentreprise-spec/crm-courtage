@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 // ── Patterns to exclude (newsletters, automated, noreply) ──
 const EXCLUDED_PATTERNS = [
   /noreply@/i, /no-reply@/i, /ne-pas-repondre@/i,
-  /newsletter@/i, /notification@/i, /mailer-daemon@/i,
+  /newsletter@/i, /notifications?@/i, /mailer-daemon@/i,
   /postmaster@/i, /unsubscribe/i, /marketing@/i, /promo@/i,
 ];
 
@@ -98,71 +98,90 @@ export async function analyzeEmailById(emailId: string) {
   });
   if (!email) return;
 
+  // Check API key before starting
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error("ANTHROPIC_API_KEY is not set — skipping email analysis");
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { analyseStatut: "erreur" },
+    });
+    throw new Error("ANTHROPIC_API_KEY is not configured");
+  }
+
   await prisma.email.update({
     where: { id: emailId },
     data: { analyseStatut: "en_cours" },
   });
 
-  const allClients = await prisma.client.findMany({
-    select: { id: true, raisonSociale: true, email: true, prenom: true, nom: true },
-  });
-
-  let contextData: Parameters<typeof buildAnalysisPrompt>[5] = undefined;
-
-  if (email.clientId) {
-    const clientTaches = await prisma.tache.findMany({
-      where: { clientId: email.clientId, statut: { in: ["a_faire", "en_cours"] } },
-      select: { id: true, titre: true, statut: true, dateEcheance: true },
-      orderBy: { dateEcheance: "asc" },
-      take: 10,
+  try {
+    const allClients = await prisma.client.findMany({
+      select: { id: true, raisonSociale: true, email: true, prenom: true, nom: true },
     });
 
-    const clientContrats = await prisma.contrat.findMany({
-      where: { clientId: email.clientId, statut: "actif" },
-      select: { id: true, typeProduit: true, nomProduit: true, statut: true },
-      take: 10,
+    let contextData: Parameters<typeof buildAnalysisPrompt>[5] = undefined;
+
+    if (email.clientId) {
+      const clientTaches = await prisma.tache.findMany({
+        where: { clientId: email.clientId, statut: { in: ["a_faire", "en_cours"] } },
+        select: { id: true, titre: true, statut: true, dateEcheance: true },
+        orderBy: { dateEcheance: "asc" },
+        take: 10,
+      });
+
+      const clientContrats = await prisma.contrat.findMany({
+        where: { clientId: email.clientId, statut: "actif" },
+        select: { id: true, typeProduit: true, nomProduit: true, statut: true },
+        take: 10,
+      });
+
+      const recentEmails = await prisma.email.findMany({
+        where: { clientId: email.clientId, id: { not: emailId } },
+        select: { sujet: true, direction: true, dateEnvoi: true },
+        orderBy: { dateEnvoi: "desc" },
+        take: 5,
+      });
+
+      const matchedClient = allClients.find((c) => c.id === email.clientId);
+
+      contextData = {
+        clientMatched: matchedClient ? {
+          ...matchedClient,
+          taches: clientTaches,
+          contrats: clientContrats,
+        } : undefined,
+        recentEmails,
+      };
+    }
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const prompt = buildAnalysisPrompt(
+      email.sujet,
+      email.expediteur,
+      email.extrait,
+      email.direction,
+      allClients,
+      contextData,
+    );
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const recentEmails = await prisma.email.findMany({
-      where: { clientId: email.clientId, id: { not: emailId } },
-      select: { sujet: true, direction: true, dateEnvoi: true },
-      orderBy: { dateEnvoi: "desc" },
-      take: 5,
-    });
+    const firstBlock = response.content[0];
+    const rawText = firstBlock.type === "text" ? firstBlock.text : "";
+    const result = parseAIResponse(rawText);
 
-    const matchedClient = allClients.find((c) => c.id === email.clientId);
-
-    contextData = {
-      clientMatched: matchedClient ? {
-        ...matchedClient,
-        taches: clientTaches,
-        contrats: clientContrats,
-      } : undefined,
-      recentEmails,
-    };
+    await processAnalysisResult(emailId, email.clientId, result, email.expediteur);
+  } catch (err) {
+    // Reset status to "erreur" so it can be retried later
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { analyseStatut: "erreur" },
+    }).catch(() => {});
+    throw err;
   }
-
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const prompt = buildAnalysisPrompt(
-    email.sujet,
-    email.expediteur,
-    email.extrait,
-    email.direction,
-    allClients,
-    contextData,
-  );
-
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const firstBlock = response.content[0];
-  const rawText = firstBlock.type === "text" ? firstBlock.text : "";
-  const result = parseAIResponse(rawText);
-
-  await processAnalysisResult(emailId, email.clientId, result, email.expediteur);
 }
 
 async function processAnalysisResult(
@@ -373,6 +392,16 @@ export async function syncEmailsForUser(userId: string): Promise<{
     newEmailIds.push(email.id);
     newCount++;
   }
+
+  // Reset stuck "en_cours" emails (stuck for more than 5 minutes)
+  await prisma.email.updateMany({
+    where: {
+      userId,
+      analyseStatut: "en_cours",
+      dateMaj: { lt: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    data: { analyseStatut: "erreur" },
+  });
 
   // Auto-analyze ALL new emails + any previously missed
   const emailsToAnalyze = await prisma.email.findMany({

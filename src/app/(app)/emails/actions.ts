@@ -17,7 +17,7 @@ export const GMAIL_SCOPES = [
 
 const EXCLUDED_PATTERNS = [
   /noreply@/i, /no-reply@/i, /ne-pas-repondre@/i,
-  /newsletter@/i, /notification@/i, /mailer-daemon@/i,
+  /newsletter@/i, /notifications?@/i, /mailer-daemon@/i,
   /postmaster@/i, /unsubscribe/i, /marketing@/i, /promo@/i,
 ];
 
@@ -183,6 +183,16 @@ export async function syncEmails() {
     newEmailIds.push(email.id);
     newCount++;
   }
+
+  // Reset stuck "en_cours" emails (stuck for more than 5 minutes)
+  await prisma.email.updateMany({
+    where: {
+      userId,
+      analyseStatut: "en_cours",
+      dateMaj: { lt: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    data: { analyseStatut: "erreur" },
+  });
 
   // Auto-analyze ALL new emails (not just client/important)
   const emailsToProcess = await prisma.email.findMany({
