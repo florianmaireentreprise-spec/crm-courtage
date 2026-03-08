@@ -13,6 +13,7 @@ import type { Email, Client } from "@prisma/client";
 
 type Props = {
   email: Email & { client: Client | null };
+  onClick?: () => void;
 };
 
 const typeConfig: Record<string, { label: string; class: string }> = {
@@ -43,7 +44,7 @@ const statusLabels: Record<string, string> = {
   erreur: "Erreur",
 };
 
-export function EmailCard({ email }: Props) {
+export function EmailCard({ email, onClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [treated, setTreated] = useState(email.actionTraitee);
@@ -58,7 +59,11 @@ export function EmailCard({ email }: Props) {
 
   async function handleClick() {
     if (!email.lu) await markEmailRead(email.id);
-    setExpanded((prev) => !prev);
+    if (onClick) {
+      onClick();
+    } else {
+      setExpanded((prev) => !prev);
+    }
   }
 
   async function handleMarkTreated(e: React.MouseEvent) {
@@ -124,6 +129,13 @@ export function EmailCard({ email }: Props) {
             {email.client && (
               <Badge variant="secondary" className="text-[10px]">
                 {email.client.raisonSociale}
+              </Badge>
+            )}
+
+            {/* New contact badge */}
+            {!email.clientId && email.typeEmail && !["newsletter", "spam", "autre"].includes(email.typeEmail ?? "") && (
+              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                Nouveau contact
               </Badge>
             )}
 

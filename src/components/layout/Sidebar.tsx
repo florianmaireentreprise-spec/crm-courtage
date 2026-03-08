@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getPendingActionCount } from "@/app/(app)/emails/actions";
 import {
   BarChart3,
   Users,
@@ -39,6 +41,11 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    getPendingActionCount().then(setPendingCount).catch(() => {});
+  }, [pathname]);
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sidebar text-sidebar-foreground">
@@ -72,6 +79,11 @@ export function Sidebar() {
             >
               <item.icon className="h-4 w-4" />
               {item.name}
+              {item.name === "Emails" && pendingCount > 0 && (
+                <span className="ml-auto inline-flex items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}
