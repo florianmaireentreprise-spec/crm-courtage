@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Mail, Sparkles, Filter, ArrowUpRight, ArrowDownLeft, Zap, AlertCircle, Loader2 } from "lucide-react";
+import { Users, Mail, Sparkles, Filter, ArrowUpRight, ArrowDownLeft, Zap, AlertCircle, Loader2, UserPlus } from "lucide-react";
 import { batchProcessEmails, reanalyzeUnprocessed } from "@/app/(app)/emails/actions";
 import type { Email, Client } from "@prisma/client";
 
@@ -29,7 +29,7 @@ type Props = {
   };
 };
 
-type FilterTab = "clients" | "important" | "actions" | "all" | "other";
+type FilterTab = "clients" | "prospects" | "important" | "actions" | "all" | "other";
 
 export function EmailList({ emails, stats }: Props) {
   const [activeTab, setActiveTab] = useState<FilterTab>("clients");
@@ -39,6 +39,7 @@ export function EmailList({ emails, stats }: Props) {
   const [reanalyzing, setReanalyzing] = useState(false);
 
   const clientEmails = emails.filter((e) => e.pertinence === "client");
+  const prospectEmails = emails.filter((e) => e.typeEmail === "prospect");
   const importantEmails = emails.filter((e) => e.pertinence === "important");
   const otherEmails = emails.filter((e) => e.pertinence === "normal" || e.pertinence === "ignore");
   const actionEmails = emails.filter((e) => e.actionRequise && !e.actionTraitee);
@@ -52,6 +53,7 @@ export function EmailList({ emails, stats }: Props) {
 
   const tabs: { id: FilterTab; label: string; count: number; icon: React.ReactNode; highlight?: boolean }[] = [
     { id: "clients", label: "Clients", count: clientEmails.length, icon: <Users className="h-3.5 w-3.5" /> },
+    { id: "prospects", label: "Prospects", count: prospectEmails.length, icon: <UserPlus className="h-3.5 w-3.5" />, highlight: prospectEmails.length > 0 },
     { id: "important", label: "Important", count: importantEmails.length, icon: <Sparkles className="h-3.5 w-3.5" /> },
     { id: "actions", label: "Actions IA", count: actionEmails.length, icon: <AlertCircle className="h-3.5 w-3.5" />, highlight: actionEmails.length > 0 },
     { id: "all", label: "Tous", count: emails.length, icon: <Mail className="h-3.5 w-3.5" /> },
@@ -61,6 +63,7 @@ export function EmailList({ emails, stats }: Props) {
   function getFilteredEmails(): EmailWithClient[] {
     switch (activeTab) {
       case "clients": return clientEmails;
+      case "prospects": return prospectEmails;
       case "important": return importantEmails;
       case "actions": return actionEmails;
       case "other": return otherEmails;
@@ -212,6 +215,11 @@ export function EmailList({ emails, stats }: Props) {
       {activeTab === "clients" && clientEmails.length > 0 && (
         <p className="text-xs text-muted-foreground">
           Emails lies a vos clients — analyses automatiquement, taches creees et mises a jour
+        </p>
+      )}
+      {activeTab === "prospects" && prospectEmails.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Emails identifies comme prospects par l&apos;IA — creez une fiche client pour les convertir
         </p>
       )}
       {activeTab === "actions" && actionEmails.length > 0 && (

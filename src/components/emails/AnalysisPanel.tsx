@@ -15,9 +15,21 @@ import {
   Package,
   Check,
   AlertCircle,
+  Play,
+  X,
+  AlertTriangle,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 import { useState, useTransition } from "react";
-import { sendReply, createDealFromEmail, createClientFromEmail } from "@/app/(app)/emails/actions";
+import {
+  sendReply,
+  createDealFromEmail,
+  createClientFromEmail,
+  executeEmailAction,
+  ignoreEmailAction,
+  closeTaskFromEmail,
+} from "@/app/(app)/emails/actions";
 import type { Email, Client } from "@prisma/client";
 
 type Props = {
@@ -35,6 +47,29 @@ const PRODUCT_LABELS: Record<string, string> = {
   PROTECTION_JURIDIQUE: "Protection juridique",
 };
 
+const ACTION_TYPE_LABELS: Record<string, { label: string; class: string }> = {
+  tache: { label: "Tâche", class: "bg-blue-50 text-blue-700 border-blue-200" },
+  relance: { label: "Relance", class: "bg-purple-50 text-purple-700 border-purple-200" },
+  deal: { label: "Deal", class: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  enrichissement: { label: "Info", class: "bg-amber-50 text-amber-700 border-amber-200" },
+  alerte: { label: "Alerte", class: "bg-red-50 text-red-700 border-red-200" },
+};
+
+type ParsedAction = {
+  type: string;
+  titre: string;
+  priorite: string;
+  details: string | null;
+  _executed?: boolean;
+  _ignored?: boolean;
+};
+
+type ParsedTacheFermerDetail = {
+  id: string;
+  raison: string;
+  motsClesTache: string[];
+};
+
 export function AnalysisPanel({ email }: Props) {
   const [replyText, setReplyText] = useState(email.reponseProposee ?? "");
   const [sendingReply, startSendReply] = useTransition();
@@ -47,25 +82,38 @@ export function AnalysisPanel({ email }: Props) {
   const [creatingClient, startCreateClient] = useTransition();
   const [clientCreated, setClientCreated] = useState<string | null>(null);
 
-  // Parse stored data
-  const actionItems: string[] = email.actionsItems
-    ? (() => { try { return JSON.parse(email.actionsItems); } catch { return []; } })()
-    : [];
+  const [executingAction, setExecutingAction] = useState<number | null>(null);
+  const [actionStates, setActionStates] = useState<Record<number, "executed" | "ignored">>({});
+  const [closingTask, setClosingTask] = useState<string | null>(null);
+  const [closedTasks, setClosedTasks] = useState<Set<string>>(new Set());
 
+  // Parse stored data
   const produitsMentionnes: string[] = email.produitsMentionnes
     ? (() => { try { return JSON.parse(email.produitsMentionnes); } catch { return []; } })()
     : [];
 
-  // Parse AI analysis for sender info
+  // Parse AI analysis
   let expediteurNom = "";
   let expediteurEntreprise = "";
+  let actions: ParsedAction[] = [];
+  let tachesAFermerDetails: ParsedTacheFermerDetail[] = [];
+  let clientMatch: { found: boolean; clientName: string | null; confidence: string } | null = null;
+
   if (email.analyseIA) {
     try {
       const analysis = JSON.parse(email.analyseIA);
       expediteurNom = analysis.expediteurNom || "";
       expediteurEntreprise = analysis.expediteurEntreprise || "";
+      actions = Array.isArray(analysis.actions) ? analysis.actions : [];
+      tachesAFermerDetails = Array.isArray(analysis.tachesAFermerDetails) ? analysis.tachesAFermerDetails : [];
+      if (analysis.clientMatch) clientMatch = analysis.clientMatch;
     } catch { /* ignore */ }
   }
+
+  // Legacy actionItems fallback
+  const legacyActionItems: string[] = email.actionsItems
+    ? (() => { try { return JSON.parse(email.actionsItems); } catch { return []; } })()
+    : [];
 
   function handleSendReply() {
     if (!replyText.trim()) return;
@@ -96,7 +144,40 @@ export function AnalysisPanel({ email }: Props) {
     });
   }
 
+  async function handleExecuteAction(index: number) {
+    setExecutingAction(index);
+    const result = await executeEmailAction(email.id, index);
+    if (result.success) {
+      setActionStates(prev => ({ ...prev, [index]: "executed" }));
+    }
+    setExecutingAction(null);
+  }
+
+  async function handleIgnoreAction(index: number) {
+    setExecutingAction(index);
+    const result = await ignoreEmailAction(email.id, index);
+    if (result.success) {
+      setActionStates(prev => ({ ...prev, [index]: "ignored" }));
+    }
+    setExecutingAction(null);
+  }
+
+  async function handleCloseTask(taskId: string) {
+    setClosingTask(taskId);
+    const result = await closeTaskFromEmail(taskId);
+    if (result.success) {
+      setClosedTasks(prev => new Set([...prev, taskId]));
+    }
+    setClosingTask(null);
+  }
+
   const hasClient = !!email.client || !!clientCreated;
+
+  // Count pending actions
+  const pendingActions = actions.filter((a, i) => {
+    const state = actionStates[i] ?? (a._executed ? "executed" : a._ignored ? "ignored" : null);
+    return !state;
+  });
 
   return (
     <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
@@ -144,6 +225,11 @@ export function AnalysisPanel({ email }: Props) {
                 {email.client.raisonSociale}
               </Badge>
             </a>
+            {clientMatch?.confidence && (
+              <span className="text-[10px] text-muted-foreground">
+                (confiance: {clientMatch.confidence})
+              </span>
+            )}
           </div>
         ) : clientCreated ? (
           <div className="flex items-center gap-2">
@@ -180,24 +266,159 @@ export function AnalysisPanel({ email }: Props) {
         )}
       </div>
 
-      {/* Action items / tasks */}
-      {actionItems.length > 0 && (
+      {/* Structured actions (v3) */}
+      {actions.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Actions IA ({actions.length})
+              </p>
+              {pendingActions.length > 0 && (
+                <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-600 border-orange-200">
+                  {pendingActions.length} en attente
+                </Badge>
+              )}
+            </div>
+            <ul className="space-y-2">
+              {actions.map((action, i) => {
+                const state = actionStates[i] ?? (action._executed ? "executed" : action._ignored ? "ignored" : null);
+                const typeInfo = ACTION_TYPE_LABELS[action.type] ?? ACTION_TYPE_LABELS.tache;
+                const isLoading = executingAction === i;
+
+                return (
+                  <li key={i} className={`flex items-start gap-2 p-2 rounded-md border ${
+                    state === "executed" ? "bg-green-50/50 border-green-200" :
+                    state === "ignored" ? "bg-muted/50 border-muted opacity-60" :
+                    "bg-background border-border"
+                  }`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeInfo.class}`}>
+                          {typeInfo.label}
+                        </Badge>
+                        {action.priorite === "haute" && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-200">
+                            <AlertTriangle className="h-2 w-2 mr-0.5" />
+                            Urgent
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium">{action.titre}</p>
+                      {action.details && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{action.details}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {state === "executed" ? (
+                        <Badge variant="outline" className="text-[10px] bg-green-50 text-green-600 border-green-200">
+                          <Check className="h-2.5 w-2.5 mr-0.5" />
+                          Fait
+                        </Badge>
+                      ) : state === "ignored" ? (
+                        <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
+                          Ignoré
+                        </Badge>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 text-[10px] text-green-600 border-green-200 hover:bg-green-50"
+                            onClick={() => handleExecuteAction(i)}
+                            disabled={isLoading}
+                          >
+                            {isLoading ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Play className="h-2.5 w-2.5 mr-0.5" />}
+                            Exécuter
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-red-600"
+                            onClick={() => handleIgnoreAction(i)}
+                            disabled={isLoading}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* Legacy action items (fallback if no structured actions) */}
+      {actions.length === 0 && legacyActionItems.length > 0 && (
         <>
           <Separator />
           <div>
             <div className="flex items-center gap-2 mb-2">
               <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Tâches créées ({actionItems.length})
+                Tâches créées ({legacyActionItems.length})
               </p>
             </div>
             <ul className="space-y-1">
-              {actionItems.map((item, i) => (
+              {legacyActionItems.map((item, i) => (
                 <li key={i} className="text-sm flex items-start gap-2">
                   <span className="text-green-500 mt-0.5">✓</span>
                   {item}
                 </li>
               ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* Tasks to close */}
+      {tachesAFermerDetails.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Tâches à fermer
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {tachesAFermerDetails.map((t) => {
+                const isClosed = closedTasks.has(t.id);
+                return (
+                  <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-muted-foreground">{t.raison}</span>
+                    </div>
+                    {isClosed ? (
+                      <Badge variant="outline" className="text-[10px] bg-green-50 text-green-600 border-green-200">
+                        <Check className="h-2.5 w-2.5 mr-0.5" />
+                        Fermée
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-orange-600 border-orange-200 hover:bg-orange-50"
+                        onClick={() => handleCloseTask(t.id)}
+                        disabled={closingTask === t.id}
+                      >
+                        {closingTask === t.id ? (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        ) : (
+                          <CheckSquare className="h-2.5 w-2.5 mr-0.5" />
+                        )}
+                        Fermer
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </>
