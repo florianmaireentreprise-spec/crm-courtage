@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { N8nConfig } from "@/components/parametres/N8nConfig";
 
+export const dynamic = "force-dynamic";
+
 export default async function N8nPage() {
   const logs = await prisma.n8nLog.findMany({
     orderBy: { dateCreation: "desc" },

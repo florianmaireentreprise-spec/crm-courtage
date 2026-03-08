@@ -17,8 +17,9 @@ COPY . .
 ARG DATABASE_URL
 ARG DIRECT_URL
 
-# Générer le client Prisma puis builder Next.js
+# Générer le client Prisma, synchroniser le schéma, puis builder Next.js
 RUN npx prisma generate
+RUN npx prisma db push
 RUN npm run build
 
 # ── Étape 3 : image de production ──
