@@ -360,6 +360,19 @@ model SequenceInscription {
   dateMaj              DateTime  @updatedAt
 }
 
+// ── Logs n8n ──
+
+model N8nLog {
+  id           String   @id @default(cuid())
+  direction    String   // 'crm_to_n8n' | 'n8n_to_crm'
+  eventType    String   // ex: 'email.received', 'POST /api/n8n/taches'
+  payload      Json?    // Payload résumé (pas de données sensibles)
+  statut       String   // 'success' | 'error'
+  erreur       String?  // Message d'erreur si statut = error
+  dureeMs      Int?     // Durée de l'appel en millisecondes
+  dateCreation DateTime @default(now())
+}
+
 // ── Rapports hebdomadaires ──
 
 model RapportHebdo {

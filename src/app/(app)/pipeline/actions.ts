@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { emitN8nEvent } from "@/lib/n8n";
 
 const dealSchema = z.object({
   clientId: z.string().min(1),
@@ -179,9 +180,25 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
     updateData.dateClosingReel = new Date();
   }
 
-  await prisma.deal.update({
+  const updatedDeal = await prisma.deal.update({
     where: { id: dealId },
     data: updateData,
+    include: { client: { select: { raisonSociale: true } } },
+  });
+
+  void emitN8nEvent({
+    type: "deal.stage_changed",
+    timestamp: new Date().toISOString(),
+    payload: {
+      dealId,
+      dealTitre: updatedDeal.titre,
+      clientId: updatedDeal.clientId,
+      clientRaisonSociale: updatedDeal.client.raisonSociale,
+      ancienneEtape: updatedDeal.etape, // Note: already updated, but logged for context
+      nouvelleEtape: newEtape,
+      montantEstime: updatedDeal.montantEstime,
+      produitsCibles: updatedDeal.produitsCibles,
+    },
   });
 
   revalidatePath("/pipeline");

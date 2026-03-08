@@ -5,6 +5,7 @@ import { clientSchema } from "@/lib/validators/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { emitN8nEvent } from "@/lib/n8n";
 
 export async function createClient(formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
@@ -47,6 +48,21 @@ export async function createClient(formData: FormData) {
       assureurActuelSante: data.assureurActuelSante || null,
       dateDerniereRevision: data.dateDerniereRevision ? new Date(data.dateDerniereRevision) : null,
       motifChangement: data.motifChangement || null,
+    },
+  });
+
+  void emitN8nEvent({
+    type: "client.created",
+    timestamp: new Date().toISOString(),
+    payload: {
+      clientId: client.id,
+      raisonSociale: client.raisonSociale,
+      siret: client.siret,
+      secteurActivite: client.secteurActivite,
+      nbSalaries: client.nbSalaries,
+      ville: client.ville,
+      statut: client.statut,
+      sourceAcquisition: client.sourceAcquisition,
     },
   });
 

@@ -3,6 +3,7 @@ import { buildOAuth2Client, parseGmailMessage } from "@/lib/email/gmail";
 import { buildAnalysisPrompt, parseAIResponse, type AIEmailAnalysis } from "@/lib/email/ai";
 import { google } from "googleapis";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { emitN8nEvent } from "@/lib/n8n";
 
 // ── Patterns to exclude (newsletters, automated, noreply) ──
 const EXCLUDED_PATTERNS = [
@@ -473,6 +474,21 @@ export async function syncEmailsForUser(userId: string): Promise<{
         data: { derniereInteraction: parsed.dateEnvoi },
       });
     }
+
+    // Emit event to n8n (fire-and-forget)
+    void emitN8nEvent({
+      type: "email.received",
+      timestamp: new Date().toISOString(),
+      payload: {
+        emailId: email.id,
+        gmailId: email.gmailId,
+        expediteur: email.expediteur,
+        sujet: email.sujet,
+        extrait: email.extrait?.substring(0, 500) ?? null,
+        dateEnvoi: email.dateEnvoi,
+        direction: email.direction,
+      },
+    });
 
     newEmailIds.push(email.id);
     newCount++;
