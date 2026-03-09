@@ -5,12 +5,13 @@
 - **ORM**: Prisma 6.19 + PostgreSQL (Neon)
 - **UI**: shadcn/ui + Tailwind CSS 4 + Radix UI + Lucide icons
 - **Auth**: NextAuth v5 beta.30 (credentials provider, bcryptjs)
-- **IA**: Claude API (@anthropic-ai/sdk) — analyse emails
+- **IA**: Gemini 2.0 Flash (Google AI) — analyse emails
 - **Email**: Gmail API (googleapis) — OAuth2
+- **Automations**: n8n Cloud (6 workflows) — taches auto, sequences, campagnes, rapports, emails, prescripteurs
 - **Charts**: Recharts 3.7
 - **DnD**: @hello-pangea/dnd (Kanban pipeline)
 - **Search**: cmdk (Cmd+K)
-- **Deploy**: Vercel + cron jobs (vercel.json)
+- **Deploy**: Vercel (zero config, gratuit)
 - **Validation**: Zod 4
 
 ## Commandes
@@ -50,12 +51,21 @@ src/
 │       ├── clients-list/       # API liste clients (select)
 │       ├── compagnies-list/    # API liste compagnies (select)
 │       ├── automatisations/    # Config automatisations
-│       └── cron/               # 5 jobs planifies
-│           ├── emails/         # Sync Gmail (*/15 min)
-│           ├── auto-tasks/     # Taches auto (7h/jour)
-│           ├── sequences/      # Sequences prospection (8h/jour)
-│           ├── campagnes/      # Campagnes (1er du mois 9h)
-│           └── rapport-hebdo/  # Rapport hebdo (lundi 8h)
+│       ├── cron/
+│       │   └── emails/         # Sync Gmail (declenche par n8n ou manuel)
+│       └── n8n/                # API routes pour n8n Cloud
+│           ├── middleware.ts    # Auth (x-n8n-secret) + logging
+│           ├── taches/         # CRUD taches (avec deduplication)
+│           ├── contrats/       # Echeances contrats
+│           ├── pipeline/       # Deals stale
+│           ├── clients/sans-interaction/  # Clients inactifs
+│           ├── prescripteurs/inactifs/    # Prescripteurs inactifs
+│           ├── dirigeants/couverture-incomplete/  # Couverture incomplete
+│           ├── deals/mark-lost/           # Marquer deals perdus
+│           ├── campagnes/clients-cibles/  # Clients cibles campagnes
+│           ├── sequences/      # Actions dues + avancer
+│           ├── kpis/           # KPIs pour rapport hebdo
+│           └── health/         # Health check
 ├── components/
 │   ├── clients/          # ClientForm
 │   ├── commissions/      # CommissionTable, CompagnieProgress
@@ -87,21 +97,18 @@ src/
 │   ├── objectifs.ts      # Calcul objectifs commerciaux
 │   ├── objectifs-defaut.ts # Objectifs par defaut
 │   ├── validators/       # Schemas Zod (client, objectif)
+│   ├── prescripteurs.ts  # Alertes prescripteurs (types + detection)
+│   ├── sequences.ts      # Sequences de prospection (types + init + inscrire)
+│   ├── n8n.ts            # emitN8nEvent() — CRM → n8n webhooks
 │   ├── email/
-│   │   ├── ai.ts         # Prompts + parsing analyse IA (Claude)
+│   │   ├── ai.ts         # Prompts + parsing analyse IA (Gemini)
 │   │   ├── gmail.ts      # Client Gmail API (OAuth2, fetch, send)
-│   │   └── sync.ts       # Sync emails (cron + manuel), analyzeEmailById()
-│   ├── scoring/
-│   │   ├── prospect.ts   # Score prospect (0-100)
-│   │   ├── potentiel.ts  # Potentiel CA client
-│   │   ├── opportunities.ts # Detection opportunites cross-sell
-│   │   └── couverture360.ts # Couverture 360 dirigeant
-│   └── automation/
-│       ├── auto-tasks.ts # Generation taches automatiques
-│       ├── campagnes.ts  # Campagnes marketing mensuelles
-│       ├── sequences.ts  # Execution sequences prospection
-│       ├── prescripteur-tracking.ts # Suivi prescripteurs
-│       └── rapport-hebdo.ts # Generation rapport hebdo
+│   │   └── sync.ts       # Sync emails + analyzeEmailById()
+│   └── scoring/
+│       ├── prospect.ts   # Score prospect (0-100)
+│       ├── potentiel.ts  # Potentiel CA client
+│       ├── opportunities.ts # Detection opportunites cross-sell
+│       └── couverture360.ts # Couverture 360 dirigeant
 └── middleware.ts         # Auth middleware
 ```
 
@@ -213,14 +220,15 @@ Cree automatiquement des contrats avec taux de commission par defaut selon le ty
 5. Rattache automatiquement au client si match email
 6. Met a jour les stats prescripteur si email de prescripteur
 
-### Auto-Tasks (automation/auto-tasks.ts)
-Cron quotidien 7h — genere des taches pour:
-- Echeances contrats a 30/60/90 jours
-- Revision annuelle clients actifs
-- Relance prospects sans interaction 14j
-- Fidelisation clients 90j sans contact
-- Couverture incomplete (manque mutuelle ou prevoyance)
-- Suivi prescripteurs actifs
+### Automations (n8n Cloud)
+6 workflows n8n appellent les API routes `/api/n8n/*` :
+- **01-auto-tasks** (7h) — echeances, deals inactifs, fidelisation, prescripteurs, couverture
+- **02-sequences** (8h) — execute les etapes de sequences de prospection
+- **03-campagnes** (1er du mois) — campagnes saisonnieres ciblees
+- **04-rapport-hebdo** (lundi 8h) — KPIs + email resume via Gmail
+- **05-email-intelligence** (webhook) — analyse IA des emails entrants
+- **06-prescripteur-tracking** (lundi 7h30) — relance prescripteurs inactifs
+Voir `n8n-workflows/README.md` pour la config.
 
 ### Scoring Prospect (scoring/prospect.ts)
 Score 0-100 base sur: taille entreprise, CA, couverture actuelle, echeances proches, engagement email
@@ -231,10 +239,12 @@ DATABASE_URL=            # PostgreSQL Neon (pooler)
 DIRECT_URL=              # PostgreSQL Neon (direct)
 NEXTAUTH_SECRET=         # Secret NextAuth
 NEXTAUTH_URL=            # URL de l'app
-ANTHROPIC_API_KEY=       # Cle API Claude
+GOOGLE_AI_API_KEY=       # Cle API Gemini (analyse emails)
 GMAIL_CLIENT_ID=         # OAuth2 Gmail
 GMAIL_CLIENT_SECRET=     # OAuth2 Gmail
-CRON_SECRET=             # Secret pour crons Vercel (optionnel)
+N8N_WEBHOOK_SECRET=      # Secret partage avec n8n Cloud
+N8N_WEBHOOK_URL=         # URL webhook n8n (pour emitN8nEvent)
+CRON_SECRET=             # Secret pour endpoint sync emails (optionnel)
 ```
 
 ## Conventions de Code

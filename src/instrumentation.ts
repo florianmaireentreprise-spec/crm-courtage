@@ -1,5 +1,3 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./lib/cron/scheduler");
-  }
+  // Cron jobs are now handled by n8n Cloud — no server-side scheduler needed
 }

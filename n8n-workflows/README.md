@@ -6,8 +6,8 @@ Dans n8n Cloud : Settings > Variables, creer :
 
 | Variable | Valeur |
 |----------|--------|
-| `CRM_BASE_URL` | `https://ton-domaine.railway.app` (URL Railway du CRM) |
-| `CRM_N8N_SECRET` | Le meme secret que `N8N_WEBHOOK_SECRET` dans Railway |
+| `CRM_BASE_URL` | `https://ton-domaine.vercel.app` (URL Vercel du CRM) |
+| `CRM_N8N_SECRET` | Le meme secret que `N8N_WEBHOOK_SECRET` dans les env vars Vercel |
 
 ## Credentials Gmail
 
