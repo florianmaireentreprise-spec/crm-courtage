@@ -17,8 +17,6 @@
       "parameters": {
         "method": "GET",
         "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/contrats/echeances?joursAvant=60",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]

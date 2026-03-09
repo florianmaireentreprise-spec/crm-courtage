@@ -1,5 +1,5 @@
 {
-  "name": "CRM — Séquences prospection",
+  "name": "CRM — Sequences prospection",
   "nodes": [
     {
       "parameters": {
@@ -7,8 +7,8 @@
           "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
         }
       },
-      "id": "trigger",
-      "name": "Tous les jours à 8h",
+      "id": "a1b2c3d4-0201-4000-8000-000000000001",
+      "name": "Tous les jours a 8h",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [0, 0]
@@ -23,7 +23,7 @@
         },
         "options": {}
       },
-      "id": "get-actions-dues",
+      "id": "a1b2c3d4-0201-4000-8000-000000000002",
       "name": "GET Actions dues",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -34,7 +34,7 @@
         "fieldToSplitOut": "actionsDues",
         "options": {}
       },
-      "id": "split-actions",
+      "id": "a1b2c3d4-0201-4000-8000-000000000003",
       "name": "Split actions",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
@@ -42,20 +42,33 @@
     },
     {
       "parameters": {
-        "rules": {
-          "rules": [
-            { "outputKey": "tache", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "tache", "operator": { "type": "string", "operation": "equals" } }] } },
-            { "outputKey": "email_ia", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "email_ia", "operator": { "type": "string", "operation": "equals" } }] } },
-            { "outputKey": "auto_perdu", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "auto_perdu", "operator": { "type": "string", "operation": "equals" } }] } }
-          ]
-        },
-        "options": {}
+        "jsCode": "return $input.all().filter(item => item.json.etapeCourante?.action === 'tache');"
       },
-      "id": "switch-action",
-      "name": "Type d'action?",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
+      "id": "a1b2c3d4-0201-4000-8000-000000000010",
+      "name": "Filtrer taches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, -200]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(item => item.json.etapeCourante?.action === 'email_ia');"
+      },
+      "id": "a1b2c3d4-0201-4000-8000-000000000011",
+      "name": "Filtrer emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter(item => item.json.etapeCourante?.action === 'auto_perdu');"
+      },
+      "id": "a1b2c3d4-0201-4000-8000-000000000012",
+      "name": "Filtrer auto perdu",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 200]
     },
     {
       "parameters": {
@@ -67,11 +80,11 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"titre\": \"[Seq] {{ $json.etapeCourante.titre }} — {{ $json.clientNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"{{ $json.etapeCourante.type ?? 'ADMIN' }}\",\n  \"priorite\": \"normale\",\n  \"sourceAuto\": \"n8n_sequence\"\n}",
+        "jsonBody": "={\n  \"titre\": \"[Seq] {{ $json.etapeCourante.titre }} - {{ $json.clientNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"{{ $json.etapeCourante.type ?? 'ADMIN' }}\",\n  \"priorite\": \"normale\",\n  \"sourceAuto\": \"n8n_sequence\"\n}",
         "options": {}
       },
-      "id": "create-task-sequence",
-      "name": "Créer tâche séquence",
+      "id": "a1b2c3d4-0201-4000-8000-000000000004",
+      "name": "Creer tache sequence",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [880, -200]
@@ -86,14 +99,50 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }}\n}",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $json.inscriptionId }}\",\n  \"etapeIndex\": {{ $json.etapeActuelle }}\n}",
         "options": {}
       },
-      "id": "advance-tache",
-      "name": "Avancer séquence (tâche)",
+      "id": "a1b2c3d4-0201-4000-8000-000000000005",
+      "name": "Avancer sequence tache",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1100, -200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "prompt", "value": "={{ $json.etapeCourante.prompt }}", "type": "string" },
+            { "id": "a2", "name": "clientNom", "value": "={{ $json.clientNom }}", "type": "string" },
+            { "id": "a3", "name": "clientEmail", "value": "={{ $json.clientEmail }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0201-4000-8000-000000000006",
+      "name": "Preparer donnees email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $json.inscriptionId }}\",\n  \"etapeIndex\": {{ $json.etapeActuelle }},\n  \"emailSujet\": \"{{ $json.etapeCourante.titre }}\",\n  \"emailEnvoyeAt\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0201-4000-8000-000000000007",
+      "name": "Avancer sequence email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0]
     },
     {
       "parameters": {
@@ -108,7 +157,7 @@
         "jsonBody": "={\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"motif\": \"{{ $json.etapeCourante.motif ?? 'Pas de reponse (sequence auto)' }}\"\n}",
         "options": {}
       },
-      "id": "mark-lost",
+      "id": "a1b2c3d4-0201-4000-8000-000000000008",
       "name": "Marquer deals perdus",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -124,68 +173,34 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }}\n}",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $json.inscriptionId }}\",\n  \"etapeIndex\": {{ $json.etapeActuelle }}\n}",
         "options": {}
       },
-      "id": "advance-perdu",
-      "name": "Avancer séquence (perdu)",
+      "id": "a1b2c3d4-0201-4000-8000-000000000009",
+      "name": "Avancer sequence perdu",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1100, 200]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "prompt", "name": "prompt", "value": "={{ $json.etapeCourante.prompt }}", "type": "string" },
-            { "id": "clientNom", "name": "clientNom", "value": "={{ $json.clientNom }}", "type": "string" },
-            { "id": "clientEmail", "name": "clientEmail", "value": "={{ $json.clientEmail }}", "type": "string" }
-          ]
-        },
-        "options": {}
-      },
-      "id": "set-email-data",
-      "name": "Préparer données email",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [880, 0],
-      "notesInFlow": true,
-      "notes": "Configurez ici un noeud AI (Google Gemini / OpenAI) pour générer l'email, puis un noeud Gmail pour l'envoyer. Enfin connectez à 'Avancer séquence (email)'."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }},\n  \"emailSujet\": \"{{ $json.etapeCourante.titre }}\",\n  \"emailEnvoyeAt\": \"{{ new Date().toISOString() }}\"\n}",
-        "options": {}
-      },
-      "id": "advance-email",
-      "name": "Avancer séquence (email)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1100, 0]
     }
   ],
   "connections": {
-    "Tous les jours à 8h": { "main": [[{ "node": "GET Actions dues", "type": "main", "index": 0 }]] },
+    "Tous les jours a 8h": { "main": [[{ "node": "GET Actions dues", "type": "main", "index": 0 }]] },
     "GET Actions dues": { "main": [[{ "node": "Split actions", "type": "main", "index": 0 }]] },
-    "Split actions": { "main": [[{ "node": "Type d'action?", "type": "main", "index": 0 }]] },
-    "Type d'action?": {
+    "Split actions": {
       "main": [
-        [{ "node": "Créer tâche séquence", "type": "main", "index": 0 }],
-        [{ "node": "Préparer données email", "type": "main", "index": 0 }],
-        [{ "node": "Marquer deals perdus", "type": "main", "index": 0 }]
+        [
+          { "node": "Filtrer taches", "type": "main", "index": 0 },
+          { "node": "Filtrer emails", "type": "main", "index": 0 },
+          { "node": "Filtrer auto perdu", "type": "main", "index": 0 }
+        ]
       ]
     },
-    "Créer tâche séquence": { "main": [[{ "node": "Avancer séquence (tâche)", "type": "main", "index": 0 }]] },
-    "Préparer données email": { "main": [[{ "node": "Avancer séquence (email)", "type": "main", "index": 0 }]] },
-    "Marquer deals perdus": { "main": [[{ "node": "Avancer séquence (perdu)", "type": "main", "index": 0 }]] }
+    "Filtrer taches": { "main": [[{ "node": "Creer tache sequence", "type": "main", "index": 0 }]] },
+    "Filtrer emails": { "main": [[{ "node": "Preparer donnees email", "type": "main", "index": 0 }]] },
+    "Filtrer auto perdu": { "main": [[{ "node": "Marquer deals perdus", "type": "main", "index": 0 }]] },
+    "Creer tache sequence": { "main": [[{ "node": "Avancer sequence tache", "type": "main", "index": 0 }]] },
+    "Preparer donnees email": { "main": [[{ "node": "Avancer sequence email", "type": "main", "index": 0 }]] },
+    "Marquer deals perdus": { "main": [[{ "node": "Avancer sequence perdu", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" },
