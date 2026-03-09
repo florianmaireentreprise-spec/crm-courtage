@@ -1,0 +1,275 @@
+{
+  "name": "CRM — Tâches automatiques",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 7 * * *" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Tous les jours à 7h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/contrats/echeances?joursAvant=60",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-echeances",
+      "name": "GET Échéances contrats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, -200]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "contrats",
+        "options": {}
+      },
+      "id": "split-contrats",
+      "name": "Split contrats",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, -200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Preparer renouvellement {{ $json.typeProduit }} pour {{ $json.clientNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"RENOUVELLEMENT\",\n  \"priorite\": \"{{ $json.joursRestants < 30 ? 'haute' : 'normale' }}\",\n  \"description\": \"Contrat arrive a echeance le {{ $json.dateEcheance }}. Preparer le renouvellement.\",\n  \"sourceAuto\": \"n8n_echeance\"\n}",
+        "options": {}
+      },
+      "id": "create-task-renouvellement",
+      "name": "Créer tâche renouvellement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/pipeline/deals-inactifs?joursInactivite=14",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-deals-inactifs",
+      "name": "GET Deals inactifs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "deals",
+        "options": {}
+      },
+      "id": "split-deals",
+      "name": "Split deals",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Relancer deal {{ $json.titre }} — {{ $json.clientNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"RELANCE_PROSPECT\",\n  \"priorite\": \"haute\",\n  \"description\": \"Deal inactif depuis {{ $json.joursInactif }} jours (etape: {{ $json.etape }})\",\n  \"sourceAuto\": \"n8n_relance_prospect\"\n}",
+        "options": {}
+      },
+      "id": "create-task-relance",
+      "name": "Créer tâche relance deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/clients/sans-interaction?mois=6",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-clients-inactifs",
+      "name": "GET Clients sans interaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "clients",
+        "options": {}
+      },
+      "id": "split-clients",
+      "name": "Split clients",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Relance fidelisation {{ $json.raisonSociale }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"FIDELISATION_CLIENT\",\n  \"priorite\": \"normale\",\n  \"description\": \"Aucune interaction depuis plus de 6 mois.\",\n  \"sourceAuto\": \"n8n_fidelisation\"\n}",
+        "options": {}
+      },
+      "id": "create-task-fidelisation",
+      "name": "Créer tâche fidélisation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/prescripteurs/inactifs?semaines=8",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-prescripteurs-inactifs",
+      "name": "GET Prescripteurs inactifs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 400]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "prescripteurs",
+        "options": {}
+      },
+      "id": "split-prescripteurs",
+      "name": "Split prescripteurs",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Relancer prescripteur {{ $json.prenom }} {{ $json.nom }}\",\n  \"type\": \"SUIVI_PRESCRIPTEUR\",\n  \"priorite\": \"normale\",\n  \"description\": \"Inactif depuis {{ $json.joursDepuis ?? '?' }} jours. Relancer pour maintenir le flux.\",\n  \"sourceAuto\": \"n8n_suivi_prescripteur\"\n}",
+        "options": {}
+      },
+      "id": "create-task-prescripteur",
+      "name": "Créer tâche prescripteur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/dirigeants/couverture-incomplete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-couverture-incomplete",
+      "name": "GET Couverture incomplète",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 600]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "clients",
+        "options": {}
+      },
+      "id": "split-dirigeants",
+      "name": "Split dirigeants",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Proposer audit 360° dirigeant {{ $json.dirigeantNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"AUDIT_DIRIGEANT\",\n  \"priorite\": \"normale\",\n  \"description\": \"Seulement {{ $json.nbContratsActifs }} contrat(s) actif(s) pour {{ $json.raisonSociale }}.\",\n  \"sourceAuto\": \"n8n_couverture_incomplete\"\n}",
+        "options": {}
+      },
+      "id": "create-task-audit",
+      "name": "Créer tâche audit dirigeant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 600]
+    }
+  ],
+  "connections": {
+    "Tous les jours à 7h": {
+      "main": [
+        [
+          { "node": "GET Échéances contrats", "type": "main", "index": 0 },
+          { "node": "GET Deals inactifs", "type": "main", "index": 0 },
+          { "node": "GET Clients sans interaction", "type": "main", "index": 0 },
+          { "node": "GET Prescripteurs inactifs", "type": "main", "index": 0 },
+          { "node": "GET Couverture incomplète", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "GET Échéances contrats": { "main": [[{ "node": "Split contrats", "type": "main", "index": 0 }]] },
+    "Split contrats": { "main": [[{ "node": "Créer tâche renouvellement", "type": "main", "index": 0 }]] },
+    "GET Deals inactifs": { "main": [[{ "node": "Split deals", "type": "main", "index": 0 }]] },
+    "Split deals": { "main": [[{ "node": "Créer tâche relance deal", "type": "main", "index": 0 }]] },
+    "GET Clients sans interaction": { "main": [[{ "node": "Split clients", "type": "main", "index": 0 }]] },
+    "Split clients": { "main": [[{ "node": "Créer tâche fidélisation", "type": "main", "index": 0 }]] },
+    "GET Prescripteurs inactifs": { "main": [[{ "node": "Split prescripteurs", "type": "main", "index": 0 }]] },
+    "Split prescripteurs": { "main": [[{ "node": "Créer tâche prescripteur", "type": "main", "index": 0 }]] },
+    "GET Couverture incomplète": { "main": [[{ "node": "Split dirigeants", "type": "main", "index": 0 }]] },
+    "Split dirigeants": { "main": [[{ "node": "Créer tâche audit dirigeant", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

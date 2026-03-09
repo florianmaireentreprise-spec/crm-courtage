@@ -17,7 +17,6 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
   const alertes: PrescripteurAlerte[] = [];
   const troisSemaines = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000);
 
-  // Prescripteurs actifs avec derniere reco > 3 semaines
   const prescripteurs = await prisma.prescripteur.findMany({
     where: { statut: "actif" },
     select: {
@@ -34,7 +33,6 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
   for (const p of prescripteurs) {
     const nomComplet = `${p.prenom} ${p.nom}${p.entreprise ? ` (${p.entreprise})` : ""}`;
 
-    // Prescripteur silencieux
     if (p.dossiersEnvoyes > 0 && p.derniereRecommandation && p.derniereRecommandation < troisSemaines) {
       const joursDepuis = Math.floor((Date.now() - p.derniereRecommandation.getTime()) / (24 * 60 * 60 * 1000));
       alertes.push({
@@ -47,7 +45,6 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
       });
     }
 
-    // Performance : prescripteur qui envoie mais peu de conversions
     if (p.dossiersEnvoyes >= 5 && p.clientsSignes === 0) {
       alertes.push({
         id: `performance-${p.id}`,
@@ -60,7 +57,6 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
     }
   }
 
-  // Leads recents de prescripteurs qui ont signe
   const clientsSignesRecents = await prisma.client.findMany({
     where: {
       prescripteurId: { not: null },
@@ -73,7 +69,6 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
   for (const client of clientsSignesRecents) {
     if (client.prescripteur) {
       const nomComplet = `${client.prescripteur.prenom} ${client.prescripteur.nom}`;
-      // Verifier si une tache merci existe deja
       const existingTask = await prisma.tache.findFirst({
         where: {
           titre: { contains: `Remercier ${nomComplet}` },
@@ -94,33 +89,4 @@ export async function detecterPrescripteursARelancer(): Promise<PrescripteurAler
   }
 
   return alertes;
-}
-
-// ── Classement des prescripteurs ──
-
-export async function getClassementPrescripteurs() {
-  const prescripteurs = await prisma.prescripteur.findMany({
-    where: { statut: "actif" },
-    select: {
-      id: true,
-      prenom: true,
-      nom: true,
-      entreprise: true,
-      type: true,
-      dossiersEnvoyes: true,
-      clientsSignes: true,
-      commissionsGenerees: true,
-      derniereRecommandation: true,
-    },
-    orderBy: { clientsSignes: "desc" },
-  });
-
-  return prescripteurs.map((p) => ({
-    ...p,
-    nomComplet: `${p.prenom} ${p.nom}`,
-    tauxConversion: p.dossiersEnvoyes > 0 ? Math.round((p.clientsSignes / p.dossiersEnvoyes) * 100) : 0,
-    actif: p.derniereRecommandation
-      ? p.derniereRecommandation > new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
-      : false,
-  }));
 }

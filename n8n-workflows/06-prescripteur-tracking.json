@@ -1,0 +1,71 @@
+{
+  "name": "CRM — Suivi prescripteurs",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "30 7 * * 1" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Lundi à 7h30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/prescripteurs/inactifs?semaines=3",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-prescripteurs",
+      "name": "GET Prescripteurs silencieux",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "prescripteurs",
+        "options": {}
+      },
+      "id": "split",
+      "name": "Split prescripteurs",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"Relancer prescripteur {{ $json.prenom }} {{ $json.nom }} (silencieux)\",\n  \"type\": \"SUIVI_PRESCRIPTEUR\",\n  \"priorite\": \"normale\",\n  \"description\": \"Pas de recommandation depuis {{ $json.joursDepuis ?? '?' }} jours. Planifier un dejeuner ou appel.\",\n  \"sourceAuto\": \"n8n_prescripteur_silencieux\"\n}",
+        "options": {}
+      },
+      "id": "create-task",
+      "name": "Créer tâche relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Lundi à 7h30": { "main": [[{ "node": "GET Prescripteurs silencieux", "type": "main", "index": 0 }]] },
+    "GET Prescripteurs silencieux": { "main": [[{ "node": "Split prescripteurs", "type": "main", "index": 0 }]] },
+    "Split prescripteurs": { "main": [[{ "node": "Créer tâche relance", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

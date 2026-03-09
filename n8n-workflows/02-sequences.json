@@ -1,0 +1,193 @@
+{
+  "name": "CRM — Séquences prospection",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Tous les jours à 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/actions-dues",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-actions-dues",
+      "name": "GET Actions dues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "actionsDues",
+        "options": {}
+      },
+      "id": "split-actions",
+      "name": "Split actions",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            { "outputKey": "tache", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "tache", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputKey": "email_ia", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "email_ia", "operator": { "type": "string", "operation": "equals" } }] } },
+            { "outputKey": "auto_perdu", "conditions": { "options": { "version": 2, "combinator": "and" }, "conditions": [{ "leftValue": "={{ $json.etapeCourante.action }}", "rightValue": "auto_perdu", "operator": { "type": "string", "operation": "equals" } }] } }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-action",
+      "name": "Type d'action?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"[Seq] {{ $json.etapeCourante.titre }} — {{ $json.clientNom }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"{{ $json.etapeCourante.type ?? 'ADMIN' }}\",\n  \"priorite\": \"normale\",\n  \"sourceAuto\": \"n8n_sequence\"\n}",
+        "options": {}
+      },
+      "id": "create-task-sequence",
+      "name": "Créer tâche séquence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, -200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }}\n}",
+        "options": {}
+      },
+      "id": "advance-tache",
+      "name": "Avancer séquence (tâche)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, -200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/deals/mark-lost",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"motif\": \"{{ $json.etapeCourante.motif ?? 'Pas de reponse (sequence auto)' }}\"\n}",
+        "options": {}
+      },
+      "id": "mark-lost",
+      "name": "Marquer deals perdus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }}\n}",
+        "options": {}
+      },
+      "id": "advance-perdu",
+      "name": "Avancer séquence (perdu)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "prompt", "name": "prompt", "value": "={{ $json.etapeCourante.prompt }}", "type": "string" },
+            { "id": "clientNom", "name": "clientNom", "value": "={{ $json.clientNom }}", "type": "string" },
+            { "id": "clientEmail", "name": "clientEmail", "value": "={{ $json.clientEmail }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-email-data",
+      "name": "Préparer données email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 0],
+      "notesInFlow": true,
+      "notes": "Configurez ici un noeud AI (Google Gemini / OpenAI) pour générer l'email, puis un noeud Gmail pour l'envoyer. Enfin connectez à 'Avancer séquence (email)'."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inscriptionId\": \"{{ $('Split actions').item.json.inscriptionId }}\",\n  \"etapeIndex\": {{ $('Split actions').item.json.etapeActuelle }},\n  \"emailSujet\": \"{{ $json.etapeCourante.titre }}\",\n  \"emailEnvoyeAt\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "advance-email",
+      "name": "Avancer séquence (email)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0]
+    }
+  ],
+  "connections": {
+    "Tous les jours à 8h": { "main": [[{ "node": "GET Actions dues", "type": "main", "index": 0 }]] },
+    "GET Actions dues": { "main": [[{ "node": "Split actions", "type": "main", "index": 0 }]] },
+    "Split actions": { "main": [[{ "node": "Type d'action?", "type": "main", "index": 0 }]] },
+    "Type d'action?": {
+      "main": [
+        [{ "node": "Créer tâche séquence", "type": "main", "index": 0 }],
+        [{ "node": "Préparer données email", "type": "main", "index": 0 }],
+        [{ "node": "Marquer deals perdus", "type": "main", "index": 0 }]
+      ]
+    },
+    "Créer tâche séquence": { "main": [[{ "node": "Avancer séquence (tâche)", "type": "main", "index": 0 }]] },
+    "Préparer données email": { "main": [[{ "node": "Avancer séquence (email)", "type": "main", "index": 0 }]] },
+    "Marquer deals perdus": { "main": [[{ "node": "Avancer séquence (perdu)", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

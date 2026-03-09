@@ -1,0 +1,75 @@
+{
+  "name": "CRM — Analyse emails IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-received",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook email.received",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "email-received"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/clients/by-email?email={{ encodeURIComponent($json.body.payload.expediteur) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "find-client",
+      "name": "Chercher client par email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $('Webhook email.received').first().json.body;\nconst clientResult = $input.first().json;\n\nconst prompt = `Tu es l'assistant IA d'un cabinet de courtage en assurances (GargarineV1). Analyse cet email et retourne UNIQUEMENT un JSON valide avec:\n- \"type\": \"client\" | \"prospect\" | \"assureur\" | \"prescripteur\" | \"autre\"\n- \"urgence\": \"haute\" | \"normale\" | \"basse\"\n- \"actionRequise\": true | false\n- \"actionSuggeree\": string ou null\n- \"resume\": string (2 phrases max)\n- \"sentiment\": \"positif\" | \"neutre\" | \"negatif\"\n- \"produitsMentionnes\": string[] (parmi: SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, PREVOYANCE_MADELIN, SANTE_MADELIN, RCP_PRO, PER, ASSURANCE_VIE, PROTECTION_JURIDIQUE)\n- \"reponseSuggeree\": string (brouillon de reponse pro)\n\nEmail:\nDe: ${webhook.payload.expediteur}\nSujet: ${webhook.payload.sujet}\nExtrait: ${webhook.payload.extrait}\nDirection: ${webhook.payload.direction}\n${clientResult.client ? `Client identifie: ${clientResult.client.raisonSociale} (${clientResult.client.statut})` : 'Client non identifie'}`;\n\nreturn [{ json: { \n  prompt,\n  emailId: webhook.payload.emailId,\n  clientId: clientResult.client?.id || null,\n  expediteur: webhook.payload.expediteur,\n  sujet: webhook.payload.sujet\n} }];"
+      },
+      "id": "prepare-prompt",
+      "name": "Préparer prompt IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "notesInFlow": true,
+      "notes": "Ajoutez un noeud AI (Google Gemini / OpenAI) après ce noeud. Donnez-lui le prompt depuis {{ $json.prompt }} et parsez la réponse JSON."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/analyze-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"emailId\": \"{{ $('Préparer prompt IA').item.json.emailId }}\",\n  \"clientId\": {{ $('Préparer prompt IA').item.json.clientId ? '\"' + $('Préparer prompt IA').item.json.clientId + '\"' : 'null' }},\n  \"resumeIA\": \"{{ $json.resume ?? '' }}\",\n  \"urgence\": \"{{ $json.urgence ?? 'normale' }}\",\n  \"typeEmail\": \"{{ $json.type ?? 'autre' }}\",\n  \"actionRequise\": {{ $json.actionRequise ?? false }},\n  \"reponseSuggeree\": \"{{ $json.reponseSuggeree ?? '' }}\"\n}",
+        "options": {}
+      },
+      "id": "store-analysis",
+      "name": "Stocker analyse dans CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "Webhook email.received": { "main": [[{ "node": "Chercher client par email", "type": "main", "index": 0 }]] },
+    "Chercher client par email": { "main": [[{ "node": "Préparer prompt IA", "type": "main", "index": 0 }]] },
+    "Préparer prompt IA": { "main": [[{ "node": "Stocker analyse dans CRM", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

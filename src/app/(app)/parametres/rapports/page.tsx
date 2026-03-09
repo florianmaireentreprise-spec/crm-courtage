@@ -2,7 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileBarChart, TrendingUp, TrendingDown, Users, Target, Clock, AlertTriangle } from "lucide-react";
-import type { RapportData } from "@/lib/automation/rapport-hebdo";
+type RapportData = {
+  semaine: string;
+  periode: { debut: string; fin: string };
+  prospects: { nouveaux: number; precedent: number; variation: number };
+  deals: { avances: number; signes: number; caSignes: number; perdus: number };
+  caRecurrent: { actuel: number; variation: number };
+  taches: { completees: number; enRetard: number; aFaire: number };
+  renouvellements: { prochains15j: number; details: { client: string; produit: string; date: string }[] };
+  leadsPrescripteurs: number;
+};
 
 export const dynamic = "force-dynamic";
 

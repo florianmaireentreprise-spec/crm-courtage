@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { SequencesList } from "@/components/sequences/SequencesList";
-import { initDefaultSequences } from "@/lib/automation/sequences";
+import { initDefaultSequences } from "@/lib/sequences";
 
 export const dynamic = "force-dynamic";
 

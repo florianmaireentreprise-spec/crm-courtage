@@ -13,9 +13,8 @@ import { detecterOpportunites } from "@/lib/scoring/opportunities";
 import { calculerScoreProspect, getScoreColor } from "@/lib/scoring/prospect";
 import { calculerPotentielCA } from "@/lib/scoring/potentiel";
 import { TYPES_PRODUITS } from "@/lib/constants";
-import { generateAutoTasks } from "@/lib/automation/auto-tasks";
-import { getCampagnesActives } from "@/lib/automation/campagnes";
-import { detecterPrescripteursARelancer } from "@/lib/automation/prescripteur-tracking";
+import { getCampagnesActives } from "@/lib/constants";
+import { detecterPrescripteursARelancer } from "@/lib/prescripteurs";
 import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
 import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
 
@@ -196,11 +195,6 @@ async function getDashboardDataInternal() {
     reel: Math.round(values.reel),
     theorique: Math.round(values.theorique),
   }));
-
-  // Generation automatique des taches (fire-and-forget, ne bloque pas le dashboard)
-  generateAutoTasks().catch((err) =>
-    console.error("Erreur auto-tasks sur dashboard:", err)
-  );
 
   // Campagnes saisonnieres actives
   const campagnesActives = getCampagnesActives();

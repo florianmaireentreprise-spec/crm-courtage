@@ -190,3 +190,49 @@ export const AUDIT_CHECKLIST_ITEMS = [
   { id: "protection_dirigeant", label: "Protection dirigeant" },
   { id: "retraite_epargne", label: "Retraite / Epargne" },
 ] as const;
+
+// ── Campagnes saisonnieres ──
+
+export type CampagneSaisonniere = {
+  mois: number;
+  titre: string;
+  description: string;
+  filtre: string;
+  action: string;
+};
+
+export const CAMPAGNES: CampagneSaisonniere[] = [
+  {
+    mois: 1,
+    titre: "Renouvellements sante collective",
+    description: "Verifier effectifs, renegocier conditions",
+    filtre: "SANTE_COLLECTIVE",
+    action: "Verifier effectifs et conditions sante collective",
+  },
+  {
+    mois: 3,
+    titre: "Campagne defiscalisation PER",
+    description: "Avant declarations fiscales, proposer PER aux dirigeants sans epargne retraite",
+    filtre: "SANS_PER",
+    action: "Proposer simulation PER avec economie fiscale",
+  },
+  {
+    mois: 9,
+    titre: "Rentree — mise a jour effectifs",
+    description: "Nouvelles embauches = mise a jour sante collective + prevoyance",
+    filtre: "SANTE_COLLECTIVE",
+    action: "Contacter pour mise a jour effectifs post-rentree",
+  },
+  {
+    mois: 10,
+    titre: "Optimisation fiscale avant cloture",
+    description: "Derniers versements PER/AV avant le 31 decembre",
+    filtre: "PER_OU_AV",
+    action: "Proposer versement complementaire avant cloture",
+  },
+];
+
+export function getCampagnesActives(): CampagneSaisonniere[] {
+  const moisActuel = new Date().getMonth() + 1;
+  return CAMPAGNES.filter((c) => c.mois === moisActuel);
+}

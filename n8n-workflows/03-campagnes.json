@@ -1,0 +1,82 @@
+{
+  "name": "CRM — Campagnes saisonnières",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 1 * *" }]
+        }
+      },
+      "id": "trigger",
+      "name": "1er du mois à 9h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mois = new Date().getMonth() + 1;\nconst campagnes = {\n  1: { titre: 'Renouvellements sante collective', filtre: 'SANTE_COLLECTIVE', action: 'Verifier effectifs et conditions sante collective', type: 'ADMIN' },\n  3: { titre: 'Campagne defiscalisation PER', filtre: 'SANS_PER', action: 'Proposer simulation PER avec economie fiscale', type: 'DEV_CLIENT' },\n  9: { titre: 'Rentree — mise a jour effectifs', filtre: 'SANTE_COLLECTIVE', action: 'Contacter pour mise a jour effectifs post-rentree', type: 'ADMIN' },\n  10: { titre: 'Optimisation fiscale avant cloture', filtre: 'PER_OU_AV', action: 'Proposer versement complementaire avant cloture', type: 'DEV_CLIENT' }\n};\nconst campagne = campagnes[mois];\nif (!campagne) return [];\nreturn [{ json: { mois, ...campagne } }];"
+      },
+      "id": "check-month",
+      "name": "Campagne ce mois?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/campagnes/clients-cibles?filtre={{ $json.filtre }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-clients",
+      "name": "GET Clients ciblés",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "clients",
+        "options": {}
+      },
+      "id": "split-clients",
+      "name": "Split clients",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"titre\": \"[Campagne] {{ $('Campagne ce mois?').item.json.action }} — {{ $json.raisonSociale }}\",\n  \"clientId\": \"{{ $json.clientId }}\",\n  \"type\": \"{{ $('Campagne ce mois?').item.json.type }}\",\n  \"priorite\": \"normale\",\n  \"sourceAuto\": \"n8n_campagne\"\n}",
+        "options": {}
+      },
+      "id": "create-task",
+      "name": "Créer tâche campagne",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "1er du mois à 9h": { "main": [[{ "node": "Campagne ce mois?", "type": "main", "index": 0 }]] },
+    "Campagne ce mois?": { "main": [[{ "node": "GET Clients ciblés", "type": "main", "index": 0 }]] },
+    "GET Clients ciblés": { "main": [[{ "node": "Split clients", "type": "main", "index": 0 }]] },
+    "Split clients": { "main": [[{ "node": "Créer tâche campagne", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

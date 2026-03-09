@@ -1,0 +1,68 @@
+{
+  "name": "CRM — Rapport hebdomadaire",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1" }]
+        }
+      },
+      "id": "trigger",
+      "name": "Lundi à 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/dashboard/kpis",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
+        },
+        "options": {}
+      },
+      "id": "get-kpis",
+      "name": "GET KPIs hebdo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const kpis = $input.first().json;\nconst semaine = new Date().toISOString().slice(0, 10);\n\nconst html = `\n<h2>Rapport hebdomadaire GargarineV1 — ${semaine}</h2>\n<table style=\"border-collapse:collapse; font-family:sans-serif;\">\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Nouveaux prospects</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.nouveauxProspectsCetteSemaine}</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Deals signés</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.dealsSignesCetteSemaine}</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>CA récurrent</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.caRecurrentActuel} €</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Tâches complétées</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.tachesCompleteesCetteSemaine}</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Tâches en retard</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.tachesEnRetard}</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Renouvellements sous 15j</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.renouvellementsSous15j}</td></tr>\n<tr><td style=\"padding:8px; border:1px solid #ddd;\"><strong>Prescripteurs actifs</strong></td><td style=\"padding:8px; border:1px solid #ddd;\">${kpis.prescripteursActifs}</td></tr>\n</table>\n<br>\n<p><em>Ajoutez un noeud AI (Google Gemini / OpenAI) avant ce noeud pour générer un résumé + 3 actions prioritaires.</em></p>\n`;\n\nreturn [{ json: { subject: `Rapport hebdo GargarineV1 — ${semaine}`, html, kpis } }];"
+      },
+      "id": "build-email",
+      "name": "Construire email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "sendTo": "florian@gargarine.fr",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Envoyer par Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [660, 0],
+      "credentials": {
+        "gmailOAuth2": { "id": "", "name": "Gmail — à configurer" }
+      }
+    }
+  ],
+  "connections": {
+    "Lundi à 8h": { "main": [[{ "node": "GET KPIs hebdo", "type": "main", "index": 0 }]] },
+    "GET KPIs hebdo": { "main": [[{ "node": "Construire email HTML", "type": "main", "index": 0 }]] },
+    "Construire email HTML": { "main": [[{ "node": "Envoyer par Gmail", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "CRM Courtage" }]
+}

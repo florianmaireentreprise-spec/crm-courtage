@@ -14,29 +14,10 @@ async function callCron(path: string, label: string) {
   }
 }
 
-// ── Sync emails + IA analysis — every 15 minutes ──
+// ── Sync emails — every 15 minutes ──
+// (Gmail sync + n8n webhook emission stay on the CRM side)
 cron.schedule("*/15 * * * *", () => {
   callCron("/api/cron/emails", "Sync emails");
 });
 
-// ── Auto-tasks — every day at 7:00 UTC ──
-cron.schedule("0 7 * * *", () => {
-  callCron("/api/cron/auto-tasks", "Auto-tasks");
-});
-
-// ── Sequences — every day at 8:00 UTC ──
-cron.schedule("0 8 * * *", () => {
-  callCron("/api/cron/sequences", "Sequences");
-});
-
-// ── Campagnes — 1st of each month at 9:00 UTC ──
-cron.schedule("0 9 1 * *", () => {
-  callCron("/api/cron/campagnes", "Campagnes");
-});
-
-// ── Rapport hebdo — Monday at 8:00 UTC ──
-cron.schedule("0 8 * * 1", () => {
-  callCron("/api/cron/rapport-hebdo", "Rapport hebdo");
-});
-
-console.log("[CRON] Scheduler initialized — 5 jobs registered (emails: */15min, tasks: 7h, sequences: 8h, campagnes: 1er/mois, rapport: lundi 8h)");
+console.log("[CRON] Scheduler initialized — 1 job registered (emails: */15min). Other automations handled by n8n.");

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Play, Pause, Users, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { inscrireClient, annulerInscription } from "@/app/(app)/sequences/actions";
-import type { EtapeSequence } from "@/lib/automation/sequences";
+import type { EtapeSequence } from "@/lib/sequences";
 
 type SequenceInscription = {
   id: string;

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Megaphone } from "lucide-react";
-import type { CampagneSaisonniere } from "@/lib/automation/campagnes";
+import type { CampagneSaisonniere } from "@/lib/constants";
 
 type Props = {
   campagnes: CampagneSaisonniere[];

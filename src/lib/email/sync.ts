@@ -494,45 +494,8 @@ export async function syncEmailsForUser(userId: string): Promise<{
     newCount++;
   }
 
-  // Reset stuck "en_cours" emails (stuck for more than 5 minutes)
-  await prisma.email.updateMany({
-    where: {
-      userId,
-      analyseStatut: "en_cours",
-      dateMaj: { lt: new Date(Date.now() - 5 * 60 * 1000) },
-    },
-    data: { analyseStatut: "erreur" },
-  });
-
-  // Auto-analyze ALL new emails + any previously missed
-  const emailsToAnalyze = await prisma.email.findMany({
-    where: {
-      userId,
-      analyseStatut: { in: ["non_analyse", "erreur"] },
-    },
-    select: { id: true },
-    orderBy: { dateEnvoi: "desc" },
-    take: 50,
-  });
-
-  let analyzed = 0;
-  let errors = 0;
-
-  for (const email of emailsToAnalyze) {
-    try {
-      await analyzeEmailById(email.id);
-      analyzed++;
-    } catch (err) {
-      console.error(`Cron analyze failed for email ${email.id}:`, err);
-      await prisma.email.update({
-        where: { id: email.id },
-        data: { analyseStatut: "erreur" },
-      }).catch(() => {});
-      errors++;
-    }
-  }
-
-  return { newCount, analyzed, errors };
+  // AI analysis is now handled by n8n via the email.received webhook event
+  return { newCount, analyzed: 0, errors: 0 };
 }
 
 // ── Sync all connected users ──
