@@ -66,19 +66,19 @@ Creer une credential Gmail OAuth2 dans n8n et la connecter au noeud "Envoyer par
 
 | Methode | Route | Utilise par |
 |---------|-------|------------|
-| GET | `/api/n8n/contrats/echeances?joursAvant=60` | 01 |
-| GET | `/api/n8n/pipeline/deals-inactifs?joursInactivite=14` | 01 |
+| GET | `/api/n8n/contrats?joursAvant=60` | 01 |
+| GET | `/api/n8n/pipeline?joursInactivite=14` | 01 |
 | GET | `/api/n8n/clients/sans-interaction?mois=6` | 01 |
 | GET | `/api/n8n/prescripteurs/inactifs?semaines=N` | 01 (8sem), 06 (3sem) |
 | GET | `/api/n8n/dirigeants/couverture-incomplete` | 01 |
 | POST | `/api/n8n/taches` | 01, 02, 03, 06 |
 | GET | `/api/n8n/sequences/actions-dues` | 02 |
-| POST | `/api/n8n/sequences/email-sent` | 02 |
+| POST | `/api/n8n/sequences` | 02 |
 | POST | `/api/n8n/deals/mark-lost` | 02 |
 | GET | `/api/n8n/campagnes/clients-cibles?filtre=X` | 03 |
-| GET | `/api/n8n/dashboard/kpis` | 04 |
+| GET | `/api/n8n/dashboard` | 04 |
 | GET | `/api/n8n/clients/by-email?email=X` | 05 |
-| POST | `/api/n8n/emails/analyze-result` | 05 |
+| POST | `/api/n8n/emails` | 05 |
 
 Toutes les routes necessitent le header `x-n8n-secret` avec la valeur de la variable `CRM_N8N_SECRET`.
 

@@ -16,7 +16,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/contrats/echeances?joursAvant=60",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/contrats?joursAvant=60",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
@@ -62,7 +62,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/pipeline/deals-inactifs?joursInactivite=14",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/pipeline?joursInactivite=14",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]

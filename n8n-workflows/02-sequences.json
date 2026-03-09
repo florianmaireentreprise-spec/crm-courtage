@@ -92,7 +92,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
@@ -128,7 +128,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
@@ -166,7 +166,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences/email-sent",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/sequences",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]

@@ -47,14 +47,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/analyze-result",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [{ "name": "x-n8n-secret", "value": "={{ $vars.CRM_N8N_SECRET }}" }]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"emailId\": \"{{ $('Préparer prompt IA').item.json.emailId }}\",\n  \"clientId\": {{ $('Préparer prompt IA').item.json.clientId ? '\"' + $('Préparer prompt IA').item.json.clientId + '\"' : 'null' }},\n  \"resumeIA\": \"{{ $json.resume ?? '' }}\",\n  \"urgence\": \"{{ $json.urgence ?? 'normale' }}\",\n  \"typeEmail\": \"{{ $json.type ?? 'autre' }}\",\n  \"actionRequise\": {{ $json.actionRequise ?? false }},\n  \"reponseSuggeree\": \"{{ $json.reponseSuggeree ?? '' }}\"\n}",
+        "jsonBody": "={\n  \"emailId\": \"{{ $('Préparer prompt IA').item.json.emailId }}\",\n  \"clientId\": {{ $('Préparer prompt IA').item.json.clientId ? '\"' + $('Préparer prompt IA').item.json.clientId + '\"' : 'null' }},\n  \"analyseIA\": {{ JSON.stringify($json) }},\n  \"resumeIA\": \"{{ $json.resume ?? '' }}\",\n  \"urgence\": \"{{ $json.urgence ?? 'normale' }}\",\n  \"typeEmail\": \"{{ $json.type ?? 'autre' }}\",\n  \"actionRequise\": {{ $json.actionRequise ?? false }},\n  \"reponseSuggeree\": \"{{ $json.reponseSuggeree ?? '' }}\"\n}",
         "options": {}
       },
       "id": "store-analysis",
