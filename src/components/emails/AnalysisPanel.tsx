@@ -24,6 +24,9 @@ import {
   FileText,
   Briefcase,
   Users,
+  RefreshCw,
+  StickyNote,
+  EyeOff,
 } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
@@ -36,6 +39,9 @@ import {
   executeEmailAction,
   ignoreEmailAction,
   closeTaskFromEmail,
+  regenerateReply,
+  ignorerEmail,
+  ajouterNoteEmail,
 } from "@/app/(app)/emails/actions";
 import type { Email, Client } from "@prisma/client";
 
@@ -88,6 +94,16 @@ export function AnalysisPanel({ email }: Props) {
   const [sendingDraft, startSendDraft] = useTransition();
   const [draftSaved, setDraftSaved] = useState(!!email.gmailDraftId);
   const [draftError, setDraftError] = useState<string | null>(null);
+
+  // Regeneration states
+  const [regenerating, startRegenerate] = useTransition();
+  const [regenInstructions, setRegenInstructions] = useState("");
+
+  // Note states
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, startSaveNote] = useTransition();
+  const [noteSaved, setNoteSaved] = useState(false);
 
   const [creatingDeal, startCreateDeal] = useTransition();
   const [dealCreated, setDealCreated] = useState(false);
@@ -563,6 +579,42 @@ export function AnalysisPanel({ email }: Props) {
                 )}
               </div>
             </div>
+
+            {/* Regenerate section */}
+            {!replySent && (
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  value={regenInstructions}
+                  onChange={(e) => setRegenInstructions(e.target.value)}
+                  placeholder="Instructions pour l'IA (optionnel)..."
+                  className="flex-1 text-xs px-2 py-1.5 border rounded-md bg-background"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-purple-600 border-purple-200 hover:bg-purple-50"
+                  onClick={() => {
+                    startRegenerate(async () => {
+                      const result = await regenerateReply(email.id, regenInstructions || undefined);
+                      if (result.draftReply) {
+                        setReplyText(result.draftReply);
+                        setDraftSaved(false);
+                        setRegenInstructions("");
+                      }
+                    });
+                  }}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {regenerating ? "Génération..." : "Regénérer"}
+                </Button>
+              </div>
+            )}
 
             {replySent ? (
               <div className="flex items-center gap-2 p-3 rounded-md bg-green-50 border border-green-200">

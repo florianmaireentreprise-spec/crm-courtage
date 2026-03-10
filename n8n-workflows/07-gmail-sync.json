@@ -1,0 +1,486 @@
+{
+  "name": "CRM — Gmail Sync (Schedule)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Schedule 15min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ]
+        }
+      },
+      "id": "gmail-inbox",
+      "name": "Gmail Lire INBOX",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        -80
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 20,
+        "filters": {
+          "labelIds": [
+            "SENT"
+          ]
+        }
+      },
+      "id": "gmail-sent",
+      "name": "Gmail Lire SENT",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        120
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inbox=$('Gmail Lire INBOX').all();const sent=$('Gmail Lire SENT').all();const GA=($vars.GMAIL_ADDRESS||'').toLowerCase();const all=[...inbox,...sent];const ids=all.map(m=>m.json.id).filter(Boolean);if(!ids.length)return[{json:{gmailIds:[],messages:[],skip:true}}];const msgs=all.map(m=>{const h=m.json.payload?.headers||m.json.headers||[];const g=n=>(h.find(x=>x.name?.toLowerCase()===n.toLowerCase())||{}).value||'';const f=g('From')||m.json.from||'';const t=g('To')||m.json.to||'';const s=g('Subject')||m.json.subject||'';const d=g('Date')||m.json.date||'';const fa=(f.match(/<([^>]+)>/)||[])[1]||f;const dir=fa.toLowerCase()===GA?'sortant':'entrant';return{gmailId:m.json.id,threadId:m.json.threadId||'',sujet:s,expediteur:f,destinataires:t,dateEnvoi:d?new Date(d).toISOString():new Date().toISOString(),extrait:(m.json.snippet||m.json.textPlain||'').substring(0,500),direction:dir}});return[{json:{gmailIds:ids,messages:msgs,skip:false}}];"
+      },
+      "id": "extract-metadata",
+      "name": "Extraire metadonnees",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-has-messages",
+      "name": "Si messages trouves",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/check-existing",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ gmailIds: $json.gmailIds }) }}"
+      },
+      "id": "check-existing",
+      "name": "Verifier emails existants",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.first().json;const m=$('Extraire metadonnees').first().json.messages;const s=new Set(r.newIds||[]);const n=m.filter(x=>s.has(x.gmailId));if(!n.length)return[{json:{skip:true}}];return n.map(x=>({json:x}));"
+      },
+      "id": "filter-new",
+      "name": "Filtrer nouveaux emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-new-emails",
+      "name": "Si nouveaux emails",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/store",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ gmailId: $json.gmailId, threadId: $json.threadId, sujet: $json.sujet, expediteur: $json.expediteur, destinataires: $json.destinataires, dateEnvoi: $json.dateEnvoi, extrait: $json.extrait, direction: $json.direction }) }}"
+      },
+      "id": "store-email",
+      "name": "Stocker email dans CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.pertinence }}",
+              "rightValue": "ignore",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-pertinent",
+      "name": "Si pertinent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c4",
+              "leftValue": "={{ $json.direction }}",
+              "rightValue": "entrant",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-direction",
+      "name": "Entrant ou Sortant",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.N8N_WEBHOOK_BASE }}/webhook/email.received",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ emailId: $json.emailId, gmailId: $json.gmailId, expediteur: $json.expediteur, sujet: $json.sujet, extrait: $json.extrait, dateEnvoi: $json.dateEnvoi, direction: 'entrant', clientId: $json.clientId }) }}"
+      },
+      "id": "trigger-wf05",
+      "name": "Trigger WF05 Analyse IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2260,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.N8N_WEBHOOK_BASE }}/webhook/email.outgoing",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ emailId: $json.emailId, expediteur: $json.expediteur, destinataires: $json.destinataires, sujet: $json.sujet, threadId: $json.threadId, clientId: $json.clientId }) }}"
+      },
+      "id": "trigger-wf08",
+      "name": "Trigger WF08 Auto-close",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2260,
+        40
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule 15min": {
+      "main": [
+        [
+          {
+            "node": "Gmail Lire INBOX",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail Lire SENT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Lire INBOX": {
+      "main": [
+        [
+          {
+            "node": "Extraire metadonnees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Lire SENT": {
+      "main": [
+        [
+          {
+            "node": "Extraire metadonnees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire metadonnees": {
+      "main": [
+        [
+          {
+            "node": "Si messages trouves",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si messages trouves": {
+      "main": [
+        [
+          {
+            "node": "Verifier emails existants",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Verifier emails existants": {
+      "main": [
+        [
+          {
+            "node": "Filtrer nouveaux emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrer nouveaux emails": {
+      "main": [
+        [
+          {
+            "node": "Si nouveaux emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si nouveaux emails": {
+      "main": [
+        [
+          {
+            "node": "Stocker email dans CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Stocker email dans CRM": {
+      "main": [
+        [
+          {
+            "node": "Si pertinent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si pertinent": {
+      "main": [
+        [
+          {
+            "node": "Entrant ou Sortant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Entrant ou Sortant": {
+      "main": [
+        [
+          {
+            "node": "Trigger WF05 Analyse IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger WF08 Auto-close",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CRM Courtage"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage, sendGmailReply, createGmailDraft, updateGmailDraft, sendGmailDraft, GMAIL_SCOPES } from "@/lib/email/gmail";
-import { emitN8nEvent } from "@/lib/n8n";
+import { callN8nWebhook } from "@/lib/n8n";
 import { google } from "googleapis";
 
 // ── Helpers (shared with sync.ts) ──
@@ -216,28 +216,14 @@ export async function syncEmails() {
       } catch { /* ignore */ }
     }
 
-    // Skip n8n for pre-classified non-commercial emails
+    // Skip analysis for pre-classified non-commercial emails
     if (preType) {
       newEmailIds.push(email.id);
       newCount++;
       continue;
     }
 
-    // Emit webhook to n8n for analysis (fire-and-forget)
-    void emitN8nEvent({
-      type: "email.received",
-      timestamp: new Date().toISOString(),
-      payload: {
-        emailId: email.id,
-        gmailId: email.gmailId,
-        expediteur: email.expediteur,
-        sujet: email.sujet,
-        extrait: email.extrait?.substring(0, 500) ?? null,
-        dateEnvoi: email.dateEnvoi,
-        direction: email.direction,
-      },
-    });
-
+    // Direct AI analysis (async, non-blocking for sync)
     newEmailIds.push(email.id);
     newCount++;
   }
@@ -252,10 +238,13 @@ export async function syncEmails() {
     data: { analyseStatut: "erreur" },
   });
 
+  // Analysis is now handled by n8n WF05v2 (triggered automatically)
+  // No direct AI calls from CRM
+
   revalidatePath("/emails");
   revalidatePath("/clients");
   revalidatePath("/relances");
-  return { success: true, newCount, clientMatchCount, sentToN8n: newEmailIds.length };
+  return { success: true, newCount, clientMatchCount };
 }
 
 // ── PUBLIC ACTIONS ──
@@ -267,29 +256,10 @@ export async function analyzeEmail(emailId: string) {
   const email = await prisma.email.findUnique({ where: { id: emailId } });
   if (!email) return { error: "Email non trouvé" };
 
-  // Mark as pending analysis
-  await prisma.email.update({
-    where: { id: emailId },
-    data: { analyseStatut: "en_cours" },
-  });
-
-  // Delegate analysis to n8n (fire-and-forget)
-  void emitN8nEvent({
-    type: "email.received",
-    timestamp: new Date().toISOString(),
-    payload: {
-      emailId: email.id,
-      gmailId: email.gmailId,
-      expediteur: email.expediteur,
-      sujet: email.sujet,
-      extrait: email.extrait?.substring(0, 500) ?? null,
-      dateEnvoi: email.dateEnvoi,
-      direction: email.direction,
-    },
-  });
-
+  // Analysis is now handled by n8n WF05v2
+  // This function is kept for backward compatibility but is a no-op
   revalidatePath("/emails");
-  return { success: true };
+  return { success: true, message: "Analyse déléguée à n8n" };
 }
 
 export async function markEmailRead(emailId: string) {
@@ -335,39 +305,18 @@ export async function reanalyzeUnprocessed() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
 
-  const emailsToProcess = await prisma.email.findMany({
+  // Reanalysis is now handled by n8n WF05v2
+  // Reset errored emails so n8n can pick them up
+  const result = await prisma.email.updateMany({
     where: {
       userId: session.user.id,
-      analyseStatut: { in: ["non_analyse", "erreur"] },
+      analyseStatut: { in: ["erreur"] },
     },
-    orderBy: { dateEnvoi: "desc" },
-    take: 50,
+    data: { analyseStatut: "non_analyse" },
   });
 
-  // Mark all as "en_cours" and send to n8n
-  for (const email of emailsToProcess) {
-    await prisma.email.update({
-      where: { id: email.id },
-      data: { analyseStatut: "en_cours" },
-    });
-
-    void emitN8nEvent({
-      type: "email.received",
-      timestamp: new Date().toISOString(),
-      payload: {
-        emailId: email.id,
-        gmailId: email.gmailId,
-        expediteur: email.expediteur,
-        sujet: email.sujet,
-        extrait: email.extrait?.substring(0, 500) ?? null,
-        dateEnvoi: email.dateEnvoi,
-        direction: email.direction,
-      },
-    });
-  }
-
   revalidatePath("/emails");
-  return { success: true, sentToN8n: emailsToProcess.length, total: emailsToProcess.length };
+  return { success: true, reset: result.count, message: "Emails réinitialisés pour réanalyse par n8n" };
 }
 
 export async function disconnectGmail() {
@@ -887,4 +836,95 @@ export async function createContactFromEmail(
   revalidatePath("/emails");
   revalidatePath("/clients");
   return { success: true, contactId: client.id, contactName: client.raisonSociale, contactType };
+}
+
+// ── REGENERATE REPLY via n8n WF09 ──
+
+export async function regenerateReply(emailId: string, instructions?: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  const webhookUrl = process.env.N8N_GENERATE_REPLY_URL;
+  if (!webhookUrl) return { error: "N8N_GENERATE_REPLY_URL non configuré" };
+
+  try {
+    const result = await callN8nWebhook(webhookUrl, { emailId, instructions }, 20000);
+    const draftReply = (result as { draftReply?: string }).draftReply;
+
+    if (draftReply) {
+      await prisma.email.update({
+        where: { id: emailId },
+        data: { reponseProposee: draftReply },
+      });
+
+      // Update Gmail draft if one exists
+      if (email.gmailDraftId) {
+        try {
+          const { oauth2Client } = await buildAuthedClient(session.user.id);
+          const toAddress = extractEmailAddress(email.expediteur);
+          await updateGmailDraft(oauth2Client, email.gmailDraftId, toAddress, email.sujet, draftReply, email.threadId);
+        } catch (draftErr) {
+          console.error("Failed to update Gmail draft:", draftErr);
+          // Non-blocking: draft update failure shouldn't fail the whole action
+        }
+      }
+    }
+
+    revalidatePath("/emails");
+    return { success: true, draftReply: draftReply || null };
+  } catch (err) {
+    console.error("regenerateReply error:", err);
+    return { error: "Erreur lors de la génération IA. Réessayez." };
+  }
+}
+
+// ── RATTACHER email à un client existant (alias enrichi de linkEmailToClient) ──
+
+export async function rattacherEmailAuClient(emailId: string, clientId: string) {
+  return linkEmailToClient(emailId, clientId);
+}
+
+// ── IGNORER un email (marquer comme non-pertinent) ──
+
+export async function ignorerEmail(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { pertinence: "ignore", actionTraitee: true },
+  });
+
+  revalidatePath("/emails");
+  return { success: true };
+}
+
+// ── AJOUTER UNE NOTE à un email ──
+
+export async function ajouterNoteEmail(emailId: string, note: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({
+    where: { id: emailId },
+    select: { notes: true },
+  });
+  if (!email) return { error: "Email non trouvé" };
+
+  const existingNotes = email.notes || "";
+  const timestamp = new Date().toLocaleDateString("fr-FR");
+  const newNotes = existingNotes
+    ? `${existingNotes}\n[${timestamp}] ${note}`
+    : `[${timestamp}] ${note}`;
+
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { notes: newNotes },
+  });
+
+  revalidatePath("/emails");
+  return { success: true };
 }

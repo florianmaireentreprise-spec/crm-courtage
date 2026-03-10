@@ -2,26 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { withN8nAuth } from "../middleware";
-import { parseAIResponse } from "@/lib/email/ai";
-import { processAnalysisResult } from "@/lib/email/sync";
+import { matchClientByEmail } from "@/lib/email/sync";
 
+// POST /api/n8n/emails — Store analysis result from n8n WF05v2
 async function handler(req: Request) {
   const body = await req.json();
-
-  const { emailId, rawAnalysis } = body as {
-    emailId: string;
-    rawAnalysis?: string; // Raw Gemini text output
-    // Legacy structured fields (backward compatible)
-    analyseIA?: Record<string, unknown>;
-    clientId?: string;
-    resumeIA?: string;
-    urgence?: string;
-    typeEmail?: string;
-    actionRequise?: boolean;
-    reponseSuggeree?: string;
-    dealUpdateSuggestion?: Record<string, unknown>;
-    produitsMentionnes?: string[];
-  };
+  const { emailId } = body as { emailId: string };
 
   if (!emailId) {
     return NextResponse.json({ error: "emailId is required" }, { status: 400 });
@@ -32,70 +18,43 @@ async function handler(req: Request) {
     return NextResponse.json({ error: "Email not found" }, { status: 404 });
   }
 
-  // ── Mode 1: Raw Gemini text → full processing (preferred) ──
-  if (rawAnalysis) {
-    try {
-      const result = parseAIResponse(rawAnalysis);
-      await processAnalysisResult(emailId, email.clientId, result, email.expediteur);
-      revalidatePath("/emails");
-      revalidatePath("/relances");
-      revalidatePath("/clients");
-      return NextResponse.json({ success: true, emailId, mode: "full_analysis" });
-    } catch (err) {
-      console.error(`[n8n] Failed to process raw analysis for ${emailId}:`, err);
-      await prisma.email.update({
-        where: { id: emailId },
-        data: { analyseStatut: "erreur" },
-      });
-      return NextResponse.json(
-        { error: "Failed to process analysis", details: err instanceof Error ? err.message : "Unknown" },
-        { status: 500 },
-      );
-    }
-  }
-
-  // ── Mode 2: Structured fields (legacy/backward compatible) ──
   const {
-    analyseIA,
-    clientId,
-    resumeIA,
-    urgence,
-    typeEmail,
-    actionRequise,
-    reponseSuggeree,
-    dealUpdateSuggestion,
-    produitsMentionnes,
-  } = body;
+    type, urgence, resume, sentiment, actionRequise, actionSuggeree,
+    draftReply, clientMatch, produitsMentionnes, expediteurNom,
+    expediteurEntreprise, contratMentionne,
+  } = body as {
+    type?: string; urgence?: string; resume?: string; sentiment?: string;
+    actionRequise?: boolean; actionSuggeree?: string; draftReply?: string;
+    clientMatch?: { found: boolean; clientId?: string; clientName?: string; confidence?: string };
+    produitsMentionnes?: string[]; expediteurNom?: string;
+    expediteurEntreprise?: string; contratMentionne?: string;
+  };
 
-  if (!analyseIA) {
-    return NextResponse.json(
-      { error: "Either rawAnalysis or analyseIA is required" },
-      { status: 400 },
-    );
+  let resolvedClientId = email.clientId;
+  if (clientMatch?.clientId) {
+    resolvedClientId = clientMatch.clientId;
+  } else if (!resolvedClientId) {
+    resolvedClientId = await matchClientByEmail(email.expediteur);
   }
 
   await prisma.email.update({
     where: { id: emailId },
     data: {
-      analyseIA: JSON.stringify(analyseIA),
-      resume: resumeIA ?? null,
+      resume: resume ?? null,
+      typeEmail: type ?? null,
       urgence: urgence ?? null,
-      typeEmail: typeEmail ?? null,
+      sentiment: sentiment ?? null,
       actionRequise: actionRequise ?? false,
       actionTraitee: false,
-      reponseProposee: reponseSuggeree ?? null,
+      reponseProposee: draftReply ?? null,
       analyseStatut: "analyse",
-      clientId: clientId ?? email.clientId,
-      dealUpdateSuggestion: dealUpdateSuggestion
-        ? JSON.stringify(dealUpdateSuggestion)
-        : null,
-      produitsMentionnes: produitsMentionnes
-        ? JSON.stringify(produitsMentionnes)
-        : null,
+      clientId: resolvedClientId,
+      analyseIA: JSON.stringify(body),
+      produitsMentionnes: produitsMentionnes?.length ? JSON.stringify(produitsMentionnes) : null,
+      actionsItems: actionSuggeree ? JSON.stringify([actionSuggeree]) : null,
     },
   });
 
-  const resolvedClientId = clientId ?? email.clientId;
   if (resolvedClientId) {
     await prisma.client.update({
       where: { id: resolvedClientId },
@@ -103,31 +62,11 @@ async function handler(req: Request) {
     });
   }
 
-  if (actionRequise) {
-    const actionSuggeree =
-      typeof analyseIA.actionSuggeree === "string"
-        ? analyseIA.actionSuggeree
-        : "Traiter email";
-
-    await prisma.tache.create({
-      data: {
-        titre: actionSuggeree,
-        type: "RELANCE_PROSPECT",
-        priorite: urgence === "haute" ? "haute" : "normale",
-        dateEcheance: new Date(
-          Date.now() + (urgence === "haute" ? 1 : 7) * 24 * 60 * 60 * 1000,
-        ),
-        clientId: resolvedClientId ?? null,
-        emailId,
-        autoGenerated: true,
-        sourceAuto: "n8n_analyse",
-      },
-    });
-  }
-
   revalidatePath("/emails");
+  revalidatePath("/relances");
+  revalidatePath("/clients");
 
-  return NextResponse.json({ success: true, emailId, mode: "legacy" });
+  return NextResponse.json({ success: true, emailId, clientId: resolvedClientId, type: type ?? "autre" });
 }
 
 export const POST = withN8nAuth(handler);

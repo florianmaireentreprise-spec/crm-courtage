@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2 } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
+import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
 import { fr } from "date-fns/locale";
 import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring/prospect";
 import { calculerPotentielCA } from "@/lib/scoring/potentiel";
@@ -35,7 +36,7 @@ export default async function ClientDetailPage({
       },
       emails: {
         orderBy: { dateEnvoi: "desc" },
-        take: 10,
+        take: 50,
       },
       dirigeant: true,
       prescripteur: true,
@@ -520,44 +521,7 @@ export default async function ClientDetailPage({
             </TabsContent>
 
             <TabsContent value="emails" className="mt-4">
-              {client.emails.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">Aucun email lie a ce client</p>
-              ) : (
-                <div className="space-y-2">
-                  {client.emails.map((email) => (
-                    <Card key={email.id}>
-                      <CardContent className="py-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              {email.direction === "sortant" ? (
-                                <ArrowUpRight className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                              ) : (
-                                <ArrowDownLeft className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
-                              )}
-                              <p className="font-medium text-sm truncate">{email.sujet}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1 truncate">
-                              {email.direction === "sortant" ? "\u2192 " : ""}{email.expediteur}
-                            </p>
-                            {email.resume && (
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{email.resume}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className="text-xs text-muted-foreground">
-                              {format(email.dateEnvoi, "dd MMM", { locale: fr })}
-                            </span>
-                            {email.analyseStatut === "analyse" && (
-                              <Badge variant="secondary" className="text-[10px]">Analyse</Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+              <ClientEmailHistory emails={client.emails} />
             </TabsContent>
 
             <TabsContent value="historique" className="mt-4">

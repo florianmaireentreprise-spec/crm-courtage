@@ -1,0 +1,219 @@
+{
+  "name": "CRM — Auto-close taches (email sortant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email.outgoing",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook email.outgoing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "email-outgoing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.body.clientId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-client",
+      "name": "Client rattache",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches/pending-replies?clientId={{ $json.body.clientId }}&threadId={{ $json.body.threadId || '' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "get-pending",
+      "name": "Chercher taches ouvertes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.taches?.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-tasks",
+      "name": "Taches trouvees",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const taches = $input.first().json.taches || [];\nconst webhook = $('Webhook email.outgoing').first().json.body;\nreturn taches.map(t => ({ json: { tacheId: t.id, raison: 'Email sortant detecte — ' + (webhook.sujet || 'Sans objet'), emailSortantId: webhook.emailId } }));"
+      },
+      "id": "split-tasks",
+      "name": "Preparer fermeture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches/auto-close",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tacheId: $json.tacheId, raison: $json.raison, emailSortantId: $json.emailSortantId }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "close-task",
+      "name": "Fermer tache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1140,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook email.outgoing": {
+      "main": [
+        [
+          {
+            "node": "Client rattache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client rattache": {
+      "main": [
+        [
+          {
+            "node": "Chercher taches ouvertes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Chercher taches ouvertes": {
+      "main": [
+        [
+          {
+            "node": "Taches trouvees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Taches trouvees": {
+      "main": [
+        [
+          {
+            "node": "Preparer fermeture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Preparer fermeture": {
+      "main": [
+        [
+          {
+            "node": "Fermer tache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CRM Courtage"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export type N8nEventType =
   | "email.received"
+  | "email.outgoing"
   | "deal.stage_changed"
   | "client.created"
   | "client.updated"
@@ -122,3 +123,27 @@ async function logN8nCall(data: {
 }
 
 export { logN8nCall };
+
+// ── Synchronous webhook call (for WF09 generate-reply) ──
+
+export async function callN8nWebhook(
+  url: string,
+  body: Record<string, unknown>,
+  timeoutMs = 15000,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) {
+    throw new Error(`n8n webhook responded ${res.status}: ${await res.text().catch(() => "")}`);
+  }
+
+  return res.json();
+}

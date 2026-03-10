@@ -1,0 +1,466 @@
+{
+  "name": "CRM — Email Intelligence v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email.received",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook email.received",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "email-received-v2"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/clients/by-email?email={{ encodeURIComponent($json.body.expediteur || '') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "find-client",
+      "name": "Chercher client par email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.client?.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-client",
+      "name": "Client trouve",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/clients/{{ $('Chercher client par email').first().json.client.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "get-client-context",
+      "name": "Contexte client complet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const w=$('Webhook email.received').first().json.body;const cd=$('Chercher client par email').first().json.client;let cc=null;try{cc=$('Contexte client complet').first().json}catch(e){}const p=['Tu es assistant IA du cabinet GargarineV1, courtier en assurances.','Analyse cet email. Reponds en JSON: type, urgence, resume, sentiment, actionRequise, actionSuggeree, draftReply, produitsMentionnes, expediteurNom, expediteurEntreprise','Types: client/prospect/assureur/prescripteur/autre. Urgence: haute/normale/basse','draftReply=null si sortant/autre/pas necessaire','','EMAIL:','De: '+(w.expediteur||''),'Objet: '+(w.sujet||''),'Direction: '+(w.direction||''),'---',w.extrait||'(vide)'];if(cc?.client){const c=cc.client;p.push('','CONTEXTE:','Nom: '+c.raisonSociale,'Statut: '+c.statut)}else if(cd){p.push('','CLIENT:',cd.raisonSociale)}return[{json:{emailId:w.emailId,clientId:w.clientId||cd?.id||null,prompt:p.join('\\n')}}];"
+      },
+      "id": "build-prompt",
+      "name": "Construire prompt IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $vars.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-gemini",
+      "name": "Gemini Flash Analyse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const g=$input.first().json;const d=$('Construire prompt IA').first().json;const t=g.candidates?.[0]?.content?.parts?.[0]?.text||'{}';let a;try{a=JSON.parse(t)}catch(e){a={type:'autre',urgence:'basse',resume:t.substring(0,200)}}return[{json:{emailId:d.emailId,clientId:d.clientId,...a}}];"
+      },
+      "id": "parse-result",
+      "name": "Parser resultat Gemini",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "store-analysis",
+      "name": "Stocker analyse CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $('Parser resultat Gemini').first().json.actionRequise }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-action",
+      "name": "Action requise",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d=$('Parser resultat Gemini').first().json;const w=$('Webhook email.received').first().json.body;const ms=d.urgence==='haute'?86400000:d.urgence==='basse'?604800000:259200000;return[{json:{titre:'Repondre a '+(d.expediteurNom||'inconnu')+' ('+(w.expediteur||'')+')',description:'Email: '+(w.sujet||'')+'\\nResume: '+(d.resume||''),clientId:d.clientId||null,emailId:d.emailId,type:'RELANCE_PROSPECT',priorite:d.urgence==='haute'?'haute':'normale',dateEcheance:new Date(Date.now()+ms).toISOString(),sourceAuto:'email_reponse_attendue'}}];"
+      },
+      "id": "prep-task",
+      "name": "Preparer tache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/taches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "create-task",
+      "name": "Creer tache Repondre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c3",
+              "leftValue": "={{ $('Parser resultat Gemini').first().json.draftReply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-draft",
+      "name": "Brouillon a creer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/create-draft",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ emailId: $('Parser resultat Gemini').first().json.emailId, replyText: $('Parser resultat Gemini').first().json.draftReply }) }}"
+      },
+      "id": "create-draft",
+      "name": "Creer brouillon Gmail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook email.received": {
+      "main": [
+        [
+          {
+            "node": "Chercher client par email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher client par email": {
+      "main": [
+        [
+          {
+            "node": "Client trouve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client trouve": {
+      "main": [
+        [
+          {
+            "node": "Contexte client complet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Construire prompt IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexte client complet": {
+      "main": [
+        [
+          {
+            "node": "Construire prompt IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire prompt IA": {
+      "main": [
+        [
+          {
+            "node": "Gemini Flash Analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash Analyse": {
+      "main": [
+        [
+          {
+            "node": "Parser resultat Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser resultat Gemini": {
+      "main": [
+        [
+          {
+            "node": "Stocker analyse CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stocker analyse CRM": {
+      "main": [
+        [
+          {
+            "node": "Action requise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action requise": {
+      "main": [
+        [
+          {
+            "node": "Preparer tache",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Brouillon a creer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Preparer tache": {
+      "main": [
+        [
+          {
+            "node": "Creer tache Repondre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brouillon a creer": {
+      "main": [
+        [
+          {
+            "node": "Creer brouillon Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CRM Courtage"
+    }
+  ]
+}

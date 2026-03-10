@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { analyzeEmailById } from "@/lib/email/sync";
+
 import { buildOAuth2Client, extractBodyText } from "@/lib/email/gmail";
 import { google } from "googleapis";
 
@@ -336,9 +336,7 @@ export async function POST(req: NextRequest) {
 
   // 12. Trigger AI analysis in background if we have content
   if (extrait) {
-    analyzeEmailById(email.id).catch((err) => {
-      console.error(`[webhook] AI analysis failed for ${email.id}:`, err);
-    });
+    // AI analysis now handled by n8n WF05v2
   }
 
   return NextResponse.json({

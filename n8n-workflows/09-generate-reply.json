@@ -1,0 +1,184 @@
+{
+  "name": "CRM — IA a la demande (generate reply)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-reply",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Webhook generate-reply",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "generate-reply"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/{{ $json.body.emailId }}/context",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "get-context",
+      "name": "Charger contexte email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst webhook = $('Webhook generate-reply').first().json.body;\nconst email = ctx.email || {};\nconst client = ctx.client;\nconst recentEmails = ctx.recentEmails || [];\nconst openTasks = ctx.openTasks || [];\nconst instructions = webhook.instructions || '';\n\nconst parts = [\n  'Tu es assistant du cabinet GargarineV1, courtier en assurances.',\n  'Redige une reponse professionnelle a cet email.',\n  '',\n  'EMAIL RECU :',\n  'De: ' + (email.expediteur || 'inconnu'),\n  'Objet: ' + (email.sujet || 'Sans objet'),\n  '---',\n  email.extrait || '(pas de contenu)',\n];\n\nif (client) {\n  parts.push('', 'CONTEXTE CLIENT :', 'Nom: ' + client.raisonSociale, 'Statut: ' + client.statut);\n  if (client.contrats?.length) parts.push('Contrats: ' + client.contrats.map(c => c.typeProduit + ' (' + c.statut + ')').join(', '));\n  if (client.deals?.length) parts.push('Deals: ' + client.deals.map(d => d.titre).join(', '));\n}\n\nif (recentEmails.length > 0) {\n  parts.push('', 'HISTORIQUE RECENT DU FIL :');\n  recentEmails.forEach(e => parts.push('[' + e.direction + '] ' + e.sujet + ' — ' + (e.extrait || '').substring(0, 100)));\n}\n\nif (openTasks.length > 0) {\n  parts.push('', 'TACHES EN COURS :');\n  openTasks.forEach(t => parts.push('- ' + t.titre + ' (' + t.type + ', echeance: ' + t.dateEcheance + ')'));\n}\n\nif (instructions) {\n  parts.push('', 'INSTRUCTIONS SPECIFIQUES :', instructions);\n}\n\nparts.push('', 'Redige une reponse concise et professionnelle.');\nparts.push('Commence par Bonjour [nom], et termine par Cordialement, GargarineV1 — Courtage en assurances.');\n\nreturn [{ json: { prompt: parts.join('\n') } }];"
+      },
+      "id": "build-prompt",
+      "name": "Construire prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $vars.GEMINI_API_KEY }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0.3 } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-gemini",
+      "name": "Gemini Flash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiRes = $input.first().json;\nconst rawText = geminiRes.candidates?.[0]?.content?.parts?.[0]?.text || '';\nreturn [{ json: { draftReply: rawText.trim(), model: 'gemini-2.0-flash' } }];"
+      },
+      "id": "format-reply",
+      "name": "Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ draftReply: $json.draftReply, model: $json.model }) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook generate-reply": {
+      "main": [
+        [
+          {
+            "node": "Charger contexte email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Charger contexte email": {
+      "main": [
+        [
+          {
+            "node": "Construire prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Flash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash": {
+      "main": [
+        [
+          {
+            "node": "Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater reponse": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "CRM Courtage"
+    }
+  ]
+}

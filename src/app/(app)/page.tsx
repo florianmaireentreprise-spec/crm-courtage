@@ -17,6 +17,7 @@ import { getCampagnesActives } from "@/lib/constants";
 import { detecterPrescripteursARelancer } from "@/lib/prescripteurs";
 import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
 import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
+import { EmailsWidget } from "@/components/dashboard/EmailsWidget";
 
 async function getDashboardData() {
   try {
@@ -44,6 +45,8 @@ function getEmptyDashboard() {
     opportunites: [] as Awaited<ReturnType<typeof detecterOpportunites>>,
     campagnesActives: [] as ReturnType<typeof getCampagnesActives>,
     prescripteursAlertes: [] as Awaited<ReturnType<typeof detecterPrescripteursARelancer>>,
+    emailsPending: [] as never[],
+    emailsPendingCount: 0,
   };
 }
 
@@ -62,6 +65,8 @@ async function getDashboardDataInternal() {
     nbDirigeants,
     allClients,
     contrats30j,
+    emailsPending,
+    emailsPendingCount,
     commissionsParMois,
   ] = await Promise.all([
     prisma.client.count({ where: { statut: "client_actif" } }),
@@ -129,6 +134,24 @@ async function getDashboardDataInternal() {
       where: {
         statut: "actif",
         dateEcheance: { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      },
+    }),
+    // Emails en attente de reponse
+    prisma.email.findMany({
+      where: {
+        direction: "entrant",
+        actionRequise: true,
+        actionTraitee: false,
+      },
+      include: { client: { select: { raisonSociale: true } } },
+      orderBy: [{ urgence: "asc" }, { dateEnvoi: "desc" }],
+      take: 5,
+    }),
+    prisma.email.count({
+      where: {
+        direction: "entrant",
+        actionRequise: true,
+        actionTraitee: false,
       },
     }),
     // Commissions des 12 derniers mois pour le graphe CA Evolution
@@ -231,6 +254,8 @@ async function getDashboardDataInternal() {
     opportunites: opportunites.slice(0, 8),
     campagnesActives,
     prescripteursAlertes,
+    emailsPending,
+    emailsPendingCount,
   };
 }
 
@@ -260,6 +285,9 @@ export default async function DashboardPage() {
         <CampagnesWidget campagnes={data.campagnesActives} />
         <PrescripteursWidget alertes={data.prescripteursAlertes} />
       </div>
+
+      {/* Emails pending */}
+      <EmailsWidget emails={data.emailsPending} totalPending={data.emailsPendingCount} />
 
       {/* Phase 2 widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
