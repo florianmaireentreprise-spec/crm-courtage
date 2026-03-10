@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage, sendGmailReply, GMAIL_SCOPES } from "@/lib/email/gmail";
-import { analyzeEmailById } from "@/lib/email/sync";
+import { emitN8nEvent } from "@/lib/n8n";
 import { google } from "googleapis";
 
 // ── Helpers (shared with sync.ts) ──
@@ -175,6 +175,21 @@ export async function syncEmails() {
       });
     }
 
+    // Emit webhook to n8n for analysis (fire-and-forget)
+    void emitN8nEvent({
+      type: "email.received",
+      timestamp: new Date().toISOString(),
+      payload: {
+        emailId: email.id,
+        gmailId: email.gmailId,
+        expediteur: email.expediteur,
+        sujet: email.sujet,
+        extrait: email.extrait?.substring(0, 500) ?? null,
+        dateEnvoi: email.dateEnvoi,
+        direction: email.direction,
+      },
+    });
+
     newEmailIds.push(email.id);
     newCount++;
   }
@@ -189,31 +204,10 @@ export async function syncEmails() {
     data: { analyseStatut: "erreur" },
   });
 
-  // Auto-analyze ALL new emails (not just client/important)
-  const emailsToProcess = await prisma.email.findMany({
-    where: {
-      userId,
-      analyseStatut: { in: ["non_analyse", "erreur"] },
-    },
-    select: { id: true },
-    orderBy: { dateEnvoi: "desc" },
-    take: 50,
-  });
-
-  let autoProcessed = 0;
-  for (const email of emailsToProcess) {
-    try {
-      await analyzeEmailById(email.id);
-      autoProcessed++;
-    } catch (err) {
-      console.error(`Auto-process failed for email ${email.id}:`, err);
-    }
-  }
-
   revalidatePath("/emails");
   revalidatePath("/clients");
   revalidatePath("/relances");
-  return { success: true, newCount, clientMatchCount, autoProcessed };
+  return { success: true, newCount, clientMatchCount, sentToN8n: newEmailIds.length };
 }
 
 // ── PUBLIC ACTIONS ──
@@ -222,20 +216,32 @@ export async function analyzeEmail(emailId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
 
-  try {
-    await analyzeEmailById(emailId);
-    revalidatePath("/emails");
-    revalidatePath("/relances");
-    revalidatePath("/clients");
-    return { success: true };
-  } catch (err) {
-    console.error("Email analysis error:", err);
-    await prisma.email.update({
-      where: { id: emailId },
-      data: { analyseStatut: "erreur" },
-    });
-    return { error: "Erreur lors de l'analyse" };
-  }
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  // Mark as pending analysis
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { analyseStatut: "en_cours" },
+  });
+
+  // Delegate analysis to n8n (fire-and-forget)
+  void emitN8nEvent({
+    type: "email.received",
+    timestamp: new Date().toISOString(),
+    payload: {
+      emailId: email.id,
+      gmailId: email.gmailId,
+      expediteur: email.expediteur,
+      sujet: email.sujet,
+      extrait: email.extrait?.substring(0, 500) ?? null,
+      dateEnvoi: email.dateEnvoi,
+      direction: email.direction,
+    },
+  });
+
+  revalidatePath("/emails");
+  return { success: true };
 }
 
 export async function markEmailRead(emailId: string) {
@@ -290,23 +296,30 @@ export async function reanalyzeUnprocessed() {
     take: 50,
   });
 
-  let processed = 0;
-  let erreurs = 0;
-
+  // Mark all as "en_cours" and send to n8n
   for (const email of emailsToProcess) {
-    try {
-      await analyzeEmailById(email.id);
-      processed++;
-    } catch (err) {
-      console.error(`Reanalyze failed for email ${email.id}:`, err);
-      erreurs++;
-    }
+    await prisma.email.update({
+      where: { id: email.id },
+      data: { analyseStatut: "en_cours" },
+    });
+
+    void emitN8nEvent({
+      type: "email.received",
+      timestamp: new Date().toISOString(),
+      payload: {
+        emailId: email.id,
+        gmailId: email.gmailId,
+        expediteur: email.expediteur,
+        sujet: email.sujet,
+        extrait: email.extrait?.substring(0, 500) ?? null,
+        dateEnvoi: email.dateEnvoi,
+        direction: email.direction,
+      },
+    });
   }
 
   revalidatePath("/emails");
-  revalidatePath("/clients");
-  revalidatePath("/relances");
-  return { success: true, processed, erreurs, total: emailsToProcess.length };
+  return { success: true, sentToN8n: emailsToProcess.length, total: emailsToProcess.length };
 }
 
 export async function disconnectGmail() {

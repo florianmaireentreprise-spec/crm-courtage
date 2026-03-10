@@ -194,7 +194,7 @@ const ECHEANCE_JOURS: Record<string, number> = {
   basse: 14,
 };
 
-async function processAnalysisResult(
+export async function processAnalysisResult(
   emailId: string,
   existingClientId: string | null,
   result: AIEmailAnalysis,

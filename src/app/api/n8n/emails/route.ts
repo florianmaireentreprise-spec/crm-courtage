@@ -2,24 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { withN8nAuth } from "../middleware";
+import { parseAIResponse } from "@/lib/email/ai";
+import { processAnalysisResult } from "@/lib/email/sync";
 
 async function handler(req: Request) {
   const body = await req.json();
 
-  const {
-    emailId,
-    analyseIA,
-    clientId,
-    resumeIA,
-    urgence,
-    typeEmail,
-    actionRequise,
-    reponseSuggeree,
-    dealUpdateSuggestion,
-    produitsMentionnes,
-  } = body as {
+  const { emailId, rawAnalysis } = body as {
     emailId: string;
-    analyseIA: Record<string, unknown>;
+    rawAnalysis?: string; // Raw Gemini text output
+    // Legacy structured fields (backward compatible)
+    analyseIA?: Record<string, unknown>;
     clientId?: string;
     resumeIA?: string;
     urgence?: string;
@@ -39,7 +32,48 @@ async function handler(req: Request) {
     return NextResponse.json({ error: "Email not found" }, { status: 404 });
   }
 
-  // Update email with analysis results
+  // ── Mode 1: Raw Gemini text → full processing (preferred) ──
+  if (rawAnalysis) {
+    try {
+      const result = parseAIResponse(rawAnalysis);
+      await processAnalysisResult(emailId, email.clientId, result, email.expediteur);
+      revalidatePath("/emails");
+      revalidatePath("/relances");
+      revalidatePath("/clients");
+      return NextResponse.json({ success: true, emailId, mode: "full_analysis" });
+    } catch (err) {
+      console.error(`[n8n] Failed to process raw analysis for ${emailId}:`, err);
+      await prisma.email.update({
+        where: { id: emailId },
+        data: { analyseStatut: "erreur" },
+      });
+      return NextResponse.json(
+        { error: "Failed to process analysis", details: err instanceof Error ? err.message : "Unknown" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // ── Mode 2: Structured fields (legacy/backward compatible) ──
+  const {
+    analyseIA,
+    clientId,
+    resumeIA,
+    urgence,
+    typeEmail,
+    actionRequise,
+    reponseSuggeree,
+    dealUpdateSuggestion,
+    produitsMentionnes,
+  } = body;
+
+  if (!analyseIA) {
+    return NextResponse.json(
+      { error: "Either rawAnalysis or analyseIA is required" },
+      { status: 400 },
+    );
+  }
+
   await prisma.email.update({
     where: { id: emailId },
     data: {
@@ -61,7 +95,6 @@ async function handler(req: Request) {
     },
   });
 
-  // Update client derniereInteraction if linked
   const resolvedClientId = clientId ?? email.clientId;
   if (resolvedClientId) {
     await prisma.client.update({
@@ -70,7 +103,6 @@ async function handler(req: Request) {
     });
   }
 
-  // Auto-create task if action required
   if (actionRequise) {
     const actionSuggeree =
       typeof analyseIA.actionSuggeree === "string"
@@ -95,7 +127,7 @@ async function handler(req: Request) {
 
   revalidatePath("/emails");
 
-  return NextResponse.json({ success: true, emailId });
+  return NextResponse.json({ success: true, emailId, mode: "legacy" });
 }
 
 export const POST = withN8nAuth(handler);
