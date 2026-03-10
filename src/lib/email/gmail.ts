@@ -41,16 +41,8 @@ export function extractBodyText(payload: gmail_v1.Schema$MessagePart): string {
   return "";
 }
 
-export async function sendGmailReply(
-  oauth2Client: Auth.OAuth2Client,
-  to: string,
-  subject: string,
-  body: string,
-  threadId?: string,
-) {
-  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-  const utf8Subject = `=?utf-8?B?${Buffer.from(`Re: ${subject}`).toString("base64")}?=`;
+function buildRawMime(to: string, subject: string, body: string): string {
+  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
   const messageParts = [
     `To: ${to}`,
     `Subject: ${utf8Subject}`,
@@ -59,19 +51,77 @@ export async function sendGmailReply(
     "",
     body,
   ];
-
-  const raw = Buffer.from(messageParts.join("\r\n"))
+  return Buffer.from(messageParts.join("\r\n"))
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+}
+
+export async function sendGmailReply(
+  oauth2Client: Auth.OAuth2Client,
+  to: string,
+  subject: string,
+  body: string,
+  threadId?: string,
+) {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const raw = buildRawMime(to, `Re: ${subject}`, body);
 
   await gmail.users.messages.send({
     userId: "me",
+    requestBody: { raw, threadId: threadId || undefined },
+  });
+}
+
+export async function createGmailDraft(
+  oauth2Client: Auth.OAuth2Client,
+  to: string,
+  subject: string,
+  body: string,
+  threadId?: string,
+): Promise<string> {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const raw = buildRawMime(to, `Re: ${subject}`, body);
+
+  const res = await gmail.users.drafts.create({
+    userId: "me",
     requestBody: {
-      raw,
-      threadId: threadId || undefined,
+      message: { raw, threadId: threadId || undefined },
     },
+  });
+  return res.data.id!;
+}
+
+export async function updateGmailDraft(
+  oauth2Client: Auth.OAuth2Client,
+  draftId: string,
+  to: string,
+  subject: string,
+  body: string,
+  threadId?: string,
+): Promise<string> {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const raw = buildRawMime(to, `Re: ${subject}`, body);
+
+  const res = await gmail.users.drafts.update({
+    userId: "me",
+    id: draftId,
+    requestBody: {
+      message: { raw, threadId: threadId || undefined },
+    },
+  });
+  return res.data.id!;
+}
+
+export async function sendGmailDraft(
+  oauth2Client: Auth.OAuth2Client,
+  draftId: string,
+): Promise<void> {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  await gmail.users.drafts.send({
+    userId: "me",
+    requestBody: { id: draftId },
   });
 }
 

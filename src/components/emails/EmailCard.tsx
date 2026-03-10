@@ -75,9 +75,10 @@ export function EmailCard({ email, onClick }: Props) {
   const isSortant = email.direction === "sortant";
   const emailType = typeConfig[email.typeEmail ?? ""] ?? typeConfig.autre;
   const emailUrgence = urgenceConfig[email.urgence ?? ""] ?? urgenceConfig.normale;
+  const isCommercial = email.typeEmail && ["client", "prospect", "prescripteur"].includes(email.typeEmail);
 
   return (
-    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20" : ""} ${email.urgence === "haute" ? "border-l-4 border-l-red-400" : ""}`}>
+    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20" : ""} ${email.urgence === "haute" ? "border-l-4 border-l-red-400" : isCommercial ? "border-l-4 border-l-blue-400" : ""}`}>
       <CardContent className="p-4">
         <div
           className="flex items-start justify-between gap-3 cursor-pointer"

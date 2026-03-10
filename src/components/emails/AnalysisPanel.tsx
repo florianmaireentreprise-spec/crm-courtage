@@ -20,12 +20,19 @@ import {
   AlertTriangle,
   ArrowRight,
   Zap,
+  Save,
+  FileText,
+  Briefcase,
+  Users,
 } from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   sendReply,
   createDealFromEmail,
   createClientFromEmail,
+  createContactFromEmail,
+  saveDraft,
+  sendDraft,
   executeEmailAction,
   ignoreEmailAction,
   closeTaskFromEmail,
@@ -73,14 +80,24 @@ type ParsedTacheFermerDetail = {
 export function AnalysisPanel({ email }: Props) {
   const [replyText, setReplyText] = useState(email.reponseProposee ?? "");
   const [sendingReply, startSendReply] = useTransition();
-  const [replySent, setReplySent] = useState(false);
+  const [replySent, setReplySent] = useState(email.draftStatut === "envoye");
   const [replyError, setReplyError] = useState<string | null>(null);
+
+  // Draft states
+  const [savingDraft, startSaveDraft] = useTransition();
+  const [sendingDraft, startSendDraft] = useTransition();
+  const [draftSaved, setDraftSaved] = useState(!!email.gmailDraftId);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   const [creatingDeal, startCreateDeal] = useTransition();
   const [dealCreated, setDealCreated] = useState(false);
 
   const [creatingClient, startCreateClient] = useTransition();
   const [clientCreated, setClientCreated] = useState<string | null>(null);
+
+  // Contact type creation
+  const [creatingContact, setCreatingContact] = useState<string | null>(null);
+  const [contactCreated, setContactCreated] = useState<{ name: string; type: string } | null>(null);
 
   const [executingAction, setExecutingAction] = useState<number | null>(null);
   const [actionStates, setActionStates] = useState<Record<number, "executed" | "ignored">>({});
@@ -140,6 +157,39 @@ export function AnalysisPanel({ email }: Props) {
       const result = await createClientFromEmail(email.id);
       if (result.success) {
         setClientCreated(result.clientName ?? "Client créé");
+      }
+    });
+  }
+
+  async function handleCreateContact(type: "prospect" | "client" | "prescripteur") {
+    setCreatingContact(type);
+    const result = await createContactFromEmail(email.id, type);
+    if (result.success) {
+      setContactCreated({ name: result.contactName ?? "Contact créé", type: result.contactType ?? type });
+    }
+    setCreatingContact(null);
+  }
+
+  function handleSaveDraft() {
+    if (!replyText.trim()) return;
+    setDraftError(null);
+    startSaveDraft(async () => {
+      const result = await saveDraft(email.id, replyText);
+      if (result.error) {
+        setDraftError(result.error);
+      } else {
+        setDraftSaved(true);
+      }
+    });
+  }
+
+  function handleSendDraft() {
+    startSendDraft(async () => {
+      const result = await sendDraft(email.id);
+      if (result.error) {
+        setDraftError(result.error);
+      } else {
+        setReplySent(true);
       }
     });
   }
@@ -231,6 +281,13 @@ export function AnalysisPanel({ email }: Props) {
               </span>
             )}
           </div>
+        ) : contactCreated ? (
+          <div className="flex items-center gap-2">
+            <Check className="h-3.5 w-3.5 text-green-600" />
+            <span className="text-xs text-green-600 font-medium">
+              {contactCreated.type === "prescripteur" ? "Prescripteur" : "Client"} créé : {contactCreated.name}
+            </span>
+          </div>
         ) : clientCreated ? (
           <div className="flex items-center gap-2">
             <Check className="h-3.5 w-3.5 text-green-600" />
@@ -239,29 +296,47 @@ export function AnalysisPanel({ email }: Props) {
             </span>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <UserPlus className="h-3.5 w-3.5 text-orange-500" />
               <span className="text-xs text-muted-foreground">
-                Aucun client correspondant
+                Aucun contact correspondant
                 {expediteurNom && <> — <span className="font-medium">{expediteurNom}</span></>}
                 {expediteurEntreprise && <> ({expediteurEntreprise})</>}
               </span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-3 text-xs gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
-              onClick={handleCreateClient}
-              disabled={creatingClient}
-            >
-              {creatingClient ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <UserPlus className="h-3 w-3" />
-              )}
-              Créer fiche client
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-7 px-3 text-xs gap-1.5 ${email.typeEmail === "prospect" ? "bg-purple-50 text-purple-700 border-purple-300" : "text-purple-600 border-purple-200 hover:bg-purple-50"}`}
+                onClick={() => handleCreateContact("prospect")}
+                disabled={!!creatingContact}
+              >
+                {creatingContact === "prospect" ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                Prospect
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-7 px-3 text-xs gap-1.5 ${email.typeEmail === "client" ? "bg-blue-50 text-blue-700 border-blue-300" : "text-blue-600 border-blue-200 hover:bg-blue-50"}`}
+                onClick={() => handleCreateContact("client")}
+                disabled={!!creatingContact}
+              >
+                {creatingContact === "client" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Briefcase className="h-3 w-3" />}
+                Client
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-7 px-3 text-xs gap-1.5 ${email.typeEmail === "prescripteur" ? "bg-amber-50 text-amber-700 border-amber-300" : "text-amber-600 border-amber-200 hover:bg-amber-50"}`}
+                onClick={() => handleCreateContact("prescripteur")}
+                disabled={!!creatingContact}
+              >
+                {creatingContact === "prescripteur" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />}
+                Prescripteur
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -469,7 +544,7 @@ export function AnalysisPanel({ email }: Props) {
         </>
       )}
 
-      {/* Draft reply — editable with send */}
+      {/* Draft reply — draft-aware with save/send */}
       {(email.reponseProposee || replyText) && (
         <>
           <Separator />
@@ -480,6 +555,12 @@ export function AnalysisPanel({ email }: Props) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Réponse suggérée
                 </p>
+                {draftSaved && !replySent && (
+                  <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-600 border-blue-200">
+                    <FileText className="h-2.5 w-2.5 mr-0.5" />
+                    Brouillon Gmail
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -492,31 +573,64 @@ export function AnalysisPanel({ email }: Props) {
               <div className="space-y-2">
                 <Textarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={(e) => {
+                    setReplyText(e.target.value);
+                    if (draftSaved) setDraftSaved(false);
+                  }}
                   rows={5}
                   className="text-sm resize-y"
                   placeholder="Modifiez la réponse avant d'envoyer..."
                 />
-                {replyError && (
+                {(replyError || draftError) && (
                   <div className="flex items-center gap-2 text-xs text-red-600">
                     <AlertCircle className="h-3 w-3" />
-                    {replyError}
+                    {replyError || draftError}
                   </div>
                 )}
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="gap-1.5"
-                    onClick={handleSendReply}
-                    disabled={sendingReply || !replyText.trim()}
+                    className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={handleSaveDraft}
+                    disabled={savingDraft || !replyText.trim()}
                   >
-                    {sendingReply ? (
+                    {savingDraft ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Send className="h-3.5 w-3.5" />
+                      <Save className="h-3.5 w-3.5" />
                     )}
-                    Envoyer la réponse
+                    {draftSaved ? "Mettre à jour" : "Sauvegarder brouillon"}
                   </Button>
+                  {draftSaved ? (
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleSendDraft}
+                      disabled={sendingDraft}
+                    >
+                      {sendingDraft ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" />
+                      )}
+                      Envoyer
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleSendReply}
+                      disabled={sendingReply || !replyText.trim()}
+                    >
+                      {sendingReply ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" />
+                      )}
+                      Envoyer directement
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

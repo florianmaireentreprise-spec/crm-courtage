@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Users,
+  Briefcase,
 } from "lucide-react";
 import { EmailCard } from "./EmailCard";
 import { EmailDetailSheet } from "./EmailDetailSheet";
@@ -60,6 +61,11 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
     if (filterClient === "unlinked" && e.clientId) return false;
     return true;
   });
+
+  // Commerciaux: client, prospect, prescripteur
+  const commercialEmails = emails.filter(
+    (e) => e.typeEmail && ["client", "prospect", "prescripteur"].includes(e.typeEmail)
+  );
 
   // Actions IA: pending actions
   const actionEmails = emails.filter((e) => e.actionRequise && !e.actionTraitee);
@@ -154,6 +160,13 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
             Inbox
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{totalEmails}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="commerciaux" className="gap-1.5">
+            <Briefcase className="h-3.5 w-3.5" />
+            Commerciaux
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-blue-100 text-blue-600">
+              {commercialEmails.length}
+            </Badge>
+          </TabsTrigger>
           <TabsTrigger value="actions" className="gap-1.5">
             <Zap className="h-3.5 w-3.5" />
             Actions IA
@@ -230,6 +243,25 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {inboxFiltered.map((email) => (
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Commerciaux Tab */}
+        <TabsContent value="commerciaux" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Emails de clients, prospects et prescripteurs
+          </p>
+
+          {commercialEmails.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Aucun email commercial</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {commercialEmails.map((email) => (
                 <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
               ))}
             </div>

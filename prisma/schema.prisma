@@ -323,6 +323,9 @@ model Email {
   analyseIA       String?   // JSON complet de l'analyse
   dealUpdateSuggestion String? // JSON: { etape_suggeree, raison }
   produitsMentionnes   String? // JSON array de produits detectes
+  // Brouillon Gmail
+  gmailDraftId    String?   // ID du brouillon Gmail
+  draftStatut     String?   // "brouillon" | "envoye" | null
   // Relations
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)

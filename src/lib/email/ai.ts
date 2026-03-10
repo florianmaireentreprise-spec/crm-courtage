@@ -207,7 +207,7 @@ CHAMP tachesAFermerDetails :
 - motsClesTache = mots-clés du titre de la tâche qui aident au matching (ex: ["devis", "santé"] pour "Envoyer devis santé")
 - Si aucune tâche à fermer, tableau vide []
 
-- draftReply = réponse professionnelle adaptée au courtage — null si pas de réponse nécessaire ou si c'est un email SORTANT
+- draftReply = réponse professionnelle prête à envoyer adaptée au courtage d'assurance. Commence par "Bonjour [prénom/nom]," et termine par "Cordialement,\nGargarineV1 — Courtage en assurances". La réponse doit être concise, personnalisée et professionnelle. null si pas de réponse nécessaire ou si c'est un email SORTANT
 - tachesAFermer = IDs des tâches ouvertes à fermer (liste plate pour rétro-compat). Liste vide si aucune.
 - enrichissementClient.notes = info business à retenir (ex: "Le client souhaite renégocier sa mutuelle en septembre"). null si rien de notable.
 - enrichissementClient.statutSuggere = changement de statut si pertinent (ex: "prospect" → "en_cours"). null sinon.

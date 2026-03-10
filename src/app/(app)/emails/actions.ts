@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { buildOAuth2Client, parseGmailMessage, sendGmailReply, GMAIL_SCOPES } from "@/lib/email/gmail";
+import { buildOAuth2Client, parseGmailMessage, sendGmailReply, createGmailDraft, updateGmailDraft, sendGmailDraft, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { emitN8nEvent } from "@/lib/n8n";
 import { google } from "googleapis";
 
@@ -32,6 +32,18 @@ function extractEmailAddress(from: string): string {
 
 function isExcludedSender(from: string): boolean {
   return EXCLUDED_PATTERNS.some((p) => p.test(from));
+}
+
+const NON_COMMERCIAL_DOMAINS = [
+  "railway.app", "github.com", "vercel.com", "noreply",
+  "notifications", "support.google.com", "accounts.google.com",
+  "linkedin.com", "figma.com", "notion.so", "slack.com",
+];
+
+function preClassifyNonCommercial(expediteur: string): string | null {
+  const addr = extractEmailAddress(expediteur).toLowerCase();
+  if (NON_COMMERCIAL_DOMAINS.some((d) => addr.includes(d))) return "autre";
+  return null;
 }
 
 function classifyPertinence(
@@ -157,6 +169,9 @@ export async function syncEmails() {
       !!clientId, parsed.sujet, parsed.extrait
     );
 
+    // Pre-classify non-commercial emails
+    const preType = preClassifyNonCommercial(parsed.expediteur);
+
     const email = await prisma.email.create({
       data: {
         ...parsed,
@@ -165,6 +180,7 @@ export async function syncEmails() {
         direction,
         pertinence,
         scoreRelevance,
+        ...(preType ? { typeEmail: preType, analyseStatut: "analyse" } : {}),
       },
     });
 
@@ -173,6 +189,38 @@ export async function syncEmails() {
         where: { id: clientId },
         data: { derniereInteraction: parsed.dateEnvoi },
       });
+    }
+
+    // Auto-close "Répondre" tasks when a sent email is detected
+    if (direction === "sortant") {
+      try {
+        const destAddresses = JSON.parse(parsed.destinataires).map(
+          (d: string) => extractEmailAddress(d).toLowerCase()
+        );
+        const openReplyTasks = await prisma.tache.findMany({
+          where: {
+            sourceAuto: "email_reponse_attendue",
+            statut: { in: ["a_faire", "en_cours"] },
+          },
+          select: { id: true, titre: true },
+        });
+        for (const task of openReplyTasks) {
+          const match = task.titre.match(/\(([^)]+@[^)]+)\)/);
+          if (match && destAddresses.includes(match[1].toLowerCase())) {
+            await prisma.tache.update({
+              where: { id: task.id },
+              data: { statut: "terminee", dateRealisation: parsed.dateEnvoi },
+            });
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Skip n8n for pre-classified non-commercial emails
+    if (preType) {
+      newEmailIds.push(email.id);
+      newCount++;
+      continue;
     }
 
     // Emit webhook to n8n for analysis (fire-and-forget)
@@ -352,10 +400,17 @@ export async function sendReply(emailId: string, replyText: string) {
 
     await prisma.email.update({
       where: { id: emailId },
-      data: { actionTraitee: true },
+      data: { actionTraitee: true, draftStatut: "envoye", gmailDraftId: null },
+    });
+
+    // Auto-close "Répondre" task linked to this email
+    await prisma.tache.updateMany({
+      where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
+      data: { statut: "terminee", dateRealisation: new Date() },
     });
 
     revalidatePath("/emails");
+    revalidatePath("/relances");
     return { success: true };
   } catch (err) {
     console.error("Send reply error:", err);
@@ -686,4 +741,150 @@ export async function getPendingActionCount() {
   return prisma.email.count({
     where: { actionRequise: true, actionTraitee: false, userId: session.user.id },
   });
+}
+
+// ── SAVE DRAFT to Gmail ──
+
+export async function saveDraft(emailId: string, draftText: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  try {
+    const { oauth2Client } = await buildAuthedClient(session.user.id);
+    const toAddress = extractEmailAddress(email.expediteur);
+
+    let draftId: string;
+    if (email.gmailDraftId) {
+      draftId = await updateGmailDraft(oauth2Client, email.gmailDraftId, toAddress, email.sujet, draftText, email.threadId);
+    } else {
+      draftId = await createGmailDraft(oauth2Client, toAddress, email.sujet, draftText, email.threadId);
+    }
+
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { gmailDraftId: draftId, draftStatut: "brouillon", reponseProposee: draftText },
+    });
+
+    revalidatePath("/emails");
+    return { success: true, draftId };
+  } catch (err) {
+    console.error("Save draft error:", err);
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("insufficient") || message.includes("scope") || message.includes("403")) {
+      return { error: "Permissions insuffisantes. Reconnectez Gmail." };
+    }
+    return { error: "Erreur lors de la sauvegarde du brouillon" };
+  }
+}
+
+// ── SEND DRAFT from Gmail ──
+
+export async function sendDraft(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+  if (!email.gmailDraftId) return { error: "Aucun brouillon à envoyer" };
+
+  try {
+    const { oauth2Client } = await buildAuthedClient(session.user.id);
+    await sendGmailDraft(oauth2Client, email.gmailDraftId);
+
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { draftStatut: "envoye", actionTraitee: true, gmailDraftId: null },
+    });
+
+    // Auto-close "Répondre" task
+    await prisma.tache.updateMany({
+      where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
+      data: { statut: "terminee", dateRealisation: new Date() },
+    });
+
+    revalidatePath("/emails");
+    revalidatePath("/relances");
+    return { success: true };
+  } catch (err) {
+    console.error("Send draft error:", err);
+    return { error: "Erreur lors de l'envoi du brouillon" };
+  }
+}
+
+// ── CREATE CONTACT from email (prospect, client, or prescripteur) ──
+
+export async function createContactFromEmail(
+  emailId: string,
+  contactType: "prospect" | "client" | "prescripteur",
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  // Parse sender info from AI analysis
+  let expediteurNom = "";
+  let expediteurEntreprise = "";
+  if (email.analyseIA) {
+    try {
+      const analysis = JSON.parse(email.analyseIA);
+      expediteurNom = analysis.expediteurNom || "";
+      expediteurEntreprise = analysis.expediteurEntreprise || "";
+    } catch { /* ignore */ }
+  }
+
+  if (!expediteurNom) {
+    const match = email.expediteur.match(/^([^<]+)\s*</);
+    expediteurNom = match ? match[1].trim() : email.expediteur.split("@")[0];
+  }
+
+  const emailAddr = extractEmailAddress(email.expediteur);
+  const nameParts = expediteurNom.split(" ");
+  const prenom = nameParts[0] || expediteurNom;
+  const nom = nameParts.slice(1).join(" ") || prenom;
+
+  if (contactType === "prescripteur") {
+    const prescripteur = await prisma.prescripteur.create({
+      data: {
+        prenom,
+        nom,
+        email: emailAddr,
+        type: "partenaire",
+        entreprise: expediteurEntreprise || undefined,
+        notes: `Créé depuis l'email: "${email.sujet}"`,
+        derniereRecommandation: email.dateEnvoi,
+      },
+    });
+    revalidatePath("/emails");
+    revalidatePath("/reseau");
+    return { success: true, contactId: prescripteur.id, contactName: prescripteur.nom, contactType: "prescripteur" };
+  }
+
+  // Client or Prospect
+  const statut = contactType === "client" ? "client_actif" : "prospect";
+  const client = await prisma.client.create({
+    data: {
+      raisonSociale: expediteurEntreprise || expediteurNom,
+      prenom,
+      nom,
+      email: emailAddr,
+      statut,
+      sourceAcquisition: "Email entrant",
+      notes: `Créé depuis l'email: "${email.sujet}"`,
+      derniereInteraction: email.dateEnvoi,
+    },
+  });
+
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { clientId: client.id },
+  });
+
+  revalidatePath("/emails");
+  revalidatePath("/clients");
+  return { success: true, contactId: client.id, contactName: client.raisonSociale, contactType };
 }
