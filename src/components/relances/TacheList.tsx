@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, Trash2, Plus, Mail } from "lucide-react";
+import { Check, Trash2, Plus, Mail, Pencil } from "lucide-react";
 import { TYPES_TACHE, PRIORITES } from "@/lib/constants";
 import { markTacheDone, deleteTache } from "@/app/(app)/relances/actions";
 import { TacheForm } from "./TacheForm";
@@ -27,6 +27,7 @@ type Props = {
 
 export function TacheList({ taches, clients, users }: Props) {
   const [showForm, setShowForm] = useState(false);
+  const [editingTache, setEditingTache] = useState<TacheWithClient | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterPriorite, setFilterPriorite] = useState<string>("all");
 
@@ -56,7 +57,7 @@ export function TacheList({ taches, clients, users }: Props) {
 
           <Select value={filterPriorite} onValueChange={setFilterPriorite}>
             <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Priorité" />
+              <SelectValue placeholder="Priorite" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes</SelectItem>
@@ -69,13 +70,13 @@ export function TacheList({ taches, clients, users }: Props) {
 
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nouvelle tâche
+          Nouvelle tache
         </Button>
       </div>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
-          Aucune tâche à afficher
+          Aucune tache a afficher
         </p>
       ) : (
         <div className="space-y-2">
@@ -134,6 +135,14 @@ export function TacheList({ taches, clients, users }: Props) {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-blue-600"
+                      onClick={() => setEditingTache(tache)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={() => deleteTache(tache.id)}
                     >
@@ -147,12 +156,24 @@ export function TacheList({ taches, clients, users }: Props) {
         </div>
       )}
 
+      {/* Dialog creation */}
       {showForm && (
         <TacheForm
           open={showForm}
           onClose={() => setShowForm(false)}
           clients={clients}
           users={users}
+        />
+      )}
+
+      {/* Dialog edition */}
+      {editingTache && (
+        <TacheForm
+          open={!!editingTache}
+          onClose={() => setEditingTache(null)}
+          clients={clients}
+          users={users}
+          tache={editingTache}
         />
       )}
     </div>

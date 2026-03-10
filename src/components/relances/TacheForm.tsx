@@ -19,18 +19,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TYPES_TACHE, PRIORITES } from "@/lib/constants";
-import { createTache } from "@/app/(app)/relances/actions";
+import { createTache, updateTache } from "@/app/(app)/relances/actions";
+import type { TacheWithClient } from "@/types";
+import { format } from "date-fns";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   clients: { id: string; raisonSociale: string }[];
   users: { id: string; prenom: string; nom: string }[];
+  tache?: TacheWithClient | null;
 };
 
-export function TacheForm({ open, onClose, clients, users }: Props) {
+export function TacheForm({ open, onClose, clients, users, tache }: Props) {
+  const isEdit = !!tache;
+
   async function handleSubmit(formData: FormData) {
-    await createTache(formData);
+    if (isEdit && tache) {
+      await updateTache(tache.id, formData);
+    } else {
+      await createTache(formData);
+    }
     onClose();
   }
 
@@ -38,22 +47,28 @@ export function TacheForm({ open, onClose, clients, users }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nouvelle tâche</DialogTitle>
+          <DialogTitle>{isEdit ? "Modifier la tache" : "Nouvelle tache"}</DialogTitle>
           <DialogDescription>
-            Créez une tâche ou une relance.
+            {isEdit ? "Modifiez les informations de la tache." : "Creez une tache ou une relance."}
           </DialogDescription>
         </DialogHeader>
 
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="titre">Titre *</Label>
-            <Input id="titre" name="titre" required placeholder="Ex: Relancer devis santé" />
+            <Input
+              id="titre"
+              name="titre"
+              required
+              placeholder="Ex: Relancer devis sante"
+              defaultValue={tache?.titre ?? ""}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select name="type" defaultValue="AUTRE">
+              <Select name="type" defaultValue={tache?.type ?? "AUTRE"}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -66,8 +81,8 @@ export function TacheForm({ open, onClose, clients, users }: Props) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="priorite">Priorité</Label>
-              <Select name="priorite" defaultValue="normale">
+              <Label htmlFor="priorite">Priorite</Label>
+              <Select name="priorite" defaultValue={tache?.priorite ?? "normale"}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -82,13 +97,19 @@ export function TacheForm({ open, onClose, clients, users }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="dateEcheance">Date d&apos;échéance *</Label>
-              <Input id="dateEcheance" name="dateEcheance" type="date" required />
+              <Label htmlFor="dateEcheance">Date d&apos;echeance *</Label>
+              <Input
+                id="dateEcheance"
+                name="dateEcheance"
+                type="date"
+                required
+                defaultValue={tache ? format(tache.dateEcheance, "yyyy-MM-dd") : ""}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="clientId">Client</Label>
-              <Select name="clientId">
+              <Select name="clientId" defaultValue={tache?.clientId ?? undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Aucun" />
                 </SelectTrigger>
@@ -102,10 +123,10 @@ export function TacheForm({ open, onClose, clients, users }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigneA">Assigné à</Label>
-            <Select name="assigneA">
+            <Label htmlFor="assigneA">Assigne a</Label>
+            <Select name="assigneA" defaultValue={tache?.assigneA ?? undefined}>
               <SelectTrigger>
-                <SelectValue placeholder="Non assigné" />
+                <SelectValue placeholder="Non assigne" />
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
@@ -119,14 +140,19 @@ export function TacheForm({ open, onClose, clients, users }: Props) {
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" name="description" rows={3} />
+            <Textarea
+              id="description"
+              name="description"
+              rows={3}
+              defaultValue={tache?.description ?? ""}
+            />
           </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit">Créer</Button>
+            <Button type="submit">{isEdit ? "Enregistrer" : "Creer"}</Button>
           </div>
         </form>
       </DialogContent>

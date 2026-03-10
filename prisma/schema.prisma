@@ -383,3 +383,19 @@ model RapportHebdo {
   actionsIA       String?   // JSON: top 3 actions prioritaires
   dateGeneration  DateTime  @default(now())
 }
+
+// ── Parametres du cabinet (singleton) ──
+
+model Settings {
+  id                String   @id @default("default")
+  // Informations cabinet
+  raisonSociale     String   @default("GargarineV1")
+  formeJuridique    String   @default("SARL")
+  gerants           String   @default("Florian MAIRE & Jeremy DELCOURT")
+  zone              String   @default("Grand Est, France")
+  cible             String   @default("TPE / PME / TNS")
+  // Taux de commission par defaut (JSON)
+  tauxCommission    String   @default("{}")
+  // Timestamps
+  dateMaj           DateTime @updatedAt
+}
