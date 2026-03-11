@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "sendTo": "florian@gargarine.fr",
+        "sendTo": "florianmaire.entreprise@gmail.com",
         "subject": "={{ $json.subject }}",
         "emailType": "html",
         "html": "={{ $json.html }}",
