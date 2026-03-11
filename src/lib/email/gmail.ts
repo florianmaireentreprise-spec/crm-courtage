@@ -152,3 +152,61 @@ export function parseGmailMessage(msg: gmail_v1.Schema$Message) {
     extrait: extrait || null,
   };
 }
+
+
+// ── Gmail Push Notifications (Pub/Sub) ──
+
+export async function watchGmail(
+  oauth2Client: Auth.OAuth2Client,
+): Promise<{ historyId: string; expiration: string }> {
+  const topicName = process.env.GMAIL_PUBSUB_TOPIC;
+  if (!topicName) throw new Error("GMAIL_PUBSUB_TOPIC not configured");
+
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const res = await gmail.users.watch({
+    userId: "me",
+    requestBody: {
+      topicName,
+      labelIds: ["INBOX", "SENT"],
+    },
+  });
+
+  return {
+    historyId: String(res.data.historyId ?? ""),
+    expiration: String(res.data.expiration ?? ""),
+  };
+}
+
+export async function getNewMessageIds(
+  oauth2Client: Auth.OAuth2Client,
+  startHistoryId: string,
+): Promise<{ messageIds: string[]; newHistoryId: string }> {
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  const messageIds: string[] = [];
+  let pageToken: string | undefined;
+  let newHistoryId = startHistoryId;
+
+  do {
+    const res = await gmail.users.history.list({
+      userId: "me",
+      startHistoryId,
+      historyTypes: ["messageAdded"],
+      pageToken,
+    });
+
+    if (res.data.history) {
+      for (const h of res.data.history) {
+        if (h.messagesAdded) {
+          for (const m of h.messagesAdded) {
+            if (m.message?.id) messageIds.push(m.message.id);
+          }
+        }
+      }
+    }
+
+    newHistoryId = String(res.data.historyId ?? startHistoryId);
+    pageToken = res.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  return { messageIds: [...new Set(messageIds)], newHistoryId };
+}

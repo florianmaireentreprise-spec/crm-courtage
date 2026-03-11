@@ -290,14 +290,16 @@ model ReseauObjectif {
 }
 
 model GmailConnection {
-  id           String   @id @default(cuid())
-  userId       String   @unique
+  id           String    @id @default(cuid())
+  userId       String    @unique
   gmailEmail   String
   accessToken  String
   refreshToken String
   tokenExpiry  DateTime
-  dateConnecte DateTime @default(now())
-  dateMaj      DateTime @updatedAt
+  historyId    String?
+  pushExpiry   DateTime?
+  dateConnecte DateTime  @default(now())
+  dateMaj      DateTime  @updatedAt
 }
 
 model Email {

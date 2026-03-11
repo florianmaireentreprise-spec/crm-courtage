@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { buildOAuth2Client } from "@/lib/email/gmail";
+import { buildOAuth2Client, watchGmail } from "@/lib/email/gmail";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -26,6 +26,24 @@ export async function GET(request: NextRequest) {
     const profile = await gmail.users.getProfile({ userId: "me" });
     const gmailEmail = profile.data.emailAddress ?? "inconnu";
 
+    // Get initial historyId for incremental sync
+    const initialHistoryId = profile.data.historyId
+      ? String(profile.data.historyId)
+      : null;
+
+    // Setup Gmail push notifications (non-blocking)
+    let pushExpiry: Date | null = null;
+    try {
+      if (process.env.GMAIL_PUBSUB_TOPIC) {
+        const watch = await watchGmail(oauth2Client);
+        pushExpiry = watch.expiration
+          ? new Date(Number(watch.expiration))
+          : null;
+      }
+    } catch (watchErr) {
+      console.error("Gmail watch setup failed (non-blocking):", watchErr);
+    }
+
     await prisma.gmailConnection.upsert({
       where: { userId },
       create: {
@@ -36,6 +54,8 @@ export async function GET(request: NextRequest) {
         tokenExpiry: tokens.expiry_date
           ? new Date(tokens.expiry_date)
           : new Date(Date.now() + 3600 * 1000),
+        historyId: initialHistoryId,
+        pushExpiry,
       },
       update: {
         gmailEmail,
@@ -46,6 +66,8 @@ export async function GET(request: NextRequest) {
         tokenExpiry: tokens.expiry_date
           ? new Date(tokens.expiry_date)
           : new Date(Date.now() + 3600 * 1000),
+        historyId: initialHistoryId,
+        pushExpiry,
       },
     });
 

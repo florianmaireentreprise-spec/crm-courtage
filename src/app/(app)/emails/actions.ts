@@ -241,6 +241,17 @@ export async function syncEmails() {
   // Analysis is now handled by n8n WF05v2 (triggered automatically)
   // No direct AI calls from CRM
 
+  // Update historyId for incremental push sync
+  try {
+    const profile = await gmail.users.getProfile({ userId: "me" });
+    if (profile.data.historyId) {
+      await prisma.gmailConnection.update({
+        where: { userId },
+        data: { historyId: String(profile.data.historyId) },
+      });
+    }
+  } catch { /* non-blocking */ }
+
   revalidatePath("/emails");
   revalidatePath("/clients");
   revalidatePath("/relances");
