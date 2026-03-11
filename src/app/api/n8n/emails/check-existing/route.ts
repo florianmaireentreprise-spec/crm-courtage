@@ -4,7 +4,7 @@ import { withN8nAuth } from "../../middleware";
 
 async function handler(req: Request) {
   const body = await req.json();
-  const { gmailIds } = body as { gmailIds: string[] };
+  const { gmailIds, ...passthrough } = body as { gmailIds: string[]; [key: string]: unknown };
 
   if (!Array.isArray(gmailIds) || gmailIds.length === 0) {
     return NextResponse.json({ error: "gmailIds array is required" }, { status: 400 });
@@ -19,7 +19,7 @@ async function handler(req: Request) {
   const newIds = gmailIds.filter((id) => !existingSet.has(id));
   const existingIds = gmailIds.filter((id) => existingSet.has(id));
 
-  return NextResponse.json({ newIds, existingIds });
+  return NextResponse.json({ newIds, existingIds, ...passthrough });
 }
 
 export const POST = withN8nAuth(handler);
