@@ -262,6 +262,42 @@ N8N_GENERATE_REPLY_URL=  # URL webhook n8n pour WF09 (generate-reply)
 - Prisma queries directes dans les pages serveur (pas de service layer)
 - Langue du code: anglais pour les noms de variables/fonctions, francais pour les labels UI et messages
 
+## Recent Work Log (March 2026)
+
+### Session 1 — commit cb7d0ad
+- Created `UrgentEmailsWidget.tsx` + `RecentActivityWidget.tsx` (dashboard widgets)
+- Modified `EmailDetailSheet.tsx` + `EmailCard.tsx` — AI analysis shown BEFORE email body
+- Enhanced client `[id]/page.tsx` — sales opportunity badge, timeline with all emails + AI events
+- Created `/api/n8n/email-analysis/route.ts` — dedicated n8n endpoint
+
+### Session 2 — commit 3bca116
+- Created `/emails/urgent/page.tsx` — dedicated urgent emails route
+- Created `UrgentEmailsList.tsx` — urgent email list with "Traite" buttons
+- Updated `UrgentEmailsWidget` — header → /emails/urgent, rows → /clients/{id}
+- Enhanced `ClientEmailHistory.tsx` — bubble-style conversation (threadId grouping), Email Context Panel (AI summary/urgency/intent/reply), inline "Marquer comme traite"
+- Updated client page email query — select all analysis fields
+
+### Session 3 — commit 5de94d7 (debug session)
+**Bugs fixed:**
+1. CRITICAL: `/emails/urgent` showed "tout est traite" when urgent emails existed — `analyseStatut: "analyse"` filter removed (dashboard didn't have it)
+2. Sort order inverted — changed `urgence: "asc"` to `scoreRelevance: "desc"`
+3. Stale data — added `/emails/urgent` + `/` revalidation to both n8n endpoints
+4. Field naming mismatch — `/api/n8n/emails` now normalizes: urgence/priority/urgencyScore, resume/summary, type/intent, etc.
+
+**New features:**
+- "Urgents" tab added to EmailPageTabs
+- Created `N8N_CONFIGURATION_GUIDE.md`
+
+### Key queries that MUST stay in sync
+Dashboard and /emails/urgent use the SAME query:
+```
+where: { userId, actionTraitee: false, OR: [{ urgence: "haute" }, { scoreRelevance: { gte: 70 } }] }
+```
+
+### Known cleanup needed
+- Duplicate files to delete: `route 2.ts`, `RecentActivityWidget 2.tsx`, `UrgentEmailsWidget 2.tsx`
+- Railway still auto-deploys — disconnect from Railway dashboard
+
 ## Bug Resolution Protocol
 When you encounter a bug (build error, runtime error, unexpected behavior, failed test), you must NEVER attempt to fix it immediately. You MUST follow this 4-step protocol in order:
 
