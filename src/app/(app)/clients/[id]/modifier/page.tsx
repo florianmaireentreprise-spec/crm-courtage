@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { updateClient } from "../../actions";
-import { getEnvironnement } from "@/lib/environnement";
 
 export default async function ModifierClientPage({
   params,
@@ -10,14 +9,13 @@ export default async function ModifierClientPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const env = await getEnvironnement();
 
   const [client, users, prescripteurs] = await Promise.all([
     prisma.client.findUnique({ where: { id } }),
     prisma.user.findMany({ select: { id: true, prenom: true, nom: true } }),
     prisma.prescripteur.findMany({
       select: { id: true, prenom: true, nom: true, entreprise: true },
-      where: { statut: "actif", environnement: env },
+      where: { statut: "actif" },
       orderBy: { nom: "asc" },
     }),
   ]);

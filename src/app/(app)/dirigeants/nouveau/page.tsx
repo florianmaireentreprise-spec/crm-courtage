@@ -1,13 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { DirigeantForm } from "@/components/dirigeants/DirigeantForm";
 import { createDirigeant } from "../actions";
-import { getEnvironnement } from "@/lib/environnement";
 
 export default async function NouveauDirigeantPage() {
-  const env = await getEnvironnement();
-
   const clientsSansDirigeant = await prisma.client.findMany({
-    where: { dirigeant: null, environnement: env },
+    where: { dirigeant: null },
     select: { id: true, raisonSociale: true, prenom: true, nom: true },
     orderBy: { raisonSociale: "asc" },
   });

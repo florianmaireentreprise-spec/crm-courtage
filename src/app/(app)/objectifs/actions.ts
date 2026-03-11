@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { objectifSchema } from "@/lib/validators/objectif";
 import { OBJECTIFS_DEFAUT } from "@/lib/objectifs-defaut";
@@ -12,10 +11,8 @@ export async function createObjectif(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const data = parsed.data;
-  const env = await getEnvironnement();
   await prisma.objectif.create({
     data: {
-      environnement: env,
       type: data.type,
       periode: data.periode,
       annee: data.annee,

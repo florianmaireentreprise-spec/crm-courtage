@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { clientSchema } from "@/lib/validators/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -17,10 +16,8 @@ export async function createClient(formData: FormData) {
   }
 
   const data = parsed.data;
-  const env = await getEnvironnement();
   const client = await prisma.client.create({
     data: {
-      environnement: env,
       raisonSociale: data.raisonSociale,
       siret: data.siret || null,
       formeJuridique: data.formeJuridique || null,

@@ -1,14 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { CommissionTable } from "@/components/commissions/CommissionTable";
 import { CompagnieProgress } from "@/components/commissions/CompagnieProgress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TYPES_COMMISSION, STATUTS_COMMISSION } from "@/lib/constants";
 
 export default async function CommissionsPage() {
-  const env = await getEnvironnement();
   const commissions = await prisma.commission.findMany({
-    where: { environnement: env },
     include: {
       contrat: {
         include: {
@@ -21,7 +18,6 @@ export default async function CommissionsPage() {
   });
 
   const compagnies = await prisma.compagnie.findMany({
-    where: { environnement: env },
     include: {
       contrats: {
         where: { statut: "actif" },

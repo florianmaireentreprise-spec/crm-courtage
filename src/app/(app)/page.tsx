@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { CAEvolutionChart } from "@/components/dashboard/CAEvolutionChart";
@@ -22,8 +21,7 @@ import { EmailsWidget } from "@/components/dashboard/EmailsWidget";
 
 async function getDashboardData() {
   try {
-    const env = await getEnvironnement();
-    return await getDashboardDataInternal(env);
+    return await getDashboardDataInternal();
   } catch (err) {
     console.error("Erreur chargement dashboard:", err);
     return getEmptyDashboard();
@@ -52,7 +50,7 @@ function getEmptyDashboard() {
   };
 }
 
-async function getDashboardDataInternal(env: string) {
+async function getDashboardDataInternal() {
   const [
     clientsActifs,
     contratsActifs,
@@ -71,19 +69,18 @@ async function getDashboardDataInternal(env: string) {
     emailsPendingCount,
     commissionsParMois,
   ] = await Promise.all([
-    prisma.client.count({ where: { environnement: env, statut: "client_actif" } }),
-    prisma.contrat.count({ where: { environnement: env, statut: "actif" } }),
+    prisma.client.count({ where: { statut: "client_actif" } }),
+    prisma.contrat.count({ where: { statut: "actif" } }),
     prisma.commission.aggregate({
       _sum: { montant: true },
-      where: { environnement: env, type: "GESTION" },
+      where: { type: "GESTION" },
     }),
     prisma.deal.aggregate({
       _sum: { montantEstime: true },
-      where: { environnement: env, etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
+      where: { etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
     }),
     prisma.tache.count({
       where: {
-        environnement: env,
         statut: { in: ["a_faire", "en_cours"] },
         dateEcheance: { lt: new Date() },
       },
@@ -92,17 +89,16 @@ async function getDashboardDataInternal(env: string) {
       by: ["typeProduit"],
       _sum: { commissionAnnuelle: true },
       _count: true,
-      where: { environnement: env, statut: "actif" },
+      where: { statut: "actif" },
     }),
     prisma.deal.groupBy({
       by: ["etape"],
       _count: true,
       _sum: { montantEstime: true },
-      where: { environnement: env, etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
+      where: { etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] } },
     }),
     prisma.contrat.findMany({
       where: {
-        environnement: env,
         statut: "actif",
         dateEcheance: {
           gte: new Date(),
@@ -114,7 +110,6 @@ async function getDashboardDataInternal(env: string) {
     }),
     prisma.tache.findMany({
       where: {
-        environnement: env,
         statut: { in: ["a_faire", "en_cours"] },
         dateEcheance: {
           lte: new Date(new Date().setHours(23, 59, 59, 999)),
@@ -124,11 +119,11 @@ async function getDashboardDataInternal(env: string) {
       orderBy: [{ priorite: "asc" }, { dateEcheance: "asc" }],
       take: 10,
     }),
-    prisma.prescripteur.count({ where: { environnement: env, statut: "actif" } }),
-    prisma.dirigeant.count({ where: { environnement: env } }),
+    prisma.prescripteur.count({ where: { statut: "actif" } }),
+    prisma.dirigeant.count(),
     // Clients with contrats for scoring + opportunities
     prisma.client.findMany({
-      where: { environnement: env, statut: { in: ["prospect", "client_actif"] } },
+      where: { statut: { in: ["prospect", "client_actif"] } },
       select: {
         id: true, raisonSociale: true, statut: true,
         nbSalaries: true, secteurActivite: true, sourceAcquisition: true, ville: true,
@@ -137,7 +132,6 @@ async function getDashboardDataInternal(env: string) {
     }),
     prisma.contrat.count({
       where: {
-        environnement: env,
         statut: "actif",
         dateEcheance: { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
       },
@@ -145,7 +139,6 @@ async function getDashboardDataInternal(env: string) {
     // Emails en attente de reponse
     prisma.email.findMany({
       where: {
-        environnement: env,
         direction: "entrant",
         actionRequise: true,
         actionTraitee: false,
@@ -156,7 +149,6 @@ async function getDashboardDataInternal(env: string) {
     }),
     prisma.email.count({
       where: {
-        environnement: env,
         direction: "entrant",
         actionRequise: true,
         actionTraitee: false,
@@ -165,7 +157,6 @@ async function getDashboardDataInternal(env: string) {
     // Commissions des 12 derniers mois pour le graphe CA Evolution
     prisma.commission.findMany({
       where: {
-        environnement: env,
         dateCreation: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
         },

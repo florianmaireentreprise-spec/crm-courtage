@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -44,10 +43,8 @@ export async function createDirigeant(formData: FormData) {
     return { error: { clientId: ["Ce client a deja un dirigeant enregistre"] } };
   }
 
-  const env = await getEnvironnement();
   await prisma.dirigeant.create({
     data: {
-      environnement: env,
       clientId: data.clientId,
       civilite: data.civilite || null,
       prenom: data.prenom,

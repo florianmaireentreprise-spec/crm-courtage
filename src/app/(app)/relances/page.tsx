@@ -1,19 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { TacheList } from "@/components/relances/TacheList";
 import { Card, CardContent } from "@/components/ui/card";
 import { isToday, isBefore, startOfDay } from "date-fns";
 
 export default async function RelancesPage() {
-  const env = await getEnvironnement();
   const taches = await prisma.tache.findMany({
-    where: { environnement: env, statut: { in: ["a_faire", "en_cours"] } },
+    where: { statut: { in: ["a_faire", "en_cours"] } },
     include: { client: true },
     orderBy: { dateEcheance: "asc" },
   });
 
   const clients = await prisma.client.findMany({
-    where: { environnement: env },
     select: { id: true, raisonSociale: true },
     orderBy: { raisonSociale: "asc" },
   });

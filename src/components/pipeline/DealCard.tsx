@@ -4,7 +4,7 @@ import { Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, Calendar, Users, Handshake, Pencil } from "lucide-react";
+import { Trash2, Calendar, Users, Handshake } from "lucide-react";
 import { deleteDeal } from "@/app/(app)/pipeline/actions";
 import { TYPES_PRODUITS, SOURCES_PROSPECT } from "@/lib/constants";
 import type { DealWithClient } from "@/types";
@@ -14,10 +14,9 @@ import { fr } from "date-fns/locale";
 type Props = {
   deal: DealWithClient;
   index: number;
-  onEdit?: (deal: DealWithClient) => void;
 };
 
-export function DealCard({ deal, index, onEdit }: Props) {
+export function DealCard({ deal, index }: Props) {
   const sourceLabel = SOURCES_PROSPECT.find((s) => s.id === deal.sourceProspect)?.label;
 
   return (
@@ -29,38 +28,24 @@ export function DealCard({ deal, index, onEdit }: Props) {
           {...provided.dragHandleProps}
         >
           <Card
-            className={`transition-shadow cursor-pointer hover:ring-1 hover:ring-primary/30 ${
+            className={`transition-shadow ${
               snapshot.isDragging ? "shadow-lg ring-2 ring-primary/20" : ""
             }`}
-            onClick={() => onEdit?.(deal)}
           >
             <CardContent className="p-3 space-y-2">
               <div className="flex items-start justify-between">
                 <p className="font-medium text-sm leading-tight">{deal.titre}</p>
-                <div className="flex items-center gap-0.5 -mr-1 -mt-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit?.(deal);
-                    }}
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await deleteDeal(deal.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 -mr-1 -mt-1 text-muted-foreground hover:text-destructive"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await deleteDeal(deal.id);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
 
               <div className="flex items-center gap-1">
