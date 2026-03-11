@@ -12,12 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { detecterOpportunites } from "@/lib/scoring/opportunities";
 import { calculerScoreProspect, getScoreColor } from "@/lib/scoring/prospect";
 import { calculerPotentielCA } from "@/lib/scoring/potentiel";
-import { TYPES_PRODUITS } from "@/lib/constants";
+import { TYPES_PRODUITS, ETAPES_PIPELINE } from "@/lib/constants";
 import { getCampagnesActives } from "@/lib/constants";
 import { detecterPrescripteursARelancer } from "@/lib/prescripteurs";
 import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
 import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
 import { EmailsWidget } from "@/components/dashboard/EmailsWidget";
+import { UrgentEmailsWidget } from "@/components/dashboard/UrgentEmailsWidget";
+import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
+import { auth } from "@/lib/auth";
 
 async function getDashboardData() {
   try {
@@ -47,6 +50,8 @@ function getEmptyDashboard() {
     prescripteursAlertes: [] as Awaited<ReturnType<typeof detecterPrescripteursARelancer>>,
     emailsPending: [] as never[],
     emailsPendingCount: 0,
+    urgentEmails: [] as never[],
+    recentActivity: [] as { type: "email" | "contrat" | "deal" | "tache"; date: Date; title: string; detail?: string; clientId?: string; clientNom?: string }[],
   };
 }
 
@@ -169,6 +174,97 @@ async function getDashboardDataInternal() {
     }),
   ]);
 
+  // Fetch urgent emails and recent activity (non-blocking, after main queries)
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  const [urgentEmails, recentEmails, recentDeals, recentTaches] = await Promise.all([
+    // Urgent emails: haute urgence or high relevance, not treated
+    userId
+      ? prisma.email.findMany({
+          where: {
+            userId,
+            OR: [
+              { urgence: "haute" },
+              { scoreRelevance: { gte: 70 } },
+            ],
+            actionTraitee: false,
+          },
+          include: { client: { select: { id: true, raisonSociale: true } } },
+          orderBy: { dateEnvoi: "desc" },
+          take: 8,
+        })
+      : Promise.resolve([]),
+    // Recent emails for activity feed
+    userId
+      ? prisma.email.findMany({
+          where: { userId, analyseStatut: "analyse" },
+          select: {
+            id: true, sujet: true, dateEnvoi: true, expediteur: true,
+            client: { select: { id: true, raisonSociale: true } },
+          },
+          orderBy: { dateEnvoi: "desc" },
+          take: 5,
+        })
+      : Promise.resolve([]),
+    // Recent deals
+    prisma.deal.findMany({
+      select: {
+        id: true, titre: true, etape: true, dateMaj: true,
+        client: { select: { id: true, raisonSociale: true } },
+      },
+      orderBy: { dateMaj: "desc" },
+      take: 5,
+    }),
+    // Recent completed tasks
+    prisma.tache.findMany({
+      where: { statut: "terminee", dateRealisation: { not: null } },
+      select: {
+        id: true, titre: true, dateRealisation: true,
+        client: { select: { id: true, raisonSociale: true } },
+      },
+      orderBy: { dateRealisation: "desc" },
+      take: 5,
+    }),
+  ]);
+
+  // Build activity feed
+  type ActivityItem = { type: "email" | "contrat" | "deal" | "tache"; date: Date; title: string; detail?: string; clientId?: string; clientNom?: string };
+  const recentActivity: ActivityItem[] = [];
+
+  for (const e of recentEmails) {
+    recentActivity.push({
+      type: "email",
+      date: e.dateEnvoi,
+      title: e.sujet,
+      detail: e.expediteur,
+      clientId: e.client?.id,
+      clientNom: e.client?.raisonSociale,
+    });
+  }
+  for (const d of recentDeals) {
+    const etapeConfig = ETAPES_PIPELINE.find((e) => e.id === d.etape);
+    recentActivity.push({
+      type: "deal",
+      date: d.dateMaj,
+      title: d.titre,
+      detail: etapeConfig?.label ?? d.etape,
+      clientId: d.client?.id,
+      clientNom: d.client?.raisonSociale,
+    });
+  }
+  for (const t of recentTaches) {
+    recentActivity.push({
+      type: "tache",
+      date: t.dateRealisation!,
+      title: t.titre,
+      clientId: t.client?.id,
+      clientNom: t.client?.raisonSociale,
+    });
+  }
+  recentActivity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const topActivity = recentActivity.slice(0, 10);
+
   const caGestion = commissionsGestion._sum.montant ?? 0;
 
   // New KPIs
@@ -256,6 +352,8 @@ async function getDashboardDataInternal() {
     prescripteursAlertes,
     emailsPending,
     emailsPendingCount,
+    urgentEmails,
+    recentActivity: topActivity,
   };
 }
 
@@ -279,6 +377,12 @@ export default async function DashboardPage() {
         <TasksWidget taches={data.tachesAujourdhui} />
       </div>
       <RenewalsWidget contrats={data.renewals} />
+
+      {/* Urgent Emails & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UrgentEmailsWidget emails={data.urgentEmails} />
+        <RecentActivityWidget activities={data.recentActivity} />
+      </div>
 
       {/* Campagnes & Prescripteurs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

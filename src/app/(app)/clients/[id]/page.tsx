@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2 } from "lucide-react";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2, Sparkles, ShoppingBag } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
@@ -50,6 +50,15 @@ export default async function ClientDetailPage({
     where: { clientId: id, statut: "terminee" },
     orderBy: { dateRealisation: "desc" },
     take: 20,
+  });
+
+  // Detect sales opportunities from emails with products mentioned
+  const hasOpportunity = client.emails.some((e) => {
+    if (!e.produitsMentionnes) return false;
+    try {
+      const produits = JSON.parse(e.produitsMentionnes);
+      return Array.isArray(produits) && produits.length > 0;
+    } catch { return false; }
   });
 
   // Build timeline events
@@ -103,16 +112,26 @@ export default async function ClientDetailPage({
     });
   }
 
-  // Emails importants
+  // All emails (not just high-relevance)
   for (const e of client.emails) {
-    if (e.scoreRelevance && e.scoreRelevance >= 7) {
+    timeline.push({
+      date: e.dateEnvoi,
+      type: "email",
+      icon: "Mail",
+      title: e.sujet,
+      detail: e.direction === "sortant" ? `Envoye a ${e.destinataires.replace(/[[\]"]/g, "")}` : e.expediteur,
+      color: "#06B6D4",
+    });
+
+    // AI analysis event
+    if (e.analyseStatut === "analyse" && e.resume) {
       timeline.push({
-        date: e.dateEnvoi,
-        type: "email",
-        icon: "Mail",
-        title: e.sujet,
-        detail: e.expediteur,
-        color: "#06B6D4",
+        date: e.dateMaj ?? e.dateEnvoi,
+        type: "analyse",
+        icon: "Sparkles",
+        title: `Analyse IA : ${e.resume.slice(0, 80)}${e.resume.length > 80 ? "..." : ""}`,
+        detail: e.urgence === "haute" ? "Urgent" : e.urgence ?? undefined,
+        color: "#F59E0B",
       });
     }
   }
@@ -144,6 +163,12 @@ export default async function ClientDetailPage({
             {categorieReseau && (
               <Badge variant="secondary" className="text-[10px]" style={{ backgroundColor: categorieReseau.color + "20", color: categorieReseau.color }}>
                 Reseau: {categorieReseau.label}
+              </Badge>
+            )}
+            {hasOpportunity && (
+              <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 gap-1">
+                <ShoppingBag className="h-2.5 w-2.5" />
+                Opportunite commerciale
               </Badge>
             )}
           </div>
@@ -536,6 +561,7 @@ export default async function ClientDetailPage({
                         : event.icon === "Target" ? Target
                         : event.icon === "CheckCircle2" ? CheckCircle2
                         : event.icon === "Mail" ? Mail
+                        : event.icon === "Sparkles" ? Sparkles
                         : Clock;
                       return (
                         <div key={i} className="flex gap-3 relative">

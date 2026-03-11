@@ -121,21 +121,7 @@ export function EmailDetailSheet({ email, open, onOpenChange }: Props) {
 
           <Separator />
 
-          {/* Email body */}
-          {email.extrait && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Contenu
-              </p>
-              <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-lg p-3 max-h-64 overflow-y-auto">
-                {email.extrait}
-              </div>
-            </div>
-          )}
-
-          <Separator />
-
-          {/* AI Analysis Panel */}
+          {/* AI Analysis Panel — shown FIRST for quick reading */}
           {email.analyseStatut === "analyse" && (
             <AnalysisPanel email={email} />
           )}
@@ -149,6 +135,20 @@ export function EmailDetailSheet({ email, open, onOpenChange }: Props) {
           {email.analyseStatut === "erreur" && (
             <div className="text-center py-6 text-red-500">
               <p className="text-sm">Erreur lors de l&apos;analyse IA</p>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Original email body — below AI analysis */}
+          {email.extrait && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Email original
+              </p>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-lg p-3 max-h-64 overflow-y-auto">
+                {email.extrait}
+              </div>
             </div>
           )}
         </div>

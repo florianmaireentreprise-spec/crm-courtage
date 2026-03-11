@@ -196,14 +196,19 @@ export function EmailCard({ email, onClick }: Props) {
           <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{email.extrait}</p>
         )}
 
-        {/* Expanded content */}
+        {/* Expanded content — AI analysis first, then original email */}
         {expanded && (
           <div className="mt-3 space-y-3">
-            {email.extrait && (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{email.extrait}</p>
-            )}
             {email.analyseStatut === "analyse" && (
               <AnalysisPanel email={email} />
+            )}
+            {email.extrait && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Email original
+                </p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/20 rounded-lg p-3">{email.extrait}</p>
+              </div>
             )}
           </div>
         )}
