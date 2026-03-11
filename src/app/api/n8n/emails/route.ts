@@ -20,16 +20,43 @@ async function handler(req: Request) {
   }
 
   const {
-    type, urgence, resume, sentiment, actionRequise, actionSuggeree,
+    type, urgence: rawUrgence, resume, sentiment, actionRequise, actionSuggeree,
     draftReply, clientMatch, produitsMentionnes, expediteurNom,
     expediteurEntreprise, contratMentionne,
+    // Alternative field names from n8n / AI analysis
+    priority, urgencyScore, summary, replySuggestion, suggestedTask,
+    intent, productsDetected, senderName, senderCompany,
   } = body as {
     type?: string; urgence?: string; resume?: string; sentiment?: string;
     actionRequise?: boolean; actionSuggeree?: string; draftReply?: string;
     clientMatch?: { found: boolean; clientId?: string; clientName?: string; confidence?: string };
     produitsMentionnes?: string[]; expediteurNom?: string;
     expediteurEntreprise?: string; contratMentionne?: string;
+    // Alternative fields
+    priority?: string; urgencyScore?: number; summary?: string;
+    replySuggestion?: string; suggestedTask?: string; intent?: string;
+    productsDetected?: string[]; senderName?: string; senderCompany?: string;
   };
+
+  // Normalize: accept urgence, priority, or urgencyScore (0-10 mapped to level)
+  const urgence = rawUrgence
+    ?? (urgencyScore !== undefined
+      ? (urgencyScore >= 7 ? "haute" : urgencyScore >= 4 ? "normale" : "basse")
+      : priority ?? null);
+
+  // Normalize: merge alternative field names
+  const resolvedResume = resume ?? summary ?? null;
+  const resolvedType = type ?? intent ?? null;
+  const resolvedReply = draftReply ?? replySuggestion ?? null;
+  const resolvedAction = actionSuggeree ?? suggestedTask ?? null;
+  const resolvedProducts = produitsMentionnes ?? productsDetected ?? null;
+  const resolvedSenderName = expediteurNom ?? senderName ?? null;
+  const resolvedSenderCompany = expediteurEntreprise ?? senderCompany ?? null;
+
+  // Determine if action is required (from flag or urgency/task heuristic)
+  const resolvedActionRequise = actionRequise ?? !!(
+    resolvedAction || (urgencyScore !== undefined && urgencyScore >= 7)
+  );
 
   let resolvedClientId = email.clientId;
   if (clientMatch?.clientId) {
@@ -39,23 +66,23 @@ async function handler(req: Request) {
   }
 
   const updateData: Record<string, unknown> = {
-    resume: resume ?? null,
-    typeEmail: type ?? null,
+    resume: resolvedResume,
+    typeEmail: resolvedType,
     urgence: urgence ?? null,
     sentiment: sentiment ?? null,
-    actionRequise: actionRequise ?? false,
+    actionRequise: resolvedActionRequise,
     actionTraitee: false,
-    reponseProposee: draftReply ?? null,
+    reponseProposee: resolvedReply,
     analyseStatut: "analyse",
     clientId: resolvedClientId,
     analyseIA: JSON.stringify(body),
-    produitsMentionnes: produitsMentionnes?.length ? JSON.stringify(produitsMentionnes) : null,
-    actionsItems: actionSuggeree ? JSON.stringify([actionSuggeree]) : null,
+    produitsMentionnes: resolvedProducts?.length ? JSON.stringify(resolvedProducts) : null,
+    actionsItems: resolvedAction ? JSON.stringify([resolvedAction]) : null,
   };
 
   // Phase 3: Auto-create Gmail draft for commercial emails with draftReply
-  const isCommercial = type && ["client", "prospect", "prescripteur"].includes(type);
-  if (draftReply && isCommercial && email.direction === "entrant") {
+  const isCommercial = resolvedType && ["client", "prospect", "prescripteur"].includes(resolvedType);
+  if (resolvedReply && isCommercial && email.direction === "entrant") {
     try {
       const connection = await prisma.gmailConnection.findUnique({
         where: { userId: email.userId },
@@ -100,14 +127,14 @@ async function handler(req: Request) {
         where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
       });
       if (!existingTask) {
-        const senderName = expediteurNom || email.expediteur.split("@")[0];
+        const taskSenderName = resolvedSenderName || email.expediteur.split("@")[0];
         const senderEmail = extractEmailAddress(email.expediteur);
         const ECHEANCE_JOURS: Record<string, number> = { haute: 1, normale: 3, basse: 7 };
         const jours = ECHEANCE_JOURS[urgence ?? "normale"] ?? 3;
 
         await prisma.tache.create({
           data: {
-            titre: `Répondre à ${senderName} (${senderEmail})`,
+            titre: `Répondre à ${taskSenderName} (${senderEmail})`,
             description: `Email: "${email.sujet}"`,
             type: "RELANCE_PROSPECT",
             priorite: urgence === "haute" ? "haute" : "normale",
@@ -125,10 +152,21 @@ async function handler(req: Request) {
   }
 
   revalidatePath("/emails");
+  revalidatePath("/emails/urgent");
   revalidatePath("/relances");
   revalidatePath("/clients");
+  revalidatePath("/");
 
-  return NextResponse.json({ success: true, emailId, clientId: resolvedClientId, type: type ?? "autre", urgence: urgence ?? "normale", actionRequise: actionRequise ?? false, expediteurNom: expediteurNom ?? null, draftReply: draftReply ?? null, expediteur: body.expediteur ?? null, sujet: body.sujet ?? null, direction: body.direction ?? null });
+  return NextResponse.json({
+    success: true,
+    emailId,
+    clientId: resolvedClientId,
+    type: resolvedType ?? "autre",
+    urgence: urgence ?? "normale",
+    actionRequise: resolvedActionRequise,
+    expediteurNom: resolvedSenderName,
+    draftReply: resolvedReply,
+  });
 }
 
 export const POST = withN8nAuth(handler);

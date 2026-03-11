@@ -21,6 +21,7 @@ import {
   ArrowDownLeft,
   Users,
   Briefcase,
+  AlertTriangle,
 } from "lucide-react";
 import { EmailCard } from "./EmailCard";
 import { EmailDetailSheet } from "./EmailDetailSheet";
@@ -69,6 +70,11 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
 
   // Actions IA: pending actions
   const actionEmails = emails.filter((e) => e.actionRequise && !e.actionTraitee);
+
+  // Urgent: haute urgence or high relevance, not treated
+  const urgentEmails = emails.filter(
+    (e) => !e.actionTraitee && (e.urgence === "haute" || (e.scoreRelevance ?? 0) >= 70)
+  );
 
   // Nouveaux contacts: analyzed, not linked, not spam/newsletter
   const unknownEmails = emails.filter(
@@ -173,6 +179,15 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
             {pendingCount > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-orange-100 text-orange-600">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="urgents" className="gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Urgents
+            {urgentEmails.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-red-100 text-red-600">
+                {urgentEmails.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -295,6 +310,25 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {actionEmails.map((email) => (
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Urgents Tab */}
+        <TabsContent value="urgents" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Emails urgents necessitant une action rapide
+          </p>
+
+          {urgentEmails.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Aucun email urgent</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {urgentEmails.map((email) => (
                 <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
               ))}
             </div>

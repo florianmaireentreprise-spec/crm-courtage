@@ -141,7 +141,10 @@ async function handler(req: Request) {
   }
 
   revalidatePath("/emails");
+  revalidatePath("/emails/urgent");
   revalidatePath("/relances");
+  revalidatePath("/clients");
+  revalidatePath("/");
 
   return NextResponse.json({
     success: true,
