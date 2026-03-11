@@ -256,10 +256,44 @@ export async function analyzeEmail(emailId: string) {
   const email = await prisma.email.findUnique({ where: { id: emailId } });
   if (!email) return { error: "Email non trouvé" };
 
-  // Analysis is now handled by n8n WF05v2
-  // This function is kept for backward compatibility but is a no-op
+  const webhookBase = process.env.N8N_WEBHOOK_URL;
+  if (!webhookBase) {
+    return { error: "N8N_WEBHOOK_URL non configuré" };
+  }
+
+  // Mark as in progress
+  await prisma.email.update({
+    where: { id: emailId },
+    data: { analyseStatut: "en_cours" },
+  });
+
+  // Trigger WF05v2 (fire-and-forget — results come back async via POST /api/n8n/emails)
+  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email-received-v2";
+  fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
+    },
+    body: JSON.stringify({
+      emailId: email.id,
+      sujet: email.sujet,
+      expediteur: email.expediteur,
+      direction: email.direction,
+      extrait: email.extrait,
+    }),
+    signal: AbortSignal.timeout(30000),
+  }).catch((err) => {
+    console.error("[analyzeEmail] WF05v2 webhook error:", err);
+    // Reset status so user can retry
+    prisma.email.update({
+      where: { id: emailId },
+      data: { analyseStatut: "erreur" },
+    }).catch(() => {});
+  });
+
   revalidatePath("/emails");
-  return { success: true, message: "Analyse déléguée à n8n" };
+  return { success: true, message: "Analyse déclenchée via n8n" };
 }
 
 export async function markEmailRead(emailId: string) {

@@ -261,3 +261,43 @@ N8N_GENERATE_REPLY_URL=  # URL webhook n8n pour WF09 (generate-reply)
 - Les composants client sont marques `"use client"`
 - Prisma queries directes dans les pages serveur (pas de service layer)
 - Langue du code: anglais pour les noms de variables/fonctions, francais pour les labels UI et messages
+
+## Bug Resolution Protocol
+When you encounter a bug (build error, runtime error, unexpected behavior, failed test), you must NEVER attempt to fix it immediately. You MUST follow this 4-step protocol in order:
+
+### Step 1 — Reproduce
+- Identify the exact conditions that trigger the bug
+- Run the command or action that produces the error
+- Read the COMPLETE error message (full stack trace, line number, file path)
+- If the bug is intermittent, trigger it multiple times to confirm the pattern
+- Copy the exact error output before doing anything else
+
+### Step 2 — Isolate
+- Trace back through the stack trace to identify the source file and function
+- Read the relevant code using `view` — do NOT rely on your memory of the file
+- Identify what input data causes the problem
+- Determine whether the bug comes from recently modified code or pre-existing code
+- Check related files that interact with the broken code (imports, callers, dependencies)
+
+### Step 3 — Understand and explain BEFORE touching any code
+- Before making ANY edit, you MUST explain:
+  - What is the ROOT CAUSE (not the symptom)
+  - Why the current code produces this behavior
+  - What is the data flow that leads to the bug
+- If you are uncertain about the cause, say so explicitly and run a diagnostic test first (console.log, assertion, Prisma query, minimal reproduction) to confirm your hypothesis
+- Do NOT proceed to Step 4 until the root cause is clearly identified
+
+### Step 4 — Fix
+- Only after explaining the root cause, propose and apply the fix
+- The fix MUST target the root cause, not work around the symptom
+- After applying the fix, verify it works by re-running the failing command
+- Run `npm run build` to check for regressions
+- If the fix is non-trivial, explain why this approach over alternatives
+
+### Strictly forbidden
+- Modifying code "blindly" to see if it resolves the problem
+- Chaining multiple fix attempts without understanding why the previous one failed
+- Deleting working code to bypass an error
+- Writing try/catch blocks that silently swallow errors without handling them
+- Adding `// @ts-ignore` or `as any` to suppress type errors instead of fixing them
+- Reverting unrelated code changes as a "just in case" measure
