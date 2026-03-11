@@ -51,7 +51,7 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -116,28 +116,12 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $vars.GEMINI_API_KEY }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }) }}",
-        "options": {
-          "timeout": 30000
-        }
+        "prompt": "={{ $json.prompt }}"
       },
-      "id": "call-gemini",
-      "name": "Gemini Flash Analyse",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "analyse-ia",
+      "name": "Analyse IA",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
       "position": [
         1180,
         0
@@ -145,10 +129,32 @@
     },
     {
       "parameters": {
-        "jsCode": "const g=$input.first().json;const d=$('Construire prompt IA').first().json;const t=g.candidates?.[0]?.content?.parts?.[0]?.text||'{}';let a;try{a=JSON.parse(t)}catch(e){a={type:'autre',urgence:'basse',resume:t.substring(0,200)}}return[{json:{emailId:d.emailId,clientId:d.clientId,...a}}];"
+        "model": "mistral-small-latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "mistral-cloud",
+      "name": "Mistral Cloud",
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        200
+      ],
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const g=$input.first().json;const d=$('Construire prompt IA').first().json;const t=g.response||g.text||g.output||'{}';let a;try{a=JSON.parse(t)}catch(e){const m=t.match(/\\{[\\s\\S]*\\}/);if(m){try{a=JSON.parse(m[0])}catch(e2){a={type:'autre',urgence:'basse',resume:t.substring(0,200)}}}else{a={type:'autre',urgence:'basse',resume:t.substring(0,200)}}}return[{json:{emailId:d.emailId,clientId:d.clientId,...a}}];"
       },
       "id": "parse-result",
-      "name": "Parser resultat Gemini",
+      "name": "Parser resultat IA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -191,12 +197,12 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
               "id": "c2",
-              "leftValue": "={{ $('Parser resultat Gemini').first().json.actionRequise }}",
+              "leftValue": "={{ $('Parser resultat IA').first().json.actionRequise }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -217,7 +223,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('Parser resultat Gemini').first().json;const w=$('Webhook email.received').first().json.body;const ms=d.urgence==='haute'?86400000:d.urgence==='basse'?604800000:259200000;return[{json:{titre:'Repondre a '+(d.expediteurNom||'inconnu')+' ('+(w.expediteur||'')+')',description:'Email: '+(w.sujet||'')+'\\nResume: '+(d.resume||''),clientId:d.clientId||null,emailId:d.emailId,type:'RELANCE_PROSPECT',priorite:d.urgence==='haute'?'haute':'normale',dateEcheance:new Date(Date.now()+ms).toISOString(),sourceAuto:'email_reponse_attendue'}}];"
+        "jsCode": "const d=$('Parser resultat IA').first().json;const w=$('Webhook email.received').first().json.body;const ms=d.urgence==='haute'?86400000:d.urgence==='basse'?604800000:259200000;return[{json:{titre:'Repondre a '+(d.expediteurNom||'inconnu')+' ('+(w.expediteur||'')+')',description:'Email: '+(w.sujet||'')+'\\nResume: '+(d.resume||''),clientId:d.clientId||null,emailId:d.emailId,type:'RELANCE_PROSPECT',priorite:d.urgence==='haute'?'haute':'normale',dateEcheance:new Date(Date.now()+ms).toISOString(),sourceAuto:'email_reponse_attendue'}}];"
       },
       "id": "prep-task",
       "name": "Preparer tache",
@@ -263,12 +269,12 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
               "id": "c3",
-              "leftValue": "={{ $('Parser resultat Gemini').first().json.draftReply }}",
+              "leftValue": "={{ $('Parser resultat IA').first().json.draftReply }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -305,7 +311,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ emailId: $('Parser resultat Gemini').first().json.emailId, replyText: $('Parser resultat Gemini').first().json.draftReply }) }}"
+        "jsonBody": "={{ JSON.stringify({ emailId: $('Parser resultat IA').first().json.emailId, replyText: $('Parser resultat IA').first().json.draftReply }) }}"
       },
       "id": "create-draft",
       "name": "Creer brouillon Gmail",
@@ -373,25 +379,36 @@
       "main": [
         [
           {
-            "node": "Gemini Flash Analyse",
+            "node": "Analyse IA",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Gemini Flash Analyse": {
+    "Analyse IA": {
       "main": [
         [
           {
-            "node": "Parser resultat Gemini",
+            "node": "Parser resultat IA",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parser resultat Gemini": {
+    "Mistral Cloud": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyse IA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser resultat IA": {
       "main": [
         [
           {
