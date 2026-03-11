@@ -350,18 +350,60 @@ export async function reanalyzeUnprocessed() {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifié" };
 
-  // Reanalysis is now handled by n8n WF05v2
-  // Reset errored emails so n8n can pick them up
-  const result = await prisma.email.updateMany({
+  const webhookBase = process.env.N8N_WEBHOOK_URL;
+  if (!webhookBase) return { error: "N8N_WEBHOOK_URL non configuré" };
+
+  // Find all unanalyzed, stuck, and errored emails
+  const emailsToAnalyze = await prisma.email.findMany({
     where: {
       userId: session.user.id,
-      analyseStatut: { in: ["erreur"] },
+      analyseStatut: { in: ["non_analyse", "erreur", "en_cours"] },
     },
-    data: { analyseStatut: "non_analyse" },
+    select: { id: true, sujet: true, expediteur: true, direction: true, extrait: true },
   });
 
+  if (emailsToAnalyze.length === 0) {
+    revalidatePath("/emails");
+    return { success: true, triggered: 0, message: "Aucun email à analyser" };
+  }
+
+  // Reset all to en_cours
+  await prisma.email.updateMany({
+    where: { id: { in: emailsToAnalyze.map(e => e.id) } },
+    data: { analyseStatut: "en_cours" },
+  });
+
+  // Trigger WF05v2 for each (fire-and-forget, with 2s delay between to avoid Gemini rate limit)
+  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email-received-v2";
+  let triggered = 0;
+  for (const email of emailsToAnalyze) {
+    fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
+      },
+      body: JSON.stringify({
+        emailId: email.id,
+        sujet: email.sujet,
+        expediteur: email.expediteur,
+        direction: email.direction,
+        extrait: email.extrait,
+      }),
+      signal: AbortSignal.timeout(30000),
+    }).catch((err) => {
+      console.error("[reanalyzeUnprocessed] WF05v2 error for", email.id, err);
+      prisma.email.update({ where: { id: email.id }, data: { analyseStatut: "erreur" } }).catch(() => {});
+    });
+    triggered++;
+    // Small delay between triggers to avoid overwhelming Gemini
+    if (triggered < emailsToAnalyze.length) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
   revalidatePath("/emails");
-  return { success: true, reset: result.count, message: "Emails réinitialisés pour réanalyse par n8n" };
+  return { success: true, triggered, message: `${triggered} analyses déclenchées via n8n` };
 }
 
 export async function disconnectGmail() {
