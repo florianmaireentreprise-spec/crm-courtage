@@ -346,11 +346,25 @@ model Email {
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   taches          Tache[]   @relation("EmailTaches")
+  analyses        EmailAnalysis[]
   // Statut
   analyseStatut   String    @default("non_analyse")
   lu              Boolean   @default(false)
   dateCreation    DateTime  @default(now())
   dateMaj         DateTime  @updatedAt
+}
+
+// ── Analyse email (n8n integration) ──
+
+model EmailAnalysis {
+  id              String   @id @default(cuid())
+  emailId         String
+  email           Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  action          String   // ex: "reply", "follow_up", "archive", "escalate"
+  priority        String   @default("normale") // haute, normale, basse
+  summary         String?
+  replySuggestion String?
+  dateCreation    DateTime @default(now())
 }
 
 // ── Sequences de prospection ──
