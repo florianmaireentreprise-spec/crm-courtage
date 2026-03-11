@@ -5,17 +5,10 @@ import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { KanbanColumn } from "./KanbanColumn";
 import { DealForm } from "./DealForm";
 import { moveDeal, createContractsFromDeal } from "@/app/(app)/pipeline/actions";
-import type { PipelineColumn } from "@/types";
+import type { PipelineColumn, DealWithClient } from "@/types";
 import { TYPES_PRODUITS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import {
   Dialog,
@@ -37,6 +30,7 @@ type Props = {
 
 export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [showForm, setShowForm] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<DealWithClient | null>(null);
   const [lossDialog, setLossDialog] = useState<{ dealId: string; targetEtape: string } | null>(null);
   const [motifPerte, setMotifPerte] = useState("");
   const [signatureDialog, setSignatureDialog] = useState<{ dealId: string; products: string[] } | null>(null);
@@ -93,6 +87,10 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
     setSelectedProducts([]);
   }
 
+  function handleEditDeal(deal: DealWithClient) {
+    setEditingDeal(deal);
+  }
+
   const totalDeals = columns.reduce((sum, c) => sum + c.deals.length, 0);
   const totalMontant = columns
     .filter((c) => !["PERDU"].includes(c.id))
@@ -118,7 +116,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
           {columns.map((col) => (
-            <KanbanColumn key={col.id} column={col} />
+            <KanbanColumn key={col.id} column={col} onEditDeal={handleEditDeal} />
           ))}
         </div>
       </DragDropContext>
@@ -130,6 +128,17 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
           clients={clients}
           users={users}
           prescripteurs={prescripteurs}
+        />
+      )}
+
+      {editingDeal && (
+        <DealForm
+          open={!!editingDeal}
+          onClose={() => setEditingDeal(null)}
+          clients={clients}
+          users={users}
+          prescripteurs={prescripteurs}
+          deal={editingDeal}
         />
       )}
 

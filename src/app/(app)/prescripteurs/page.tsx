@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,9 @@ import { Plus, Handshake, Mail, Phone, Users, Euro } from "lucide-react";
 import { TYPES_PRESCRIPTEUR } from "@/lib/constants";
 
 export default async function PrescripteursPage() {
+  const env = await getEnvironnement();
   const prescripteurs = await prisma.prescripteur.findMany({
+    where: { environnement: env },
     include: {
       _count: {
         select: { clients: true, deals: true },

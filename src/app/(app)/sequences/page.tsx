@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { SequencesList } from "@/components/sequences/SequencesList";
 import { initDefaultSequences } from "@/lib/sequences";
 
@@ -23,6 +24,7 @@ type SequenceWithInscriptions = {
 };
 
 export default async function SequencesPage() {
+  const env = await getEnvironnement();
   let sequences: SequenceWithInscriptions[] = [];
   let clients: { id: string; raisonSociale: string; statut: string }[] = [];
 
@@ -34,7 +36,7 @@ export default async function SequencesPage() {
     }
 
     sequences = await prisma.sequence.findMany({
-      where: { active: true },
+      where: { environnement: env, active: true },
       include: {
         inscriptions: {
           include: { client: { select: { id: true, raisonSociale: true } } },
@@ -48,7 +50,7 @@ export default async function SequencesPage() {
   }
 
   clients = await prisma.client.findMany({
-    where: { statut: { in: ["prospect", "client_actif"] } },
+    where: { environnement: env, statut: { in: ["prospect", "client_actif"] } },
     select: { id: true, raisonSociale: true, statut: true },
     orderBy: { raisonSociale: "asc" },
   });

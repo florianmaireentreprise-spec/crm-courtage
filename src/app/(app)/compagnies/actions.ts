@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -26,8 +27,10 @@ export async function createCompagnie(formData: FormData) {
   }
 
   const data = parsed.data;
+  const env = await getEnvironnement();
   await prisma.compagnie.create({
     data: {
+      environnement: env,
       nom: data.nom,
       type: data.type || null,
       contactNom: data.contactNom || null,

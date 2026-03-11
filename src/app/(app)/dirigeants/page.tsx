@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,9 @@ import { STATUTS_DIRIGEANT } from "@/lib/constants";
 import { calculerCouverture360, getCouvertureColor } from "@/lib/scoring/couverture360";
 
 export default async function DirigeantsPage() {
+  const env = await getEnvironnement();
   const dirigeants = await prisma.dirigeant.findMany({
+    where: { environnement: env },
     include: {
       client: {
         select: {

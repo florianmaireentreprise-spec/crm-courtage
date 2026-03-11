@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { computeMetrics, computeForecast } from "@/lib/objectifs";
 import { ObjectifGrid } from "@/components/objectifs/ObjectifGrid";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,8 +15,10 @@ export default async function ObjectifsPage() {
   const daysElapsed = differenceInDays(now, startOfYear) + 1;
   const yearProgressPct = daysElapsed / totalDaysInYear;
 
+  const env = await getEnvironnement();
   const [objectifs, users] = await Promise.all([
     prisma.objectif.findMany({
+      where: { environnement: env },
       orderBy: { dateCreation: "desc" },
     }),
     prisma.user.findMany({

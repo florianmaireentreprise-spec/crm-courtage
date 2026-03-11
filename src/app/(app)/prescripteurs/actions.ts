@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -28,8 +29,10 @@ export async function createPrescripteur(formData: FormData) {
   }
 
   const data = parsed.data;
+  const env = await getEnvironnement();
   await prisma.prescripteur.create({
     data: {
+      environnement: env,
       type: data.type,
       civilite: data.civilite || null,
       prenom: data.prenom,

@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { ETAPES_PIPELINE } from "@/lib/constants";
 import { KanbanBoard } from "@/components/pipeline/KanbanBoard";
 import type { PipelineColumn } from "@/types";
 
 export default async function PipelinePage() {
+  const env = await getEnvironnement();
   const deals = await prisma.deal.findMany({
+    where: { environnement: env },
     include: { client: true },
     orderBy: { dateMaj: "desc" },
   });
@@ -18,6 +21,7 @@ export default async function PipelinePage() {
   }));
 
   const clients = await prisma.client.findMany({
+    where: { environnement: env },
     select: { id: true, raisonSociale: true },
     orderBy: { raisonSociale: "asc" },
   });
@@ -28,7 +32,7 @@ export default async function PipelinePage() {
 
   const prescripteurs = await prisma.prescripteur.findMany({
     select: { id: true, prenom: true, nom: true, entreprise: true },
-    where: { statut: "actif" },
+    where: { environnement: env, statut: "actif" },
     orderBy: { nom: "asc" },
   });
 

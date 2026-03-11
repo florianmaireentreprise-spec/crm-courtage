@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,9 @@ import {
 import { Plus, ExternalLink } from "lucide-react";
 
 export default async function CompagniesPage() {
+  const env = await getEnvironnement();
   const compagnies = await prisma.compagnie.findMany({
+    where: { environnement: env },
     include: {
       contrats: { where: { statut: "actif" } },
     },

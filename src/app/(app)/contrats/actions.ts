@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -37,8 +38,10 @@ export async function createContrat(formData: FormData) {
   const commissionAnnuelle =
     data.primeAnnuelle * (data.tauxCommGestion ?? 0);
 
+  const env = await getEnvironnement();
   const contrat = await prisma.contrat.create({
     data: {
+      environnement: env,
       clientId: data.clientId,
       typeProduit: data.typeProduit,
       compagnieId: data.compagnieId || null,
