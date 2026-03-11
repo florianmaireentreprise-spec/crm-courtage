@@ -66,7 +66,7 @@ async function handler(req: Request) {
   revalidatePath("/relances");
   revalidatePath("/clients");
 
-  return NextResponse.json({ success: true, emailId, clientId: resolvedClientId, type: type ?? "autre" });
+  return NextResponse.json({ success: true, emailId, clientId: resolvedClientId, type: type ?? "autre", urgence: urgence ?? "normale", actionRequise: actionRequise ?? false, expediteurNom: expediteurNom ?? null, draftReply: draftReply ?? null, expediteur: body.expediteur ?? null, sujet: body.sujet ?? null, direction: body.direction ?? null });
 }
 
 export const POST = withN8nAuth(handler);

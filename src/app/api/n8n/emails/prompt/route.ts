@@ -67,7 +67,7 @@ async function handler(req: Request) {
     contextData,
   );
 
-  return NextResponse.json({ emailId, prompt });
+  return NextResponse.json({ emailId, clientId: email.clientId, expediteur: email.expediteur, sujet: email.sujet, direction: email.direction, prompt });
 }
 
 export const GET = withN8nAuth(handler);
