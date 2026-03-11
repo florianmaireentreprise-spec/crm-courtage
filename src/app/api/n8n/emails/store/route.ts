@@ -11,7 +11,6 @@ import {
 
 async function handler(req: Request) {
   const body = await req.json();
-  console.log("[STORE_DEBUG] body keys:", Object.keys(body), "gmailId:", body.gmailId, "sujet:", typeof body.sujet, "expediteur:", typeof body.expediteur);
   const {
     gmailId,
     threadId,
