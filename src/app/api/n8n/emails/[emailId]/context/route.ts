@@ -49,6 +49,8 @@ async function handler(req: Request) {
   });
 
   return NextResponse.json({
+    emailId: email.id,
+    clientId: email.clientId,
     email: {
       sujet: email.sujet,
       expediteur: email.expediteur,
