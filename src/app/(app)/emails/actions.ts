@@ -318,6 +318,8 @@ export async function markActionTraitee(emailId: string) {
     data: { actionTraitee: true },
   });
   revalidatePath("/emails");
+  revalidatePath("/emails/urgent");
+  revalidatePath("/clients");
 }
 
 export async function batchProcessEmails() {
@@ -742,6 +744,7 @@ export async function markEmailAsProcessed(emailId: string) {
     data: { actionTraitee: true },
   });
   revalidatePath("/emails");
+  revalidatePath("/emails/urgent");
   return { success: true };
 }
 

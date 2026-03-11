@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Mail, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, User } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -43,57 +43,69 @@ export function UrgentEmailsWidget({ emails }: { emails: UrgentEmail[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            Emails urgents
-          </CardTitle>
-          <Badge variant="destructive" className="text-[10px]">
-            {emails.length}
-          </Badge>
+          <Link href="/emails/urgent" className="hover:opacity-80 transition-opacity">
+            <CardTitle className="text-base flex items-center gap-2 cursor-pointer">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Emails urgents a traiter
+            </CardTitle>
+          </Link>
+          <Link href="/emails/urgent">
+            <Badge variant="destructive" className="text-[10px] cursor-pointer">
+              {emails.length}
+            </Badge>
+          </Link>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {emails.map((email) => (
-          <Link key={email.id} href="/emails" className="block">
-            <div className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
-              <div className="mt-0.5">
-                {email.direction === "sortant" ? (
-                  <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
-                ) : (
-                  <ArrowDownLeft className="h-3.5 w-3.5 text-green-500" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{email.sujet}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-muted-foreground truncate">
-                    {email.expediteur}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {format(new Date(email.dateEnvoi), "dd MMM", { locale: fr })}
-                  </span>
+        {emails.map((email) => {
+          // Row links to client page if linked, otherwise to /emails/urgent
+          const rowHref = email.client
+            ? `/clients/${email.client.id}`
+            : "/emails/urgent";
+
+          return (
+            <Link key={email.id} href={rowHref} className="block">
+              <div className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
+                <div className="mt-0.5">
+                  {email.direction === "sortant" ? (
+                    <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
+                  ) : (
+                    <ArrowDownLeft className="h-3.5 w-3.5 text-green-500" />
+                  )}
                 </div>
-                {email.resume && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 italic">
-                    {email.resume}
-                  </p>
-                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{email.sujet}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground truncate">
+                      {email.expediteur}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {format(new Date(email.dateEnvoi), "dd MMM", { locale: fr })}
+                    </span>
+                  </div>
+                  {email.resume && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 italic">
+                      {email.resume}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  {email.client && (
+                    <Badge variant="secondary" className="text-[10px] gap-0.5">
+                      <User className="h-2.5 w-2.5" />
+                      {email.client.raisonSociale}
+                    </Badge>
+                  )}
+                  {!email.actionTraitee && (
+                    <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-600 border-orange-200">
+                      A traiter
+                    </Badge>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                {email.client && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    {email.client.raisonSociale}
-                  </Badge>
-                )}
-                {!email.actionTraitee && (
-                  <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-600 border-orange-200">
-                    A traiter
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </CardContent>
     </Card>
   );
