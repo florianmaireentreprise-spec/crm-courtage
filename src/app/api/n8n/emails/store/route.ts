@@ -104,6 +104,12 @@ async function handler(req: Request) {
     direction: email.direction,
     pertinence,
     userId: connection.userId,
+    gmailId,
+    sujet,
+    expediteur,
+    destinataires: destStr,
+    dateEnvoi,
+    extrait: extrait ?? null,
   });
 }
 
