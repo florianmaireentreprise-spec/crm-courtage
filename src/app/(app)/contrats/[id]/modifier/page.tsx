@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContratForm } from "@/components/contrats/ContratForm";
 import { updateContrat } from "../../actions";
-import { getEnvironnement } from "@/lib/environnement";
 
 export default async function ModifierContratPage({
   params,
@@ -10,12 +9,11 @@ export default async function ModifierContratPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const env = await getEnvironnement();
 
   const [contrat, clients, compagnies] = await Promise.all([
     prisma.contrat.findUnique({ where: { id } }),
-    prisma.client.findMany({ where: { environnement: env }, select: { id: true, raisonSociale: true }, orderBy: { raisonSociale: "asc" } }),
-    prisma.compagnie.findMany({ where: { environnement: env }, select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
+    prisma.client.findMany({ select: { id: true, raisonSociale: true }, orderBy: { raisonSociale: "asc" } }),
+    prisma.compagnie.findMany({ select: { id: true, nom: true }, orderBy: { nom: "asc" } }),
   ]);
 
   if (!contrat) notFound();

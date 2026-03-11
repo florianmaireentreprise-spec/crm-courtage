@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getEnvironnement } from "@/lib/environnement";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
@@ -24,9 +23,7 @@ function getRenewalAlert(daysToRenewal: number | null, statut: string) {
 }
 
 export default async function ContratsPage() {
-  const env = await getEnvironnement();
   const contrats = await prisma.contrat.findMany({
-    where: { environnement: env },
     include: { client: true, compagnie: true },
     orderBy: { dateEffet: "desc" },
   });

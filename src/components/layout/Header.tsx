@@ -12,14 +12,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User } from "lucide-react";
 import { MobileNav } from "./MobileNav";
 import { SearchDialog } from "./SearchDialog";
-import { EnvironnementSwitcher } from "./EnvironnementSwitcher";
-import type { Environnement } from "@/lib/environnement";
 
-type Props = {
-  environnement: Environnement;
-};
-
-export function Header({ environnement }: Props) {
+export function Header() {
   const { data: session } = useSession();
   const initials = session?.user?.name
     ?.split(" ")
@@ -30,7 +24,6 @@ export function Header({ environnement }: Props) {
   return (
     <header className="sticky top-0 z-40 h-16 border-b bg-card flex items-center px-4 lg:px-6">
       <MobileNav />
-      <EnvironnementSwitcher current={environnement} />
       <div className="flex-1 flex items-center justify-center px-4">
         <SearchDialog />
       </div>

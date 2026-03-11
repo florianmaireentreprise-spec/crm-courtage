@@ -2,14 +2,13 @@
 
 import { Droppable } from "@hello-pangea/dnd";
 import { DealCard } from "./DealCard";
-import type { PipelineColumn, DealWithClient } from "@/types";
+import type { PipelineColumn } from "@/types";
 
 type Props = {
   column: PipelineColumn;
-  onEditDeal?: (deal: DealWithClient) => void;
 };
 
-export function KanbanColumn({ column, onEditDeal }: Props) {
+export function KanbanColumn({ column }: Props) {
   return (
     <div className="flex-shrink-0 w-72">
       <div className="flex items-center gap-2 mb-3 px-1">
@@ -33,7 +32,7 @@ export function KanbanColumn({ column, onEditDeal }: Props) {
             }`}
           >
             {column.deals.map((deal, index) => (
-              <DealCard key={deal.id} deal={deal} index={index} onEdit={onEditDeal} />
+              <DealCard key={deal.id} deal={deal} index={index} />
             ))}
             {provided.placeholder}
           </div>
