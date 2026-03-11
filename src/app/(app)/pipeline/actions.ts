@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
@@ -31,8 +32,10 @@ export async function createDeal(formData: FormData) {
   }
 
   const data = parsed.data;
+  const env = await getEnvironnement();
   await prisma.deal.create({
     data: {
+      environnement: env,
       clientId: data.clientId,
       titre: data.titre,
       etape: data.etape,
@@ -53,6 +56,7 @@ export async function createDeal(formData: FormData) {
 }
 
 export async function moveDeal(dealId: string, newEtape: string, motifPerte?: string) {
+  const env = await getEnvironnement();
   const updateData: Record<string, unknown> = { etape: newEtape };
 
   if (newEtape === "SIGNATURE") {
@@ -65,6 +69,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
     if (deal?.client) {
       await prisma.tache.create({
         data: {
+          environnement: env,
           clientId: deal.clientId,
           titre: `Préparer recommandation pour ${deal.client.raisonSociale}`,
           type: "ADMIN",
@@ -82,6 +87,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
     if (deal?.client) {
       await prisma.tache.create({
         data: {
+          environnement: env,
           clientId: deal.clientId,
           titre: `Relancer ${deal.client.raisonSociale} dans 7 jours`,
           type: "RELANCE_PROSPECT",
@@ -107,6 +113,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
       await prisma.tache.createMany({
         data: [
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Completer fiche client",
             type: "ONBOARDING",
@@ -116,6 +123,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
             sourceAuto: "onboarding",
           },
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Planifier calendrier de suivi",
             type: "ONBOARDING",
@@ -125,6 +133,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
             sourceAuto: "onboarding",
           },
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Rappel revision annuelle",
             type: "REVISION_ANNUELLE",
@@ -144,6 +153,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
       await prisma.tache.createMany({
         data: [
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Audit dirigeant - protection et prevoyance",
             type: "AUDIT_DIRIGEANT",
@@ -153,6 +163,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
             sourceAuto: "dev_client",
           },
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Optimisation retraite dirigeant",
             type: "DEV_CLIENT",
@@ -162,6 +173,7 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
             sourceAuto: "dev_client",
           },
           {
+            environnement: env,
             clientId: deal.clientId,
             titre: "Proposition epargne / assurance vie",
             type: "DEV_CLIENT",
@@ -206,27 +218,35 @@ export async function moveDeal(dealId: string, newEtape: string, motifPerte?: st
   revalidatePath("/relances");
 }
 
-export async function updateDealDetails(dealId: string, formData: FormData) {
+export async function updateDeal(dealId: string, formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
+  const parsed = dealSchema.safeParse(raw);
 
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const data = parsed.data;
   await prisma.deal.update({
     where: { id: dealId },
     data: {
-      qualificationNotes: (raw.qualificationNotes as string) || null,
-      problematiqueDirigeant: (raw.problematiqueDirigeant as string) || null,
-      checklistAudit: (raw.checklistAudit as string) || null,
-      rapportAudit: (raw.rapportAudit as string) || null,
-      syntheseClient: (raw.syntheseClient as string) || null,
-      propositionCommerciale: (raw.propositionCommerciale as string) || null,
-      comparatifAssureurs: (raw.comparatifAssureurs as string) || null,
-      simulationCotisations: (raw.simulationCotisations as string) || null,
-      assureurChoisi: (raw.assureurChoisi as string) || null,
-      commissionsAttendues: raw.commissionsAttendues ? parseFloat(raw.commissionsAttendues as string) : null,
-      documentsNotes: (raw.documentsNotes as string) || null,
+      clientId: data.clientId,
+      titre: data.titre,
+      montantEstime: data.montantEstime ?? null,
+      probabilite: data.probabilite ?? null,
+      produitsCibles: data.produitsCibles || null,
+      sourceProspect: data.sourceProspect || null,
+      prescripteurId: data.prescripteurId || null,
+      dateClosingPrev: data.dateClosingPrev ? new Date(data.dateClosingPrev) : null,
+      notes: data.notes || null,
+      assigneA: data.assigneA || null,
+      qualificationNotes: data.qualificationNotes || null,
+      problematiqueDirigeant: data.problematiqueDirigeant || null,
     },
   });
 
   revalidatePath("/pipeline");
+  revalidatePath("/");
 }
 
 export async function deleteDeal(dealId: string) {
@@ -237,6 +257,7 @@ export async function deleteDeal(dealId: string) {
 }
 
 export async function createContractsFromDeal(dealId: string, products: string[]) {
+  const env = await getEnvironnement();
   const deal = await prisma.deal.findUnique({
     where: { id: dealId },
     select: { clientId: true, client: { select: { raisonSociale: true } } },
@@ -258,6 +279,7 @@ export async function createContractsFromDeal(dealId: string, products: string[]
     const taux = TAUX_DEFAUT[typeProduit] ?? { apport: 0.05, gestion: 0.05 };
     await prisma.contrat.create({
       data: {
+        environnement: env,
         clientId: deal.clientId,
         typeProduit,
         primeAnnuelle: 0,

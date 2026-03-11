@@ -1,15 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { createClient } from "../actions";
+import { getEnvironnement } from "@/lib/environnement";
 
 export default async function NouveauClientPage() {
+  const env = await getEnvironnement();
+
   const [users, prescripteurs] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, prenom: true, nom: true },
     }),
     prisma.prescripteur.findMany({
       select: { id: true, prenom: true, nom: true, entreprise: true },
-      where: { statut: "actif" },
+      where: { statut: "actif", environnement: env },
       orderBy: { nom: "asc" },
     }),
   ]);

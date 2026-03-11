@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -23,8 +24,10 @@ export async function createTache(formData: FormData) {
   }
 
   const data = parsed.data;
+  const env = await getEnvironnement();
   await prisma.tache.create({
     data: {
+      environnement: env,
       titre: data.titre,
       description: data.description || null,
       type: data.type,

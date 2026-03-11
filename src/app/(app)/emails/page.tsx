@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { buildOAuth2Client, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailPageTabs } from "@/components/emails/EmailPageTabs";
@@ -26,9 +27,10 @@ export default async function EmailsPage() {
     });
   }
 
+  const env = await getEnvironnement();
   const emails = connection && userId
     ? await prisma.email.findMany({
-        where: { userId },
+        where: { environnement: env, userId },
         include: { client: true },
         orderBy: { dateEnvoi: "desc" },
         take: 200,

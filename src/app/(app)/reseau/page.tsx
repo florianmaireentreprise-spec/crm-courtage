@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +9,9 @@ import { ReseauObjectifForm } from "@/components/reseau/ReseauObjectifForm";
 import { AddContactButton } from "@/components/reseau/AddContactButton";
 
 export default async function ReseauPage() {
+  const env = await getEnvironnement();
   const clientsReseau = await prisma.client.findMany({
-    where: { categorieReseau: { not: null } },
+    where: { environnement: env, categorieReseau: { not: null } },
     include: {
       _count: { select: { contrats: true, deals: true } },
     },

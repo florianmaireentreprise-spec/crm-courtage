@@ -19,6 +19,7 @@ model User {
 
 model Client {
   id                   String    @id @default(cuid())
+  environnement        String    @default("DEMO") // DEMO | PRODUCTION
   // Entreprise
   raisonSociale        String
   siret                String?   @unique
@@ -72,6 +73,7 @@ model Client {
 
 model Dirigeant {
   id                  String    @id @default(cuid())
+  environnement       String    @default("DEMO") // DEMO | PRODUCTION
   clientId            String    @unique
   client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Identite
@@ -104,6 +106,7 @@ model Dirigeant {
 
 model Prescripteur {
   id                  String    @id @default(cuid())
+  environnement       String    @default("DEMO") // DEMO | PRODUCTION
   // Identite
   type                String    // expert_comptable / avocat / partenaire / client_prescripteur
   civilite            String?
@@ -131,6 +134,7 @@ model Prescripteur {
 
 model Contrat {
   id                 String       @id @default(cuid())
+  environnement      String       @default("DEMO") // DEMO | PRODUCTION
   clientId           String
   client             Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Produit
@@ -165,6 +169,7 @@ model Contrat {
 
 model Compagnie {
   id                 String    @id @default(cuid())
+  environnement      String    @default("DEMO") // DEMO | PRODUCTION
   nom                String    @unique
   type               String?
   contactNom         String?
@@ -185,6 +190,7 @@ model Compagnie {
 
 model Deal {
   id                    String       @id @default(cuid())
+  environnement         String       @default("DEMO") // DEMO | PRODUCTION
   clientId              String
   client                Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Pipeline
@@ -227,6 +233,7 @@ model Deal {
 
 model Commission {
   id            String    @id @default(cuid())
+  environnement String    @default("DEMO") // DEMO | PRODUCTION
   contratId     String
   contrat       Contrat   @relation(fields: [contratId], references: [id], onDelete: Cascade)
   // Montant
@@ -241,6 +248,7 @@ model Commission {
 
 model Tache {
   id              String    @id @default(cuid())
+  environnement   String    @default("DEMO") // DEMO | PRODUCTION
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   emailId         String?
@@ -267,6 +275,7 @@ model Tache {
 
 model Objectif {
   id           String   @id @default(cuid())
+  environnement String  @default("DEMO") // DEMO | PRODUCTION
   userId       String?
   type         String
   periode      String
@@ -304,6 +313,7 @@ model GmailConnection {
 
 model Email {
   id              String    @id @default(cuid())
+  environnement   String    @default("DEMO") // DEMO | PRODUCTION
   userId          String
   gmailId         String    @unique
   threadId        String
@@ -347,6 +357,7 @@ model Email {
 
 model Sequence {
   id              String    @id @default(cuid())
+  environnement   String    @default("DEMO") // DEMO | PRODUCTION
   nom             String
   description     String?
   etapes          String    // JSON: Array<{ jour: number, action: string, titre: string, type?: string, prompt?: string, motif?: string }>

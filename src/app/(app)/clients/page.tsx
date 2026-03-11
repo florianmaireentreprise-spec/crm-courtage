@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getEnvironnement } from "@/lib/environnement";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search } from "lucide-react";
@@ -16,9 +17,11 @@ export default async function ClientsPage({
   const params = await searchParams;
   const q = params.q ?? "";
   const statutFilter = params.statut ?? "";
+  const env = await getEnvironnement();
 
   const clients = await prisma.client.findMany({
     where: {
+      environnement: env,
       AND: [
         q
           ? {
