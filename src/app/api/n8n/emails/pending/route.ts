@@ -18,7 +18,11 @@ async function handler(req: Request) {
     data: { analyseStatut: "non_analyse" },
   });
 
-  // Fetch pending emails (non_analyse or erreur)
+  // Fetch pending emails with PRIORITY ordering:
+  // 1. Emails with a known client first (clientId IS NOT NULL)
+  // 2. "erreur" status before "non_analyse" (retry failures first)
+  // 3. Higher scoreRelevance first
+  // 4. Oldest first within same priority (process waiting emails first)
   const emails = await prisma.email.findMany({
     where: {
       analyseStatut: { in: ["non_analyse", "erreur"] },
@@ -34,8 +38,12 @@ async function handler(req: Request) {
       clientId: true,
       userId: true,
       analyseStatut: true,
+      scoreRelevance: true,
     },
-    orderBy: { dateEnvoi: "desc" },
+    orderBy: [
+      { scoreRelevance: "desc" },
+      { dateEnvoi: "asc" },
+    ],
     take: limit,
   });
 

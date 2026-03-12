@@ -7,6 +7,40 @@ const EXCLUDED_PATTERNS = [
   /postmaster@/i, /unsubscribe/i, /marketing@/i, /promo@/i,
 ];
 
+// ── Technical/junk domains that should NEVER go to AI analysis ──
+const JUNK_DOMAINS = [
+  "railway.app", "notify.railway.app",
+  "github.com", "noreply.github.com",
+  "vercel.com",
+  "neon.tech",
+  "netlify.com",
+  "heroku.com",
+  "cloudflare.com",
+  "stripe.com",
+  "sentry.io",
+  "linear.app",
+  "notion.so",
+  "slack.com",
+  "google.com", "accounts.google.com",
+  "amazonses.com",
+  "mailchimp.com", "mandrillapp.com",
+  "sendgrid.net",
+  "postmarkapp.com",
+];
+
+// ── Subject patterns indicating technical/automated emails ──
+const JUNK_SUBJECT_PATTERNS = [
+  /build (failed|succeeded|passed)/i,
+  /deploy(ment)?\s+(failed|succeeded|completed|started)/i,
+  /\[alert\]/i,
+  /\[monitoring\]/i,
+  /your (invoice|receipt|payment)/i,
+  /password reset/i,
+  /verify your email/i,
+  /security alert/i,
+  /sign.?in (from|attempt)/i,
+];
+
 const INSURANCE_KEYWORDS = [
   "contrat", "police", "sinistre", "devis", "cotisation", "prime",
   "résiliation", "avenant", "souscription", "adhésion", "garantie",
@@ -32,6 +66,15 @@ export function extractSenderName(from: string): string {
 
 export function isExcludedSender(from: string): boolean {
   return EXCLUDED_PATTERNS.some((p) => p.test(from));
+}
+
+/** Deterministic junk detection — these emails skip AI analysis entirely */
+export function isJunkEmail(from: string, sujet: string): boolean {
+  const addr = extractEmailAddress(from);
+  const domain = addr.split("@")[1] ?? "";
+  if (JUNK_DOMAINS.some((d) => domain === d || domain.endsWith("." + d))) return true;
+  if (JUNK_SUBJECT_PATTERNS.some((p) => p.test(sujet))) return true;
+  return false;
 }
 
 export function classifyPertinence(

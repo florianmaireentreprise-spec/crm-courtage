@@ -7,6 +7,7 @@ import {
   extractEmailAddress,
   classifyPertinence,
   isExcludedSender,
+  isJunkEmail,
 } from "@/lib/email/sync";
 
 async function handler(req: Request) {
@@ -67,7 +68,14 @@ async function handler(req: Request) {
     pertinence = "ignore";
   }
 
-  // 6. Insert into database
+  // 6. Deterministic junk pre-filter — skip AI analysis entirely
+  // Only applies to emails NOT matched to a known client
+  const isJunk = !clientId && isJunkEmail(expediteur, sujet);
+  if (isJunk) {
+    pertinence = "ignore";
+  }
+
+  // 7. Insert into database
   const destStr = Array.isArray(destinataires) ? JSON.stringify(destinataires) : destinataires;
 
   const email = await prisma.email.create({
@@ -84,7 +92,8 @@ async function handler(req: Request) {
       pertinence,
       scoreRelevance,
       clientId,
-      analyseStatut: "non_analyse",
+      analyseStatut: isJunk ? "filtre" : "non_analyse",
+      typeEmail: isJunk ? "autre" : null,
     },
   });
 

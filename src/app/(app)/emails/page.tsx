@@ -4,6 +4,7 @@ import { buildOAuth2Client, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailPageTabs } from "@/components/emails/EmailPageTabs";
 import { Mail, Inbox } from "lucide-react";
+import { isJunkEmail } from "@/lib/email/sync";
 
 export const metadata = { title: "Emails — CRM Courtage" };
 
@@ -34,6 +35,23 @@ export default async function EmailsPage() {
         take: 200,
       })
     : [];
+
+  // Retroactive cleanup: mark existing junk emails as "filtre" (idempotent)
+  const junkToFilter = emails.filter(
+    (e) => !e.clientId && e.analyseStatut !== "filtre" && e.analyseStatut !== "analyse" && isJunkEmail(e.expediteur, e.sujet)
+  );
+  if (junkToFilter.length > 0) {
+    await prisma.email.updateMany({
+      where: { id: { in: junkToFilter.map((e) => e.id) } },
+      data: { analyseStatut: "filtre", typeEmail: "autre", pertinence: "ignore" },
+    });
+    // Refresh the local list
+    for (const e of junkToFilter) {
+      e.analyseStatut = "filtre";
+      e.typeEmail = "autre";
+      e.pertinence = "ignore";
+    }
+  }
 
   const pendingCount = emails.filter((e) => e.actionRequise && !e.actionTraitee).length;
   const unknownCount = emails.filter(
