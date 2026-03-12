@@ -73,7 +73,6 @@ type EmailHistMini = {
   direction: string;
   dateEnvoi: Date;
 };
-
 export function buildAnalysisPrompt(
   sujet: string,
   expediteur: string,
@@ -85,13 +84,7 @@ export function buildAnalysisPrompt(
     recentEmails?: EmailHistMini[];
   }
 ): string {
-  const clientList = clients
-    .map(
-      (c) =>
-        `- ID:${c.id} | ${c.raisonSociale} | contact: ${c.prenom} ${c.nom} | email: ${c.email ?? "inconnu"}`
-    )
-    .join("\n");
-
+  // Build compact context block
   let contextBlock = "";
 
   if (context?.clientMatched) {
@@ -99,71 +92,56 @@ export function buildAnalysisPrompt(
     contextBlock += `\nCLIENT ASSOCIÉ : ${cm.raisonSociale} (${cm.prenom} ${cm.nom}) — ID: ${cm.id}`;
 
     if (cm.taches?.length) {
-      contextBlock += "\n\nTÂCHES OUVERTES DE CE CLIENT :";
-      for (const t of cm.taches) {
-        contextBlock += `\n- ID:${t.id} | "${t.titre}" | statut: ${t.statut} | échéance: ${t.dateEcheance.toISOString().slice(0, 10)}`;
+      contextBlock += `\nTÂCHES OUVERTES :`;
+      for (const t of cm.taches.slice(0, 5)) {
+        contextBlock += `\n- ID:${t.id} | "${t.titre}" | éch: ${t.dateEcheance.toISOString().slice(0, 10)}`;
       }
     }
 
     if (cm.contrats?.length) {
-      contextBlock += "\n\nCONTRATS ACTIFS DE CE CLIENT :";
-      for (const c of cm.contrats) {
-        contextBlock += `\n- ${c.typeProduit}${c.nomProduit ? ` (${c.nomProduit})` : ""} — statut: ${c.statut}`;
+      contextBlock += `\nCONTRATS :`;
+      for (const c of cm.contrats.slice(0, 5)) {
+        contextBlock += `\n- ${c.typeProduit}${c.nomProduit ? ` (${c.nomProduit})` : ""}`;
       }
     }
   }
 
   if (context?.recentEmails?.length) {
-    contextBlock += "\n\nHISTORIQUE EMAILS RÉCENTS (ce fil ou ce client) :";
-    for (const e of context.recentEmails.slice(0, 5)) {
-      contextBlock += `\n- [${e.direction}] ${e.dateEnvoi.toISOString().slice(0, 10)} — "${e.sujet}"`;
+    contextBlock += `\nÉCHANGES RÉCENTS :`;
+    for (const e of context.recentEmails.slice(0, 3)) {
+      contextBlock += `\n- [${e.direction}] ${e.dateEnvoi.toISOString().slice(0, 10)} "${e.sujet}"`;
     }
   }
 
-  return `Tu es un assistant CRM pour GargarineV1, courtier en assurances pour TPE/PME.
+  // Only include client list when no client is already matched
+  let clientListBlock = "";
+  if (!context?.clientMatched && clients.length > 0) {
+    const list = clients
+      .slice(0, 30)
+      .map((c) => `- ${c.raisonSociale} | ${c.prenom} ${c.nom} | ${c.email ?? "?"}`)
+      .join("\n");
+    clientListBlock = `
+CLIENTS CRM :
+${list}`;
+  }
 
-Analyse cet email ${direction === "sortant" ? "ENVOYÉ PAR le cabinet" : "REÇU PAR le cabinet"} et réponds UNIQUEMENT en JSON valide avec cette structure exacte :
+  return `Assistant CRM pour GargarineV1, courtier assurances TPE/PME.
+Analyse cet email ${direction === "sortant" ? "ENVOYÉ" : "REÇU"} et réponds en JSON valide uniquement :
+
 {
-  "resume": "Résumé en 3 lignes maximum en français",
+  "resume": "Résumé factuel en français, 2-3 phrases",
   "type": "client | prospect | assureur | prescripteur | autre",
   "urgence": "haute | normale | basse",
   "sentiment": "positif | neutre | negatif",
   "actionRequise": true/false,
-  "actionSuggeree": "Description de l'action à faire ou null",
-  "actionItems": ["Action 1", "Action 2"],
-  "clientMatch": {
-    "found": true/false,
-    "clientId": "ID_du_client_ou_null",
-    "clientEmail": "email@matching.com ou null",
-    "clientName": "Nom du client trouvé ou null",
-    "confidence": "haute | moyenne | basse"
-  },
-  "actions": [
-    {
-      "type": "tache | relance | deal | enrichissement | alerte",
-      "titre": "Titre de l'action",
-      "priorite": "haute | normale | basse",
-      "details": "Détails complémentaires ou null"
-    }
-  ],
-  "draftReply": "Proposition de réponse en français ou null",
-  "tachesAFermer": ["id_tache_1"],
-  "tachesAFermerDetails": [
-    {
-      "id": "id_tache",
-      "raison": "Pourquoi cette tâche est résolue par cet email",
-      "motsClesTache": ["mot1", "mot2"]
-    }
-  ],
-  "enrichissementClient": {
-    "notes": "Info pertinente à retenir sur le client ou null",
-    "statutSuggere": "nouveau_statut_ou_null"
-  },
-  "contratMentionne": "TYPE_PRODUIT_ou_null",
-  "dealUpdate": { "etapeSuggeree": "ETAPE_PIPELINE", "raison": "explication" } ou null,
-  "produitsMentionnes": ["SANTE_COLLECTIVE", "PER"],
-  "expediteurNom": "Prénom ou nom de la personne qui envoie l'email",
-  "expediteurEntreprise": "Nom de l'entreprise de l'expéditeur ou null"
+  "actions": [{"type": "tache|relance|deal|enrichissement|alerte", "titre": "...", "priorite": "haute|normale|basse", "details": "...ou null"}],
+  "draftReply": "Réponse professionnelle prête à envoyer, ou null",
+  "produitsMentionnes": ["SANTE_COLLECTIVE", "PREVOYANCE_COLLECTIVE", "PER", ...],
+  "dealUpdate": {"etapeSuggeree": "ETAPE", "raison": "..."} ou null,
+  "tachesAFermerDetails": [{"id": "id_tache", "raison": "pourquoi fermer"}],
+  "notes": "Info business à retenir sur le contact, ou null",
+  "expediteurNom": "Nom de l'expéditeur ou null",
+  "expediteurEntreprise": "Entreprise de l'expéditeur ou null"
 }
 
 EMAIL (${direction.toUpperCase()}) :
@@ -171,52 +149,18 @@ De: ${expediteur}
 Objet: ${sujet}
 ---
 ${extrait ?? "Contenu non disponible"}
+${clientListBlock}${contextBlock}
 
-CLIENTS DANS LE CRM :
-${clientList}
-${contextBlock}
-
-Instructions :
-- Le résumé doit être factuel, en français, maximum 3 lignes
-- type = catégorie de l'expéditeur : "client" (client existant), "prospect" (potentiel client), "assureur" (compagnie d'assurance), "prescripteur" (expert-comptable, avocat, partenaire), "autre"
-- urgence = "haute" si action immédiate requise ou deadline proche, "normale" sinon, "basse" si informatif
-- sentiment = tonalité générale de l'email
-- actionRequise = true si une action concrète est attendue du cabinet
-- actionSuggeree = description courte de l'action principale à faire (null si aucune)
-- actionItems = tâches concrètes à faire (liste plate pour rétro-compat). Si email sortant = probablement moins d'actions.
-
-CHAMP clientMatch (IMPORTANT) :
-- Chercher la correspondance entre l'expéditeur/destinataire et les clients du CRM (par email OU par nom)
-- found = true si une correspondance est trouvée
-- clientId = l'ID du client trouvé dans la liste ci-dessus, null sinon
-- clientEmail = l'email du client trouvé, null sinon
-- clientName = le nom/raison sociale du client trouvé, null sinon
-- confidence = "haute" si match email exact, "moyenne" si match sur le nom, "basse" si incertain
-
-CHAMP actions (STRUCTURÉ) :
-- Tableau d'actions concrètes avec type, titre, priorité et détails
-- type "tache" = tâche à créer (rappeler, envoyer devis, etc.)
-- type "relance" = relance commerciale à planifier
-- type "deal" = créer ou modifier une affaire dans le pipeline
-- type "enrichissement" = info à ajouter sur la fiche client
-- type "alerte" = situation urgente nécessitant attention immédiate
-- priorite = "haute" si urgent/deadline, "normale" par défaut, "basse" si informatif
-
-CHAMP tachesAFermerDetails :
-- Pour chaque tâche ouverte du client que cet email résout, fournir l'ID, la raison de la fermeture, et des mots-clés pour le matching
-- motsClesTache = mots-clés du titre de la tâche qui aident au matching (ex: ["devis", "santé"] pour "Envoyer devis santé")
-- Si aucune tâche à fermer, tableau vide []
-
-- draftReply = réponse professionnelle prête à envoyer adaptée au courtage d'assurance. Commence par "Bonjour [prénom/nom]," et termine par "Cordialement,\nGargarineV1 — Courtage en assurances". La réponse doit être concise, personnalisée et professionnelle. null si pas de réponse nécessaire ou si c'est un email SORTANT
-- tachesAFermer = IDs des tâches ouvertes à fermer (liste plate pour rétro-compat). Liste vide si aucune.
-- enrichissementClient.notes = info business à retenir (ex: "Le client souhaite renégocier sa mutuelle en septembre"). null si rien de notable.
-- enrichissementClient.statutSuggere = changement de statut si pertinent (ex: "prospect" → "en_cours"). null sinon.
-- contratMentionne = code produit d'assurance mentionné (SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, PER, PROTECTION_JURIDIQUE, RCP_PRO, ASSURANCE_VIE). null sinon.
-- dealUpdate = changement d'étape pipeline si justifié. null sinon.
-- produitsMentionnes = tous les codes produits mentionnés. Liste vide si aucun.
-- expediteurNom = prénom ou nom de la personne. null si impossible.
-- expediteurEntreprise = nom de l'entreprise. null si impossible.
-- Répondre UNIQUEMENT avec le JSON, sans texte avant ni après`;
+RÈGLES :
+- type : "client" si expéditeur est un client existant, "prospect" si potentiel client, "assureur" si compagnie d'assurance, "prescripteur" si comptable/avocat/partenaire, "autre" sinon
+- urgence : "haute" si action immédiate ou deadline proche, "basse" si purement informatif
+- actions : tâches concrètes (tache=rappeler/devis, relance=suivi commercial, deal=affaire pipeline, enrichissement=info fiche, alerte=urgent). Moins d'actions pour emails sortants
+- draftReply : commencer par "Bonjour [nom]," terminer par "Cordialement,
+GargarineV1 — Courtage en assurances". Concise et pro. null si email sortant ou pas de réponse nécessaire
+- produitsMentionnes : codes parmi SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, PER, PROTECTION_JURIDIQUE, RCP_PRO, ASSURANCE_VIE
+- tachesAFermerDetails : IDs des tâches ouvertes résolues par cet email. [] si aucune
+- notes : info business à retenir (ex: "souhaite changer de mutuelle en sept."). null si rien
+- JSON uniquement, sans texte autour`;
 }
 
 const VALID_TYPES = ["client", "prospect", "assureur", "prescripteur", "autre"] as const;

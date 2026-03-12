@@ -22,7 +22,7 @@ async function handler(req: Request) {
   const {
     type, urgence: rawUrgence, resume, sentiment, actionRequise, actionSuggeree,
     draftReply, clientMatch, produitsMentionnes, expediteurNom,
-    expediteurEntreprise, contratMentionne,
+    expediteurEntreprise, contratMentionne, notes, actions,
     // Alternative field names from n8n / AI analysis
     priority, urgencyScore, summary, replySuggestion, suggestedTask,
     intent, productsDetected, senderName, senderCompany,
@@ -32,6 +32,7 @@ async function handler(req: Request) {
     clientMatch?: { found: boolean; clientId?: string; clientName?: string; confidence?: string };
     produitsMentionnes?: string[]; expediteurNom?: string;
     expediteurEntreprise?: string; contratMentionne?: string;
+    notes?: string; actions?: Array<{ type: string; titre: string; priorite?: string; details?: string }>;
     // Alternative fields
     priority?: string; urgencyScore?: number; summary?: string;
     replySuggestion?: string; suggestedTask?: string; intent?: string;
@@ -48,14 +49,15 @@ async function handler(req: Request) {
   const resolvedResume = resume ?? summary ?? null;
   const resolvedType = type ?? intent ?? null;
   const resolvedReply = draftReply ?? replySuggestion ?? null;
-  const resolvedAction = actionSuggeree ?? suggestedTask ?? null;
+  const actionsArr = Array.isArray(actions) ? actions : [];
+  const resolvedAction = actionSuggeree ?? suggestedTask ?? (actionsArr[0]?.titre || null);
   const resolvedProducts = produitsMentionnes ?? productsDetected ?? null;
   const resolvedSenderName = expediteurNom ?? senderName ?? null;
   const resolvedSenderCompany = expediteurEntreprise ?? senderCompany ?? null;
 
   // Determine if action is required (from flag or urgency/task heuristic)
   const resolvedActionRequise = actionRequise ?? !!(
-    resolvedAction || (urgencyScore !== undefined && urgencyScore >= 7)
+    resolvedAction || actionsArr.length > 0 || (urgencyScore !== undefined && urgencyScore >= 7)
   );
 
   let resolvedClientId = email.clientId;
