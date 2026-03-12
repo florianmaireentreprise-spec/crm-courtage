@@ -279,7 +279,7 @@ export async function analyzeEmail(emailId: string) {
   });
 
   // Trigger WF05v2 (fire-and-forget — results come back async via POST /api/n8n/emails)
-  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email-received-v2";
+  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email.received";
   fetch(webhookUrl, {
     method: "POST",
     headers: {
@@ -376,7 +376,7 @@ export async function reanalyzeUnprocessed() {
   });
 
   // Trigger WF05v2 for each (fire-and-forget, with 2s delay between to avoid Gemini rate limit)
-  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email-received-v2";
+  const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email.received";
   let triggered = 0;
   for (const email of emailsToAnalyze) {
     fetch(webhookUrl, {

@@ -190,7 +190,7 @@ function triggerAnalysis(
 
   const url =
     (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) +
-    "/webhook/email-received-v2";
+    "/webhook/email.received";
 
   fetch(url, {
     method: "POST",
