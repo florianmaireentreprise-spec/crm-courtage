@@ -10,20 +10,21 @@ export default async function UrgentEmailsPage() {
   const userId = session?.user?.id;
   if (!userId) return null;
 
-  // Query matches dashboard UrgentEmailsWidget — NO analyseStatut filter
-  // so client emails with high scoreRelevance appear before AI analysis completes
+  // Query matches dashboard — inbound + (haute urgence OR action required OR linked client)
   const urgentEmails = await prisma.email.findMany({
     where: {
       userId,
+      direction: "entrant",
       actionTraitee: false,
       OR: [
         { urgence: "haute" },
-        { scoreRelevance: { gte: 70 } },
+        { actionRequise: true },
+        { clientId: { not: null } },
       ],
     },
     include: { client: true },
     orderBy: [
-      { scoreRelevance: "desc" },
+      { urgence: "asc" },
       { dateEnvoi: "desc" },
     ],
   });

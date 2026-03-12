@@ -71,9 +71,9 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
   // Actions IA: pending actions
   const actionEmails = emails.filter((e) => e.actionRequise && !e.actionTraitee);
 
-  // Urgent: haute urgence or high relevance, not treated
+  // Urgent: inbound + (haute urgence OR action required OR linked client)
   const urgentEmails = emails.filter(
-    (e) => !e.actionTraitee && (e.urgence === "haute" || (e.scoreRelevance ?? 0) >= 70)
+    (e) => e.direction === "entrant" && !e.actionTraitee && (e.urgence === "haute" || e.actionRequise || !!e.clientId)
   );
 
   // Nouveaux contacts: analyzed, not linked, not spam/newsletter

@@ -179,16 +179,18 @@ async function getDashboardDataInternal() {
   const userId = session?.user?.id;
 
   const [urgentEmails, recentEmails, recentDeals, recentTaches] = await Promise.all([
-    // Urgent emails: haute urgence or high relevance, not treated
+    // Urgent emails: inbound + (haute urgence OR action required OR linked client)
     userId
       ? prisma.email.findMany({
           where: {
             userId,
+            direction: "entrant",
+            actionTraitee: false,
             OR: [
               { urgence: "haute" },
-              { scoreRelevance: { gte: 70 } },
+              { actionRequise: true },
+              { clientId: { not: null } },
             ],
-            actionTraitee: false,
           },
           include: { client: { select: { id: true, raisonSociale: true } } },
           orderBy: { dateEnvoi: "desc" },
