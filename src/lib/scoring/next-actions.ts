@@ -7,21 +7,21 @@ export type NextAction = {
   priorite: "haute" | "normale" | "basse";
   titre: string;
   detail: string;
-  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance";
+  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance" | "signal";
   lien?: string;
 };
 
-type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSalaries" | "scoreCouverture"> & {
+type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSalaries" | "scoreCouverture" | "temperatureCommerciale" | "produitsDiscutes" | "objectionsConnues" | "besoinsIdentifies" | "dernierSignalDate" | "dernierSignalResume"> & {
   contrats: Pick<Contrat, "id" | "typeProduit" | "statut" | "dateEcheance" | "dateRenouvellement">[];
   taches: Pick<Tache, "id" | "titre" | "statut" | "dateEcheance" | "priorite" | "sourceAuto" | "emailId">[];
   emails: Pick<Email, "id" | "sujet" | "actionRequise" | "actionTraitee" | "urgence" | "analyseStatut" | "direction" | "dateEnvoi">[];
-  deals: Pick<Deal, "id" | "titre" | "etape" | "dateMaj">[];
+  deals: Pick<Deal, "id" | "titre" | "etape" | "dateMaj" | "produitsCibles">[];
   dirigeant: Pick<Dirigeant, "id" | "dateAuditDirigeant" | "mutuellePerso" | "prevoyancePerso"> | null;
 };
 
 /**
  * Moteur deterministe de recommandation d'actions.
- * Retourne les actions triees par priorite, max 8.
+ * Retourne les actions triees par priorite, max 10.
  */
 export function calculerProchainesActions(client: ClientData): NextAction[] {
   const actions: NextAction[] = [];
@@ -156,9 +156,93 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
     }
   }
 
-  // Sort by priority and limit to 8
+  // 8. Besoin identifie sans deal actif couvrant ce produit
+  if (client.besoinsIdentifies) {
+    try {
+      const besoins: string[] = JSON.parse(client.besoinsIdentifies);
+      const dealsActifs = client.deals.filter((d) => !["PERDU"].includes(d.etape));
+      const dealProduits = new Set(dealsActifs.flatMap((d) => {
+        try { return d.produitsCibles ? JSON.parse(d.produitsCibles) as string[] : []; } catch { return []; }
+      }));
+      const contratsActifs = new Set(client.contrats.filter((c) => c.statut === "actif").map((c) => c.typeProduit));
+      for (const besoin of besoins) {
+        if (!dealProduits.has(besoin) && !contratsActifs.has(besoin)) {
+          const label = TYPES_PRODUITS[besoin as keyof typeof TYPES_PRODUITS]?.label ?? besoin;
+          actions.push({
+            id: `besoin-${besoin}`,
+            priorite: "haute",
+            titre: `Creer deal : ${label}`,
+            detail: "Besoin identifie dans les echanges, aucun deal en cours",
+            type: "signal",
+            lien: "/pipeline",
+          });
+          break; // Max 1 besoin action
+        }
+      }
+    } catch { /* JSON parse error — skip */ }
+  }
+
+  // 9. Objection connue — suggerer contre-argument
+  if (client.objectionsConnues) {
+    try {
+      const objections: string[] = JSON.parse(client.objectionsConnues);
+      const CONTRE_ARGUMENTS: Record<string, string> = {
+        prix: "Preparer comparatif cout/garanties et ROI",
+        timing: "Proposer un rendez-vous de suivi dans 1 mois",
+        concurrent: "Mettre en avant la valeur ajoutee du conseil personnalise",
+      };
+      for (const obj of objections.slice(0, 1)) {
+        actions.push({
+          id: `objection-${obj}`,
+          priorite: "normale",
+          titre: `Objection "${obj}" a traiter`,
+          detail: CONTRE_ARGUMENTS[obj] ?? "Preparer un argument adapte",
+          type: "signal",
+          lien: `/clients/${client.id}`,
+        });
+      }
+    } catch { /* JSON parse error — skip */ }
+  }
+
+  // 10. Temperature froide + deal actif = urgence
+  if (client.temperatureCommerciale === "froid") {
+    const dealsActifs = client.deals.filter((d) => !["PERDU", "ONBOARDING", "DEVELOPPEMENT"].includes(d.etape));
+    if (dealsActifs.length > 0) {
+      actions.push({
+        id: "temperature-froide-deal",
+        priorite: "haute",
+        titre: "Client froid avec deal en cours",
+        detail: `${dealsActifs.length} deal(s) actif(s) — relancer pour eviter perte`,
+        type: "signal",
+        lien: "/pipeline",
+      });
+    }
+  }
+
+  // 11. Signal positif recent = opportunite a saisir
+  if (client.temperatureCommerciale === "chaud" && client.dernierSignalDate) {
+    const joursDepuisSignal = (now - new Date(client.dernierSignalDate).getTime()) / 86400000;
+    if (joursDepuisSignal < 7) {
+      const hasTacheActive = client.taches.some(
+        (t) => (t.statut === "a_faire" || t.statut === "en_cours") &&
+          (t.sourceAuto === "email_reponse_attendue" || t.titre.toLowerCase().includes("relance") || t.titre.toLowerCase().includes("rdv"))
+      );
+      if (!hasTacheActive) {
+        actions.push({
+          id: "signal-chaud",
+          priorite: "haute",
+          titre: "Client chaud — opportunite a saisir",
+          detail: client.dernierSignalResume?.slice(0, 100) ?? "Signaux positifs recents detectes",
+          type: "signal",
+          lien: `/clients/${client.id}`,
+        });
+      }
+    }
+  }
+
+  // Sort by priority and limit to 10
   const prioOrdre = { haute: 0, normale: 1, basse: 2 };
   actions.sort((a, b) => prioOrdre[a.priorite] - prioOrdre[b.priorite]);
 
-  return actions.slice(0, 8);
+  return actions.slice(0, 10);
 }

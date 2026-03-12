@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { withN8nAuth } from "../middleware";
 import { matchClientByEmail, extractEmailAddress } from "@/lib/email/sync";
 import { buildOAuth2Client, createGmailDraft } from "@/lib/email/gmail";
+import { extraireSignauxCommerciaux, mettreAJourMemoireCommerciale } from "@/lib/scoring/signals";
 
 // POST /api/n8n/emails — Store analysis result from n8n WF05v2
 async function handler(req: Request) {
@@ -148,6 +149,24 @@ async function handler(req: Request) {
         ...(newInsights.length > 0 ? { resumeIA: updatedResumeIA } : {}),
       },
     });
+
+    // Stage 2: Extract and persist commercial signals
+    try {
+      const signals = extraireSignauxCommerciaux({
+        produitsMentionnes: resolvedProducts,
+        sentiment: sentiment ?? null,
+        urgence: urgence ?? null,
+        notes: notes ?? null,
+        actions: actionsArr,
+        dealUpdate: body.dealUpdate ?? null,
+        type: resolvedType,
+      });
+      if (signals.length > 0) {
+        await mettreAJourMemoireCommerciale(resolvedClientId, emailId, signals);
+      }
+    } catch (err) {
+      console.error("[n8n/emails] Signal extraction error:", err);
+    }
   }
 
   // Phase 4: Auto-create "Répondre" task for inbound commercial emails

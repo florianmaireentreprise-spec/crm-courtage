@@ -67,6 +67,14 @@ model Client {
   scoreCouverture      Int?       // % couverture 360 (0-100)
   dernierScoring       DateTime?  // Date du dernier calcul
   resumeIA             String?    // Resume IA cumule des interactions
+  // Stage 2: Memoire Commerciale Structuree
+  temperatureCommerciale  String?    // "chaud" | "tiede" | "froid"
+  produitsDiscutes        String?    // JSON: ["SANTE_COLLECTIVE","PER"]
+  objectionsConnues       String?    // JSON: ["prix","timing","concurrent"]
+  besoinsIdentifies       String?    // JSON: ["SANTE_COLLECTIVE","PER"]
+  dernierSignalDate       DateTime?  // Date du dernier signal commercial
+  dernierSignalResume     String?    // Court texte max 200 chars
+  nbSignaux               Int?       // Nombre total de signaux
   // Relations
   contrats             Contrat[]
   deals                Deal[]
@@ -74,6 +82,7 @@ model Client {
   emails               Email[]
   dirigeant            Dirigeant?
   sequenceInscriptions SequenceInscription[]
+  signauxCommerciaux   SignalCommercial[]
 }
 
 model Dirigeant {
@@ -400,6 +409,25 @@ model RapportHebdo {
   dateGeneration  DateTime  @default(now())
 }
 
+
+
+// -- Stage 2: Memoire Commerciale Structuree --
+
+model SignalCommercial {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  emailId      String?
+  typeSignal   String   // produit_mentionne | sentiment_positif | sentiment_negatif | objection | besoin | deal_update | urgence_haute
+  valeur       String   // Code produit, type objection, ou texte libre
+  details      String?  // Contexte libre (max 200 chars)
+  source       String   // email_analysis | manual
+  dateSignal   DateTime @default(now())
+  dateCreation DateTime @default(now())
+
+  @@index([clientId, dateSignal])
+  @@index([clientId, typeSignal])
+}
 
 // ── Intelligence Commerciale : Feedback IA ──
 

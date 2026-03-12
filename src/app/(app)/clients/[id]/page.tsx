@@ -16,6 +16,7 @@ import { calculerCouverture360, getCouvertureColor } from "@/lib/scoring/couvert
 import { persisterScoresClient } from "@/lib/scoring/persist";
 import { calculerProchainesActions } from "@/lib/scoring/next-actions";
 import { NextActionWidget } from "@/components/clients/NextActionWidget";
+import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard";
 
 export default async function ClientDetailPage({
   params,
@@ -288,6 +289,16 @@ export default async function ClientDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-4">
           <NextActionWidget actions={nextActions} />
+
+          <CommercialMemoryCard
+            temperatureCommerciale={client.temperatureCommerciale}
+            produitsDiscutes={client.produitsDiscutes}
+            objectionsConnues={client.objectionsConnues}
+            besoinsIdentifies={client.besoinsIdentifies}
+            dernierSignalDate={client.dernierSignalDate}
+            dernierSignalResume={client.dernierSignalResume}
+            nbSignaux={client.nbSignaux}
+          />
 
           {/* Resume IA */}
           {client.resumeIA && (
