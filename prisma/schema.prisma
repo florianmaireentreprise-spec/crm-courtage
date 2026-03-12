@@ -83,6 +83,7 @@ model Client {
   dirigeant            Dirigeant?
   sequenceInscriptions SequenceInscription[]
   signauxCommerciaux   SignalCommercial[]
+  opportunites         OpportuniteCommerciale[]
 }
 
 model Dirigeant {
@@ -352,6 +353,7 @@ model Email {
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   taches          Tache[]   @relation("EmailTaches")
   feedbacks       FeedbackIA[]
+  opportunites    OpportuniteCommerciale[]
   // Statut
   analyseStatut   String    @default("non_analyse")
   lu              Boolean   @default(false)
@@ -457,4 +459,35 @@ model Settings {
   tauxCommission    String   @default("{}")
   // Timestamps
   dateMaj           DateTime @updatedAt
+}
+
+// -- Stage 3: Opportunity Engine --
+
+model OpportuniteCommerciale {
+  id                String   @id @default(cuid())
+  clientId          String
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sourceType        String   // "signal" | "email_analysis" | "cross_sell" | "manual"
+  sourceEmailId     String?
+  sourceEmail       Email?   @relation(fields: [sourceEmailId], references: [id], onDelete: SetNull)
+  typeProduit       String?  // SANTE_COLLECTIVE, PER, etc.
+  titre             String
+  description       String?
+  statut            String   @default("detectee") // detectee | qualifiee | en_cours | convertie | rejetee | expiree
+  confiance         String   @default("moyenne")  // haute | moyenne | basse
+  temperature       String?  // chaud | tiede | froid
+  origineSignal     String?  // type of signal that triggered detection
+  dedupeKey         String   // clientId:typeProduit:sourceType
+  detecteeLe        DateTime @default(now())
+  derniereActivite  DateTime @default(now())
+  convertieEnDealId String?  // link to Deal if converted
+  motifRejet        String?
+  metadata          Json?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
+  @@index([dedupeKey])
 }

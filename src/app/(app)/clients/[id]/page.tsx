@@ -17,6 +17,7 @@ import { persisterScoresClient } from "@/lib/scoring/persist";
 import { calculerProchainesActions } from "@/lib/scoring/next-actions";
 import { NextActionWidget } from "@/components/clients/NextActionWidget";
 import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard";
+import { OpportunitesCard } from "@/components/clients/OpportunitesCard";
 
 export default async function ClientDetailPage({
   params,
@@ -68,6 +69,15 @@ export default async function ClientDetailPage({
       },
       dirigeant: true,
       prescripteur: true,
+      opportunites: {
+        orderBy: { derniereActivite: "desc" },
+        take: 20,
+        select: {
+          id: true, typeProduit: true, titre: true, description: true,
+          statut: true, confiance: true, temperature: true,
+          origineSignal: true, detecteeLe: true, derniereActivite: true,
+        },
+      },
     },
   });
 
@@ -78,15 +88,6 @@ export default async function ClientDetailPage({
     where: { clientId: id, statut: "terminee" },
     orderBy: { dateRealisation: "desc" },
     take: 20,
-  });
-
-  // Detect sales opportunities from emails with products mentioned
-  const hasOpportunity = client.emails.some((e) => {
-    if (!e.produitsMentionnes) return false;
-    try {
-      const produits = JSON.parse(e.produitsMentionnes);
-      return Array.isArray(produits) && produits.length > 0;
-    } catch { return false; }
   });
 
   // Build timeline events
@@ -196,6 +197,7 @@ export default async function ClientDetailPage({
     emails: client.emails,
     deals: client.deals,
     dirigeant: client.dirigeant,
+    opportunites: client.opportunites,
   });
 
   return (
@@ -215,10 +217,10 @@ export default async function ClientDetailPage({
                 Reseau: {categorieReseau.label}
               </Badge>
             )}
-            {hasOpportunity && (
+            {client.opportunites.filter(o => ["detectee", "qualifiee", "en_cours"].includes(o.statut)).length > 0 && (
               <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 gap-1">
                 <ShoppingBag className="h-2.5 w-2.5" />
-                Opportunite commerciale
+                {client.opportunites.filter(o => ["detectee", "qualifiee", "en_cours"].includes(o.statut)).length} opportunite(s)
               </Badge>
             )}
           </div>
@@ -298,6 +300,15 @@ export default async function ClientDetailPage({
             dernierSignalDate={client.dernierSignalDate}
             dernierSignalResume={client.dernierSignalResume}
             nbSignaux={client.nbSignaux}
+          />
+
+          <OpportunitesCard
+            opportunites={client.opportunites.map(o => ({
+              ...o,
+              detecteeLe: o.detecteeLe.toISOString(),
+              derniereActivite: o.derniereActivite.toISOString(),
+            }))}
+            clientId={client.id}
           />
 
           {/* Resume IA */}

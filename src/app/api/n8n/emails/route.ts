@@ -5,6 +5,7 @@ import { withN8nAuth } from "../middleware";
 import { matchClientByEmail, extractEmailAddress } from "@/lib/email/sync";
 import { buildOAuth2Client, createGmailDraft } from "@/lib/email/gmail";
 import { extraireSignauxCommerciaux, mettreAJourMemoireCommerciale } from "@/lib/scoring/signals";
+import { detecterOpportunitesDepuisEmail } from "@/lib/opportunities/detection";
 
 // POST /api/n8n/emails — Store analysis result from n8n WF05v2
 async function handler(req: Request) {
@@ -166,6 +167,36 @@ async function handler(req: Request) {
       }
     } catch (err) {
       console.error("[n8n/emails] Signal extraction error:", err);
+    }
+
+    // Stage 3: Detect and persist commercial opportunities
+    try {
+      const signals = extraireSignauxCommerciaux({
+        produitsMentionnes: resolvedProducts,
+        sentiment: sentiment ?? null,
+        urgence: urgence ?? null,
+        notes: notes ?? null,
+        actions: actionsArr,
+        dealUpdate: body.dealUpdate ?? null,
+        type: resolvedType,
+      });
+      await detecterOpportunitesDepuisEmail({
+        clientId: resolvedClientId,
+        emailId,
+        signals,
+        emailAnalysis: {
+          type: resolvedType,
+          sentiment: sentiment ?? null,
+          urgence: urgence ?? null,
+          resume: resolvedResume,
+          produitsMentionnes: resolvedProducts,
+          notes: notes ?? null,
+          actions: actionsArr,
+        },
+      });
+    } catch (err) {
+      console.error("[n8n/emails] Opportunity detection error:", err);
+      // Non-blocking: don't fail the email pipeline
     }
   }
 

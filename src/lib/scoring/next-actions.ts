@@ -1,4 +1,4 @@
-import type { Client, Contrat, Tache, Email, Deal, Dirigeant } from "@prisma/client";
+import type { Client, Contrat, Tache, Email, Deal, Dirigeant, OpportuniteCommerciale } from "@prisma/client";
 import { TYPES_PRODUITS } from "@/lib/constants";
 import { COUVERTURE_360 } from "./couverture360";
 
@@ -7,7 +7,7 @@ export type NextAction = {
   priorite: "haute" | "normale" | "basse";
   titre: string;
   detail: string;
-  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance" | "signal";
+  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance" | "signal" | "opportunite";
   lien?: string;
 };
 
@@ -16,6 +16,7 @@ type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSala
   taches: Pick<Tache, "id" | "titre" | "statut" | "dateEcheance" | "priorite" | "sourceAuto" | "emailId">[];
   emails: Pick<Email, "id" | "sujet" | "actionRequise" | "actionTraitee" | "urgence" | "analyseStatut" | "direction" | "dateEnvoi">[];
   deals: Pick<Deal, "id" | "titre" | "etape" | "dateMaj" | "produitsCibles">[];
+  opportunites?: Pick<OpportuniteCommerciale, "id" | "titre" | "statut" | "confiance" | "typeProduit" | "derniereActivite" | "detecteeLe">[];
   dirigeant: Pick<Dirigeant, "id" | "dateAuditDirigeant" | "mutuellePerso" | "prevoyancePerso"> | null;
 };
 
@@ -237,6 +238,77 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
           lien: `/clients/${client.id}`,
         });
       }
+    }
+  }
+
+
+  // 12. Opportunite detectee non qualifiee
+  if (client.opportunites?.length) {
+    const nonQualifiees = client.opportunites.filter(o => o.statut === "detectee" && o.confiance === "haute");
+    for (const opp of nonQualifiees.slice(0, 1)) {
+      actions.push({
+        id: `opp-qualifier-${opp.id}`,
+        priorite: "haute",
+        titre: `Qualifier : ${opp.titre.slice(0, 50)}`,
+        detail: "Opportunite haute confiance detectee automatiquement",
+        type: "opportunite",
+        lien: `/clients/${client.id}`,
+      });
+    }
+
+    // 13. Opportunite active sans activite recente (> 14 jours)
+    const staleOpps = client.opportunites.filter(o => {
+      if (!["qualifiee", "en_cours"].includes(o.statut)) return false;
+      const joursInactif = (now - new Date(o.derniereActivite).getTime()) / 86400000;
+      return joursInactif > 14;
+    });
+    for (const opp of staleOpps.slice(0, 1)) {
+      const jours = Math.round((now - new Date(opp.derniereActivite).getTime()) / 86400000);
+      actions.push({
+        id: `opp-relance-${opp.id}`,
+        priorite: "normale",
+        titre: `Relancer opportunite : ${opp.titre.slice(0, 40)}`,
+        detail: `Aucune activite depuis ${jours} jours`,
+        type: "opportunite",
+        lien: `/clients/${client.id}`,
+      });
+    }
+
+    // 14. Opportunite tres ancienne (> 30 jours)
+    const veryStale = client.opportunites.filter(o => {
+      if (!["detectee", "qualifiee", "en_cours"].includes(o.statut)) return false;
+      const joursAge = (now - new Date(o.detecteeLe).getTime()) / 86400000;
+      return joursAge > 30;
+    });
+    for (const opp of veryStale.slice(0, 1)) {
+      actions.push({
+        id: `opp-review-${opp.id}`,
+        priorite: "basse",
+        titre: `Revoir opportunite : ${opp.titre.slice(0, 40)}`,
+        detail: "Opportunite ouverte depuis plus de 30 jours",
+        type: "opportunite",
+        lien: `/clients/${client.id}`,
+      });
+    }
+  }
+
+  // 15. Objection connue sur opportunite active
+  if (client.objectionsConnues && client.opportunites?.length) {
+    const activeOpps = client.opportunites.filter(o => ["qualifiee", "en_cours"].includes(o.statut));
+    if (activeOpps.length > 0) {
+      try {
+        const objections = JSON.parse(client.objectionsConnues);
+        if (objections.length > 0) {
+          actions.push({
+            id: "opp-objection",
+            priorite: "normale",
+            titre: "Objection sur opportunite active",
+            detail: `${objections[0]} — preparer contre-argument avant relance`,
+            type: "opportunite",
+            lien: `/clients/${client.id}`,
+          });
+        }
+      } catch { /* JSON parse error */ }
     }
   }
 
