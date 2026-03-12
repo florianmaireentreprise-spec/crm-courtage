@@ -213,24 +213,24 @@ Quand un deal change d'etape, des actions automatiques se declenchent:
 ### Signature → Contrats (createContractsFromDeal)
 Cree automatiquement des contrats avec taux de commission par defaut selon le type de produit.
 
-### Analyse Email IA (n8n WF10 queue + WF05v2 legacy)
+### Analyse Email IA (n8n WF10 queue-based)
 L'analyse IA est entierement geree par n8n (architecture n8n-native) :
 1. WF07 sync Gmail → stocke email via POST /api/n8n/emails/store
-2. WF05v2 recoit email.received → charge contexte client → Gemini 2.0 Flash (JSON)
+2. WF10 (cron 30min) poll pending emails → Mistral Small analysis (JSON)
 3. Resultat stocke via POST /api/n8n/emails (type, urgence, resume, actions)
 4. Si action requise : cree tache "Repondre" + brouillon Gmail via CRM OAuth
 5. WF08 : quand email sortant detecte → ferme auto les taches "Repondre"
 6. WF09 : regeneration reponse IA a la demande (bouton CRM → webhook synchrone)
 
 ### Automations (n8n Cloud) — Architecture n8n-native
-11 workflows n8n orchestrent toute l'automatisation. Le CRM est UI + database shell :
+9 workflows n8n orchestrent toute l'automatisation. Le CRM est UI + database shell :
 - **01-auto-tasks** (7h) — echeances, deals inactifs, fidelisation, prescripteurs, couverture
 - **02-sequences** (8h) — execute les etapes de sequences de prospection
 - **03-campagnes** (1er du mois) — campagnes saisonnieres ciblees
 - **04-rapport-hebdo** (lundi 8h) — KPIs + email resume via Gmail
-- **05-email-intelligence-v2** (webhook) — analyse IA avec Gemini 2.0 Flash, cree taches + brouillons
+- **10-email-analysis-queue** (30min) — queue-based email analysis with Mistral Small (batch=10)
 - **06-prescripteur-tracking** (lundi 7h30) — relance prescripteurs inactifs
-- **07-gmail-sync** (15min) — sync Gmail INBOX + SENT, stocke en CRM, declenche WF05/WF08
+- **07-gmail-sync** (30min) — sync Gmail INBOX + SENT, stocke en CRM, declenche WF08
 - **08-auto-close-tasks** (webhook) — ferme auto les taches "Repondre" quand email sortant detecte
 - **09-generate-reply** (webhook sync) — generation reponse IA a la demande depuis le CRM
 Voir `n8n-workflows/README.md` pour la config.

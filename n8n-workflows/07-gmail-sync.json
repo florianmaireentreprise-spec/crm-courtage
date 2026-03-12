@@ -7,13 +7,13 @@
           "interval": [
             {
               "field": "minutes",
-              "minutesInterval": 15
+              "minutesInterval": 30
             }
           ]
         }
       },
       "id": "schedule",
-      "name": "Schedule 15min",
+      "name": "Schedule 30min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -337,7 +337,7 @@
     }
   ],
   "connections": {
-    "Schedule 15min": {
+    "Schedule 30min": {
       "main": [
         [
           {
