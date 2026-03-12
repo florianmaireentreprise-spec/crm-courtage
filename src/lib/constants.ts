@@ -236,3 +236,17 @@ export function getCampagnesActives(): CampagneSaisonniere[] {
   const moisActuel = new Date().getMonth() + 1;
   return CAMPAGNES.filter((c) => c.mois === moisActuel);
 }
+
+// ── Intelligence Commerciale : Feedback IA ──
+
+export const FEEDBACK_TYPES = [
+  { id: "action_executed", label: "Action executee" },
+  { id: "action_ignored", label: "Action ignoree" },
+  { id: "type_corrected", label: "Type corrige" },
+  { id: "urgence_corrected", label: "Urgence corrigee" },
+  { id: "reply_sent", label: "Reponse envoyee" },
+  { id: "reply_edited", label: "Reponse editee" },
+  { id: "client_linked", label: "Client lie" },
+] as const;
+
+export type FeedbackType = (typeof FEEDBACK_TYPES)[number]["id"];

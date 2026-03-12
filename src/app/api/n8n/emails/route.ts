@@ -115,9 +115,38 @@ async function handler(req: Request) {
   });
 
   if (resolvedClientId) {
+    // Update interaction date + accumulate resumeIA
+    const clientForResume = await prisma.client.findUnique({
+      where: { id: resolvedClientId },
+      select: { resumeIA: true },
+    });
+
+    const newInsights: string[] = [];
+    if (resolvedProducts?.length) newInsights.push("Produits: " + resolvedProducts.join(", "));
+    if (resolvedResume) newInsights.push(resolvedResume.slice(0, 200));
+    if (notes) newInsights.push("Note: " + String(notes).slice(0, 100));
+
+    let updatedResumeIA = clientForResume?.resumeIA || "";
+    if (newInsights.length > 0) {
+      const dateStr = new Date().toLocaleDateString("fr-FR");
+      const entry = "[" + dateStr + "] " + newInsights.join(" | ");
+      updatedResumeIA = updatedResumeIA
+        ? entry + "\n" + updatedResumeIA
+        : entry;
+      // FIFO: keep under 2000 chars
+      if (updatedResumeIA.length > 2000) {
+        updatedResumeIA = updatedResumeIA.slice(0, 2000);
+        const lastNewline = updatedResumeIA.lastIndexOf("\n");
+        if (lastNewline > 0) updatedResumeIA = updatedResumeIA.slice(0, lastNewline);
+      }
+    }
+
     await prisma.client.update({
       where: { id: resolvedClientId },
-      data: { derniereInteraction: new Date() },
+      data: {
+        derniereInteraction: new Date(),
+        ...(newInsights.length > 0 ? { resumeIA: updatedResumeIA } : {}),
+      },
     });
   }
 

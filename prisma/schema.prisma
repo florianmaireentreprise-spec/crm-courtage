@@ -61,6 +61,12 @@ model Client {
   assureurActuelSante  String?
   dateDerniereRevision DateTime?
   motifChangement      String?   // prix, service, couverture, conseil
+  // Intelligence Commerciale
+  scoreProspect        Int?       // Score 0-100 (persiste)
+  potentielCA          Float?     // € potentiel annuel
+  scoreCouverture      Int?       // % couverture 360 (0-100)
+  dernierScoring       DateTime?  // Date du dernier calcul
+  resumeIA             String?    // Resume IA cumule des interactions
   // Relations
   contrats             Contrat[]
   deals                Deal[]
@@ -336,6 +342,7 @@ model Email {
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   taches          Tache[]   @relation("EmailTaches")
+  feedbacks       FeedbackIA[]
   // Statut
   analyseStatut   String    @default("non_analyse")
   lu              Boolean   @default(false)
@@ -393,6 +400,21 @@ model RapportHebdo {
   dateGeneration  DateTime  @default(now())
 }
 
+
+// ── Intelligence Commerciale : Feedback IA ──
+
+model FeedbackIA {
+  id            String   @id @default(cuid())
+  emailId       String
+  email         Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  userId        String
+  type          String   // action_executed | action_ignored | type_corrected | urgence_corrected | reply_sent | reply_edited | client_linked
+  champ         String?  // champ corrige (ex: "typeEmail", "urgence")
+  valeurIA      String?  // valeur proposee par IA
+  valeurUser    String?  // valeur corrigee par user
+  metadata      String?  // JSON contextuel
+  dateCreation  DateTime @default(now())
+}
 // ── Parametres du cabinet (singleton) ──
 
 model Settings {

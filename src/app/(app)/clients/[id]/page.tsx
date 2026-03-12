@@ -12,6 +12,10 @@ import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
 import { fr } from "date-fns/locale";
 import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring/prospect";
 import { calculerPotentielCA } from "@/lib/scoring/potentiel";
+import { calculerCouverture360, getCouvertureColor } from "@/lib/scoring/couverture360";
+import { persisterScoresClient } from "@/lib/scoring/persist";
+import { calculerProchainesActions } from "@/lib/scoring/next-actions";
+import { NextActionWidget } from "@/components/clients/NextActionWidget";
 
 export default async function ClientDetailPage({
   params,
@@ -167,9 +171,31 @@ export default async function ClientDetailPage({
     .filter((c) => c.statut === "actif")
     .reduce((sum, c) => sum + (c.commissionAnnuelle ?? 0), 0);
   const categorieReseau = CATEGORIES_RESEAU.find((c) => c.id === client.categorieReseau);
-  const score = calculerScoreProspect(client, client.contrats);
+  // Persist scores (uses 24h cooldown, or computes if missing)
+  let scores: { scoreProspect: number; potentielCA: number; scoreCouverture: number };
+  try {
+    scores = await persisterScoresClient(client.id);
+  } catch {
+    scores = {
+      scoreProspect: calculerScoreProspect(client, client.contrats),
+      potentielCA: calculerPotentielCA(client, client.contrats),
+      scoreCouverture: calculerCouverture360(client.contrats).score,
+    };
+  }
+  const { scoreProspect: score, potentielCA: potentiel, scoreCouverture } = scores;
   const scoreColor = getScoreColor(score);
-  const potentiel = calculerPotentielCA(client, client.contrats);
+  const couvertureColor = getCouvertureColor(scoreCouverture);
+
+  // Compute next actions
+  const nextActions = calculerProchainesActions({
+    ...client,
+    scoreCouverture,
+    contrats: client.contrats,
+    taches: client.taches,
+    emails: client.emails,
+    deals: client.deals,
+    dirigeant: client.dirigeant,
+  });
 
   return (
     <div className="space-y-6">
@@ -251,10 +277,37 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
         )}
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold" style={{ color: couvertureColor }}>{scoreCouverture}%</p>
+            <p className="text-xs text-muted-foreground">Couverture 360</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-4">
+          <NextActionWidget actions={nextActions} />
+
+          {/* Resume IA */}
+          {client.resumeIA && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  Resume IA
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap space-y-1">
+                  {client.resumeIA.split("\n").map((line, i) => (
+                    <p key={i} className="text-xs">{line}</p>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Coordonnees</CardTitle>

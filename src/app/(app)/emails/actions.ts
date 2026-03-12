@@ -6,6 +6,24 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage, sendGmailReply, createGmailDraft, updateGmailDraft, sendGmailDraft, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { callN8nWebhook } from "@/lib/n8n";
+
+// ── Feedback IA tracking (fire-and-forget) ──
+
+async function trackFeedback(
+  emailId: string,
+  userId: string,
+  type: string,
+  extra?: { champ?: string; valeurIA?: string; valeurUser?: string; metadata?: string }
+) {
+  try {
+    await prisma.feedbackIA.create({
+      data: { emailId, userId, type, ...extra },
+    });
+  } catch (err) {
+    console.error("[trackFeedback] Error:", err);
+    // Non-blocking — never fail the parent action
+  }
+}
 import { google } from "googleapis";
 
 // ── Helpers (shared with sync.ts) ──
@@ -398,6 +416,13 @@ export async function sendReply(emailId: string, replyText: string) {
       data: { actionTraitee: true, draftStatut: "envoye", gmailDraftId: null },
     });
 
+    // Track feedback — was the reply edited from the AI suggestion?
+    const wasEdited = email.reponseProposee && replyText !== email.reponseProposee;
+    trackFeedback(emailId, session.user.id, wasEdited ? "reply_edited" : "reply_sent", {
+      valeurIA: email.reponseProposee || undefined,
+      metadata: wasEdited ? JSON.stringify({ edited: true }) : undefined,
+    });
+
     // Auto-close "Répondre" task linked to this email
     await prisma.tache.updateMany({
       where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
@@ -507,6 +532,13 @@ export async function executeEmailAction(emailId: string, actionIndex: number) {
       data: { analyseIA: JSON.stringify(analysis) },
     });
 
+
+    // Track feedback
+    trackFeedback(emailId, session.user.id, "action_executed", {
+      valeurIA: action.titre,
+      metadata: JSON.stringify({ actionIndex, actionType: action.type }),
+    });
+
     revalidatePath("/emails");
     revalidatePath("/relances");
     return { success: true };
@@ -535,6 +567,13 @@ export async function ignoreEmailAction(emailId: string, actionIndex: number) {
     await prisma.email.update({
       where: { id: emailId },
       data: { analyseIA: JSON.stringify(analysis) },
+    });
+
+
+    // Track feedback
+    trackFeedback(emailId, session.user.id, "action_ignored", {
+      valeurIA: actions[actionIndex]?.titre,
+      metadata: JSON.stringify({ actionIndex }),
     });
 
     revalidatePath("/emails");
@@ -583,6 +622,13 @@ export async function linkEmailToClient(emailId: string, clientId: string) {
 
   revalidatePath("/emails");
   revalidatePath("/clients");
+
+  // Track feedback
+  trackFeedback(emailId, session.user.id, "client_linked", {
+    valeurUser: clientId,
+    metadata: JSON.stringify({ clientName: client.raisonSociale }),
+  });
+
   return { success: true, clientName: client.raisonSociale };
 }
 
