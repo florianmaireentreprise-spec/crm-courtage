@@ -5,9 +5,9 @@
 - **ORM**: Prisma 6.19 + PostgreSQL (Neon)
 - **UI**: shadcn/ui + Tailwind CSS 4 + Radix UI + Lucide icons
 - **Auth**: NextAuth v5 beta.30 (credentials provider, bcryptjs)
-- **IA**: Gemini 2.0 Flash via n8n — analyse emails (n8n-native)
+- **IA**: Mistral Small via n8n — analyse emails (queue-based pipeline)
 - **Email**: Gmail API (googleapis) — OAuth2
-- **Automations**: n8n Cloud (10 workflows) — taches auto, sequences, campagnes, rapports, emails, prescripteurs
+- **Automations**: n8n Cloud (11 workflows) — taches auto, sequences, campagnes, rapports, emails, prescripteurs
 - **Charts**: Recharts 3.7
 - **DnD**: @hello-pangea/dnd (Kanban pipeline)
 - **Search**: cmdk (Cmd+K)
@@ -213,7 +213,7 @@ Quand un deal change d'etape, des actions automatiques se declenchent:
 ### Signature → Contrats (createContractsFromDeal)
 Cree automatiquement des contrats avec taux de commission par defaut selon le type de produit.
 
-### Analyse Email IA (n8n WF05v2)
+### Analyse Email IA (n8n WF10 queue + WF05v2 legacy)
 L'analyse IA est entierement geree par n8n (architecture n8n-native) :
 1. WF07 sync Gmail → stocke email via POST /api/n8n/emails/store
 2. WF05v2 recoit email.received → charge contexte client → Gemini 2.0 Flash (JSON)
@@ -223,7 +223,7 @@ L'analyse IA est entierement geree par n8n (architecture n8n-native) :
 6. WF09 : regeneration reponse IA a la demande (bouton CRM → webhook synchrone)
 
 ### Automations (n8n Cloud) — Architecture n8n-native
-10 workflows n8n orchestrent toute l'automatisation. Le CRM est UI + database shell :
+11 workflows n8n orchestrent toute l'automatisation. Le CRM est UI + database shell :
 - **01-auto-tasks** (7h) — echeances, deals inactifs, fidelisation, prescripteurs, couverture
 - **02-sequences** (8h) — execute les etapes de sequences de prospection
 - **03-campagnes** (1er du mois) — campagnes saisonnieres ciblees

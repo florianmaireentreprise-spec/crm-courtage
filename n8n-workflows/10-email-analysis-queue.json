@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/pending?limit=5",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/pending?limit=3",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -115,11 +115,13 @@
       "position": [
         900,
         -100
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "prompt": "={{ $json.prompt }}"
+        "promptType": "define",
+        "text": "={{ $json.prompt }}"
       },
       "id": "analyse-ia",
       "name": "Mistral Analysis",
@@ -128,7 +130,8 @@
       "position": [
         1120,
         -100
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -147,7 +150,7 @@
       ],
       "credentials": {
         "mistralCloudApi": {
-          "id": "",
+          "id": "CdSbi4XuMx1nfOSD",
           "name": "Mistral Cloud account"
         }
       }
@@ -193,6 +196,58 @@
         1560,
         -100
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailId = $('Split emails').first().json.emailId || 'unknown';\nconst errorMsg = $input.first().json.error?.message || 'AI analysis failed';\nreturn [{json:{emailId, status:'erreur', error: errorMsg}}];"
+      },
+      "name": "Handle error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CRM_BASE_URL }}/api/n8n/emails/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-n8n-secret",
+              "value": "={{ $vars.CRM_N8N_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "name": "Report error to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const waitMs = 2000;\nawait new Promise(r => setTimeout(r, waitMs));\nreturn $input.all();"
+      },
+      "name": "Rate limit delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        790,
+        -100
+      ]
     }
   ],
   "connections": {
@@ -234,7 +289,7 @@
       "main": [
         [
           {
-            "node": "Get AI prompt",
+            "node": "Rate limit delay",
             "type": "main",
             "index": 0
           }
@@ -249,6 +304,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Handle error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -257,6 +319,13 @@
         [
           {
             "node": "Parse AI result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle error",
             "type": "main",
             "index": 0
           }
@@ -280,6 +349,28 @@
           {
             "node": "Mistral Analysis",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle error": {
+      "main": [
+        [
+          {
+            "node": "Report error to CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate limit delay": {
+      "main": [
+        [
+          {
+            "node": "Get AI prompt",
+            "type": "main",
             "index": 0
           }
         ]
