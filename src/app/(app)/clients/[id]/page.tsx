@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2, Sparkles, ShoppingBag } from "lucide-react";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2, Sparkles, ShoppingBag, FolderOpen } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
@@ -18,6 +18,7 @@ import { calculerProchainesActions } from "@/lib/scoring/next-actions";
 import { NextActionWidget } from "@/components/clients/NextActionWidget";
 import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard";
 import { OpportunitesCard } from "@/components/clients/OpportunitesCard";
+import { DocumentsTab } from "@/components/clients/DocumentsTab";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 
 export default async function ClientDetailPage({
@@ -531,6 +532,7 @@ export default async function ClientDetailPage({
               <TabsTrigger value="pipeline">Pipeline ({client.deals.length})</TabsTrigger>
               <TabsTrigger value="taches">Taches ({client.taches.length})</TabsTrigger>
               <TabsTrigger value="emails">Emails ({client.emails.length})</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="historique">Historique</TabsTrigger>
             </TabsList>
 
@@ -659,6 +661,20 @@ export default async function ClientDetailPage({
 
             <TabsContent value="emails" className="mt-4">
               <ClientEmailHistory emails={client.emails} />
+            </TabsContent>
+
+            <TabsContent value="documents" className="mt-4">
+              <DocumentsTab
+                clientId={client.id}
+                contrats={client.contrats.map((c) => ({
+                  id: c.id,
+                  label: `${c.typeProduit} — ${c.compagnie?.nom || ""}`.trim(),
+                }))}
+                opportunites={client.opportunites
+                  .filter((o) => ["detectee", "qualifiee", "en_cours"].includes(o.statut))
+                  .map((o) => ({ id: o.id, label: o.titre }))}
+                deals={client.deals.map((d) => ({ id: d.id, label: d.titre }))}
+              />
             </TabsContent>
 
             <TabsContent value="historique" className="mt-4">

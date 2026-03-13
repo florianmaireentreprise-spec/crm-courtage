@@ -84,6 +84,7 @@ model Client {
   sequenceInscriptions SequenceInscription[]
   signauxCommerciaux   SignalCommercial[]
   opportunites         OpportuniteCommerciale[]
+  documents            Document[]
 }
 
 model Dirigeant {
@@ -492,4 +493,41 @@ model OpportuniteCommerciale {
   @@index([clientId])
   @@index([statut])
   @@index([dedupeKey])
+}
+
+// -- GED V1: Document Management --
+
+model Document {
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contratId       String?
+  opportuniteId   String?
+  dealId          String?
+  sourceEmailId   String?
+  // Fichier
+  nomFichier      String    // Nom original du fichier uploade
+  nomAffiche      String    // Nom affiche dans le CRM (modifiable)
+  categorie       String    // administratif | conseil | contractuel | echange
+  typeDocument    String    // piece_identite | contrat | audit | etc.
+  source          String    @default("upload_manuel") // upload_manuel | email_piece_jointe | genere_crm | importe
+  mimeType        String
+  tailleOctets    Int
+  // Vercel Blob
+  storageKey      String    // Blob pathname
+  storageUrl      String    // Blob URL (private)
+  // Dates
+  dateDocument    DateTime? // Date du document (ex: date du contrat)
+  dateExpiration  DateTime? // Date d'expiration le cas echeant
+  // Gestion
+  archive         Boolean   @default(false)
+  notes           String?
+  tags            String?   // JSON array: ["urgent","original"]
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([clientId, archive])
+  @@index([categorie])
 }
