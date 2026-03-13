@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, ChevronDown, ChevronUp, Loader2, ArrowUpRight, ArrowDownLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronUp, Loader2, ArrowUpRight, ArrowDownLeft, AlertTriangle, CheckCircle2, ShoppingBag, Lightbulb } from "lucide-react";
 import { analyzeEmail, markEmailRead, markActionTraitee } from "@/app/(app)/emails/actions";
 import { AnalysisPanel } from "./AnalysisPanel";
 import { format } from "date-fns";
@@ -14,6 +14,7 @@ import type { Email, Client } from "@prisma/client";
 type Props = {
   email: Email & { client: Client | null };
   onClick?: () => void;
+  opportunityInfo?: { count: number; statuts: string[] } | null;
 };
 
 const typeConfig: Record<string, { label: string; class: string }> = {
@@ -44,7 +45,18 @@ const statusLabels: Record<string, string> = {
   erreur: "Erreur",
 };
 
-export function EmailCard({ email, onClick }: Props) {
+const PRODUCT_SHORT: Record<string, string> = {
+  SANTE_COLLECTIVE: "Sante coll.",
+  PREVOYANCE_COLLECTIVE: "Prevoyance coll.",
+  PREVOYANCE_MADELIN: "Prevoyance Mad.",
+  SANTE_MADELIN: "Sante Mad.",
+  RCP_PRO: "RCP Pro",
+  PER: "PER",
+  ASSURANCE_VIE: "Assurance vie",
+  PROTECTION_JURIDIQUE: "PJ",
+};
+
+export function EmailCard({ email, onClick, opportunityInfo }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [treated, setTreated] = useState(email.actionTraitee);
@@ -77,8 +89,16 @@ export function EmailCard({ email, onClick }: Props) {
   const emailUrgence = urgenceConfig[email.urgence ?? ""] ?? urgenceConfig.normale;
   const isCommercial = email.typeEmail && ["client", "prospect", "prescripteur"].includes(email.typeEmail);
 
+  // Parse products from JSON
+  let products: string[] = [];
+  if (email.produitsMentionnes) {
+    try { products = JSON.parse(email.produitsMentionnes); } catch { /* ignore */ }
+  }
+
+  const hasOpportunity = opportunityInfo && opportunityInfo.count > 0;
+
   return (
-    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20" : ""} ${email.urgence === "haute" ? "border-l-4 border-l-red-400" : isCommercial ? "border-l-4 border-l-blue-400" : ""}`}>
+    <Card className={`transition-colors ${!email.lu ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20" : ""} ${email.urgence === "haute" ? "border-l-4 border-l-red-400" : hasOpportunity ? "border-l-4 border-l-amber-400" : isCommercial ? "border-l-4 border-l-blue-400" : ""}`}>
       <CardContent className="p-4">
         <div
           className="flex items-start justify-between gap-3 cursor-pointer"
@@ -110,7 +130,7 @@ export function EmailCard({ email, onClick }: Props) {
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end max-w-[50%]">
             {/* Type badge */}
             {emailType.label && (
               <Badge variant="outline" className={`text-[10px] ${emailType.class}`}>
@@ -123,6 +143,27 @@ export function EmailCard({ email, onClick }: Props) {
               <Badge variant="outline" className={`text-[10px] ${emailUrgence.class}`}>
                 <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
                 {emailUrgence.label}
+              </Badge>
+            )}
+
+            {/* Product badges (max 2) */}
+            {products.slice(0, 2).map((p) => (
+              <Badge key={p} variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 gap-0.5">
+                <ShoppingBag className="h-2.5 w-2.5" />
+                {PRODUCT_SHORT[p] || p}
+              </Badge>
+            ))}
+            {products.length > 2 && (
+              <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200">
+                +{products.length - 2}
+              </Badge>
+            )}
+
+            {/* Opportunity indicator */}
+            {hasOpportunity && (
+              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 gap-0.5">
+                <Lightbulb className="h-2.5 w-2.5" />
+                {opportunityInfo.count} opp.
               </Badge>
             )}
 

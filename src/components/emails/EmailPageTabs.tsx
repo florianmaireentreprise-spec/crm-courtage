@@ -22,6 +22,7 @@ import {
   Users,
   Briefcase,
   AlertTriangle,
+  Lightbulb,
 } from "lucide-react";
 import { EmailCard } from "./EmailCard";
 import { EmailDetailSheet } from "./EmailDetailSheet";
@@ -38,9 +39,10 @@ type Props = {
   emails: EmailWithClient[];
   pendingCount: number;
   unknownCount: number;
+  opportunityMap: Record<string, { count: number; statuts: string[] }>;
 };
 
-export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
+export function EmailPageTabs({ emails, pendingCount, unknownCount, opportunityMap }: Props) {
   const [selectedEmail, setSelectedEmail] = useState<EmailWithClient | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -53,6 +55,10 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
   const [filterDirection, setFilterDirection] = useState<string>("all");
   const [filterClient, setFilterClient] = useState<string>("all");
 
+  function getOppInfo(email: EmailWithClient) {
+    return email.clientId ? opportunityMap[email.clientId] ?? null : null;
+  }
+
   // Inbox filtered emails
   const inboxFiltered = emails.filter((e) => {
     if (filterType !== "all" && e.typeEmail !== filterType) return false;
@@ -63,18 +69,35 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
     return true;
   });
 
-  // Commerciaux: client, prospect, prescripteur
-  const commercialEmails = emails.filter(
-    (e) => e.typeEmail && ["client", "prospect", "prescripteur"].includes(e.typeEmail)
-  );
+  // Commerciaux: client, prospect, prescripteur — sorted by commercial priority
+  const commercialEmails = emails
+    .filter((e) => e.typeEmail && ["client", "prospect", "prescripteur"].includes(e.typeEmail))
+    .sort((a, b) => {
+      // Priority: urgent > has opportunity > action required > recent
+      const scoreA = commercialScore(a);
+      const scoreB = commercialScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return new Date(b.dateEnvoi).getTime() - new Date(a.dateEnvoi).getTime();
+    });
+
+  function commercialScore(e: EmailWithClient): number {
+    let score = 0;
+    if (e.urgence === "haute") score += 8;
+    if (e.clientId && opportunityMap[e.clientId]) score += 4;
+    if (e.actionRequise && !e.actionTraitee) score += 2;
+    if (e.typeEmail === "prospect") score += 1;
+    return score;
+  }
 
   // Actions IA: pending actions
   const actionEmails = emails.filter((e) => e.actionRequise && !e.actionTraitee);
 
-  // Urgent: inbound + (haute urgence OR action required OR linked client)
-  const urgentEmails = emails.filter(
-    (e) => e.direction === "entrant" && !e.actionTraitee && (e.urgence === "haute" || e.actionRequise || !!e.clientId)
-  );
+  // Opportunites: emails linked to clients with active opportunities
+  const opportunityEmails = emails.filter((e) => {
+    if (!e.clientId) return false;
+    const oppInfo = opportunityMap[e.clientId];
+    return oppInfo && oppInfo.count > 0;
+  });
 
   // Nouveaux contacts: analyzed, not linked, not spam/newsletter
   const unknownEmails = emails.filter(
@@ -91,6 +114,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
   const entrants = emails.filter((e) => e.direction === "entrant").length;
   const sortants = emails.filter((e) => e.direction === "sortant").length;
   const autoAnalyzed = emails.filter((e) => e.analyseStatut === "analyse").length;
+  const oppClientCount = Object.keys(opportunityMap).length;
 
   function handleEmailClick(email: EmailWithClient) {
     setSelectedEmail(email);
@@ -142,6 +166,13 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
             <span className="text-muted-foreground">analyses</span>
           </div>
         )}
+        {oppClientCount > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <Lightbulb className="h-4 w-4 text-amber-600" />
+            <span className="font-medium text-amber-600">{oppClientCount}</span>
+            <span className="text-muted-foreground">clients avec opp.</span>
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}
@@ -160,7 +191,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
 
       {/* Tabs */}
       <Tabs defaultValue="inbox" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="inbox" className="gap-1.5">
             <Mail className="h-3.5 w-3.5" />
             Inbox
@@ -173,21 +204,21 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
               {commercialEmails.length}
             </Badge>
           </TabsTrigger>
+          <TabsTrigger value="opportunites" className="gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5" />
+            Opportunites
+            {opportunityEmails.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-amber-100 text-amber-600">
+                {opportunityEmails.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="actions" className="gap-1.5">
             <Zap className="h-3.5 w-3.5" />
             Actions IA
             {pendingCount > 0 && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-orange-100 text-orange-600">
                 {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="urgents" className="gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Urgents
-            {urgentEmails.length > 0 && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 bg-red-100 text-red-600">
-                {urgentEmails.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -258,7 +289,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {inboxFiltered.map((email) => (
-                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} opportunityInfo={getOppInfo(email)} />
               ))}
             </div>
           )}
@@ -267,7 +298,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
         {/* Commerciaux Tab */}
         <TabsContent value="commerciaux" className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            Emails de clients, prospects et prescripteurs
+            Emails de clients, prospects et prescripteurs — tries par priorite commerciale
           </p>
 
           {commercialEmails.length === 0 ? (
@@ -277,7 +308,28 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {commercialEmails.map((email) => (
-                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} opportunityInfo={getOppInfo(email)} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Opportunites Tab */}
+        <TabsContent value="opportunites" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Emails lies a des clients avec des opportunites commerciales actives
+          </p>
+
+          {opportunityEmails.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Lightbulb className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+              <p>Aucun email lie a une opportunite active</p>
+              <p className="text-xs mt-1">Les opportunites sont detectees automatiquement depuis les analyses IA</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {opportunityEmails.map((email) => (
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} opportunityInfo={getOppInfo(email)} />
               ))}
             </div>
           )}
@@ -310,26 +362,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {actionEmails.map((email) => (
-                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Urgents Tab */}
-        <TabsContent value="urgents" className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            Emails urgents necessitant une action rapide
-          </p>
-
-          {urgentEmails.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Aucun email urgent</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {urgentEmails.map((email) => (
-                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} opportunityInfo={getOppInfo(email)} />
               ))}
             </div>
           )}
@@ -348,7 +381,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount }: Props) {
           ) : (
             <div className="space-y-2">
               {unknownEmails.map((email) => (
-                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} />
+                <EmailCard key={email.id} email={email} onClick={() => handleEmailClick(email)} opportunityInfo={getOppInfo(email)} />
               ))}
             </div>
           )}

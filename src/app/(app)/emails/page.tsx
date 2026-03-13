@@ -58,6 +58,23 @@ export default async function EmailsPage() {
     (e) => !e.clientId && e.typeEmail && !["newsletter", "spam", "autre"].includes(e.typeEmail) && e.analyseStatut === "analyse"
   ).length;
 
+  // Fetch active opportunity counts per client (single query, not N+1)
+  const clientIds = [...new Set(emails.map((e) => e.clientId).filter(Boolean))] as string[];
+  const opportunityMap: Record<string, { count: number; statuts: string[] }> = {};
+  if (clientIds.length > 0) {
+    const opps = await prisma.opportuniteCommerciale.findMany({
+      where: { clientId: { in: clientIds }, statut: { in: ["detectee", "qualifiee", "en_cours"] } },
+      select: { clientId: true, statut: true },
+    });
+    for (const opp of opps) {
+      if (!opportunityMap[opp.clientId]) opportunityMap[opp.clientId] = { count: 0, statuts: [] };
+      opportunityMap[opp.clientId].count++;
+      if (!opportunityMap[opp.clientId].statuts.includes(opp.statut)) {
+        opportunityMap[opp.clientId].statuts.push(opp.statut);
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -104,6 +121,7 @@ export default async function EmailsPage() {
           emails={emails}
           pendingCount={pendingCount}
           unknownCount={unknownCount}
+          opportunityMap={opportunityMap}
         />
       )}
     </div>
