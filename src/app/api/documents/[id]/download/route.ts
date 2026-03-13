@@ -15,24 +15,24 @@ export async function GET(
       return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
     }
 
-    // Fetch private blob content
+    // Fetch private blob content — SDK returns { stream, blob, statusCode }
     const blobResult = await get(document.storageUrl, { access: "private" });
-    if (!blobResult) {
+    if (!blobResult || blobResult.statusCode === 304 || !blobResult.stream) {
       return NextResponse.json({ error: "Fichier introuvable dans le storage" }, { status: 404 });
     }
 
     // Stream the blob to the client with appropriate headers
     const headers = new Headers();
-    headers.set("Content-Type", document.mimeType);
+    headers.set("Content-Type", blobResult.blob.contentType || document.mimeType);
     headers.set(
       "Content-Disposition",
       `attachment; filename="${encodeURIComponent(document.nomAffiche || document.nomFichier)}"`,
     );
-    if (blobResult.contentLength) {
-      headers.set("Content-Length", String(blobResult.contentLength));
+    if (blobResult.blob.size) {
+      headers.set("Content-Length", String(blobResult.blob.size));
     }
 
-    return new Response(blobResult.body, { headers });
+    return new Response(blobResult.stream, { headers });
   } catch (error) {
     console.error("[documents/download] Error:", error);
     return NextResponse.json(
