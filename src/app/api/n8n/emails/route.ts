@@ -151,17 +151,19 @@ async function handler(req: Request) {
       },
     });
 
-    // Stage 2: Extract and persist commercial signals
+    // Stage 2 + 3: Extract signals once, use for both memory update and opportunity detection
+    const signals = extraireSignauxCommerciaux({
+      produitsMentionnes: resolvedProducts,
+      sentiment: sentiment ?? null,
+      urgence: urgence ?? null,
+      notes: notes ?? null,
+      actions: actionsArr,
+      dealUpdate: body.dealUpdate ?? null,
+      type: resolvedType,
+    });
+
+    // Stage 2: Persist commercial signals and update client memory
     try {
-      const signals = extraireSignauxCommerciaux({
-        produitsMentionnes: resolvedProducts,
-        sentiment: sentiment ?? null,
-        urgence: urgence ?? null,
-        notes: notes ?? null,
-        actions: actionsArr,
-        dealUpdate: body.dealUpdate ?? null,
-        type: resolvedType,
-      });
       if (signals.length > 0) {
         await mettreAJourMemoireCommerciale(resolvedClientId, emailId, signals);
       }
@@ -171,15 +173,6 @@ async function handler(req: Request) {
 
     // Stage 3: Detect and persist commercial opportunities
     try {
-      const signals = extraireSignauxCommerciaux({
-        produitsMentionnes: resolvedProducts,
-        sentiment: sentiment ?? null,
-        urgence: urgence ?? null,
-        notes: notes ?? null,
-        actions: actionsArr,
-        dealUpdate: body.dealUpdate ?? null,
-        type: resolvedType,
-      });
       await detecterOpportunitesDepuisEmail({
         clientId: resolvedClientId,
         emailId,
@@ -196,7 +189,6 @@ async function handler(req: Request) {
       });
     } catch (err) {
       console.error("[n8n/emails] Opportunity detection error:", err);
-      // Non-blocking: don't fail the email pipeline
     }
   }
 

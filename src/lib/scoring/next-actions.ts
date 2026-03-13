@@ -183,8 +183,9 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
     } catch { /* JSON parse error — skip */ }
   }
 
-  // 9. Objection connue — suggerer contre-argument
-  if (client.objectionsConnues) {
+  // 9. Objection connue — suggerer contre-argument (skip if active opportunities exist, rule 15 handles that)
+  const hasActiveOpps = client.opportunites?.some(o => ["qualifiee", "en_cours"].includes(o.statut));
+  if (client.objectionsConnues && !hasActiveOpps) {
     try {
       const objections: string[] = JSON.parse(client.objectionsConnues);
       const CONTRE_ARGUMENTS: Record<string, string> = {

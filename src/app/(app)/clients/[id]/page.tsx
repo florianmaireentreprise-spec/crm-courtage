@@ -188,17 +188,22 @@ export default async function ClientDetailPage({
   const scoreColor = getScoreColor(score);
   const couvertureColor = getCouvertureColor(scoreCouverture);
 
-  // Compute next actions
-  const nextActions = calculerProchainesActions({
-    ...client,
-    scoreCouverture,
-    contrats: client.contrats,
-    taches: client.taches,
-    emails: client.emails,
-    deals: client.deals,
-    dirigeant: client.dirigeant,
-    opportunites: client.opportunites,
-  });
+  // Compute next actions (defensive — never crash client page)
+  let nextActions: ReturnType<typeof calculerProchainesActions> = [];
+  try {
+    nextActions = calculerProchainesActions({
+      ...client,
+      scoreCouverture,
+      contrats: client.contrats,
+      taches: client.taches,
+      emails: client.emails,
+      deals: client.deals,
+      dirigeant: client.dirigeant,
+      opportunites: client.opportunites,
+    });
+  } catch (err) {
+    console.error("[client page] NBA computation error:", err);
+  }
 
   return (
     <div className="space-y-6">

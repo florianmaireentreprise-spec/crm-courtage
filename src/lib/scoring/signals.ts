@@ -160,6 +160,12 @@ export async function mettreAJourMemoireCommerciale(
 ): Promise<void> {
   if (signals.length === 0) return;
 
+  // Idempotency: skip if signals already exist for this email
+  const existingCount = await prisma.signalCommercial.count({
+    where: { clientId, emailId },
+  });
+  if (existingCount > 0) return;
+
   // 1. Inserer les signaux
   await prisma.signalCommercial.createMany({
     data: signals.map((s) => ({

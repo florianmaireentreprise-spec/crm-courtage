@@ -175,22 +175,31 @@ function deduplicateCandidates(candidates: OpportuniteCandidate[]): OpportuniteC
 }
 
 const STATUTS_ACTIFS = ["detectee", "qualifiee", "en_cours"];
+const REJETEE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 async function persistOpportunites(
   clientId: string,
   emailId: string,
   candidates: OpportuniteCandidate[],
 ): Promise<void> {
-  // Fetch all active opportunities for this client
+  // Fetch active + recently rejected opportunities for this client
+  const rejetCutoff = new Date(Date.now() - REJETEE_COOLDOWN_MS);
   const existingOpps = await prisma.opportuniteCommerciale.findMany({
     where: {
       clientId,
-      statut: { in: STATUTS_ACTIFS },
+      OR: [
+        { statut: { in: STATUTS_ACTIFS } },
+        { statut: "rejetee", updatedAt: { gte: rejetCutoff } },
+      ],
     },
-    select: { id: true, dedupeKey: true, confiance: true },
+    select: { id: true, dedupeKey: true, confiance: true, statut: true },
   });
 
-  const existingKeys = new Map(existingOpps.map((o) => [o.dedupeKey, o]));
+  const activeOpps = existingOpps.filter((o) => STATUTS_ACTIFS.includes(o.statut));
+  const rejeteeKeys = new Set(
+    existingOpps.filter((o) => o.statut === "rejetee").map((o) => o.dedupeKey),
+  );
+  const existingKeys = new Map(activeOpps.map((o) => [o.dedupeKey, o]));
 
   for (const candidate of candidates) {
     const existing = existingKeys.get(candidate.dedupeKey);
@@ -209,9 +218,12 @@ async function persistOpportunites(
         },
       });
     } else {
+      // Skip if same dedupeKey was rejected in last 30 days
+      if (rejeteeKeys.has(candidate.dedupeKey)) continue;
+
       // Also check if there's an active opportunity for same client+product (broader dedup)
       if (candidate.typeProduit) {
-        const sameProductOpp = existingOpps.find(
+        const sameProductOpp = activeOpps.find(
           (o) => o.dedupeKey.startsWith(`${clientId}:${candidate.typeProduit}:`),
         );
         if (sameProductOpp) {
@@ -225,6 +237,12 @@ async function persistOpportunites(
           });
           continue;
         }
+
+        // Also check broader rejetee: same product rejected recently
+        const sameProductRejected = existingOpps.find(
+          (o) => o.statut === "rejetee" && o.dedupeKey.startsWith(`${clientId}:${candidate.typeProduit}:`),
+        );
+        if (sameProductRejected) continue;
       }
 
       // Create new opportunity
