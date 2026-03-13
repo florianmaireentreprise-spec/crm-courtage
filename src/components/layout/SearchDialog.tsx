@@ -109,6 +109,7 @@ export function SearchDialog() {
       </button>
 
       <CommandDialog
+        shouldFilter={false}
         open={open}
         onOpenChange={(v) => {
           setOpen(v);
