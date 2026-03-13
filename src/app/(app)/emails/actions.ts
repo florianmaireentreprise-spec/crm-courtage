@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { buildOAuth2Client, parseGmailMessage, sendGmailReply, createGmailDraft, updateGmailDraft, sendGmailDraft, GMAIL_SCOPES } from "@/lib/email/gmail";
 import { callN8nWebhook } from "@/lib/n8n";
+import { extraireSignauxCommerciaux, mettreAJourMemoireCommerciale } from "@/lib/scoring/signals";
+import { detecterOpportunitesDepuisEmail } from "@/lib/opportunities/detection";
 
 // ── Feedback IA tracking (fire-and-forget) ──
 
@@ -685,6 +687,155 @@ export async function createClientFromEmail(emailId: string) {
   revalidatePath("/emails");
   revalidatePath("/clients");
   return { success: true, clientId: client.id, clientName: client.raisonSociale };
+}
+
+// ── CREATE PROSPECT + OPPORTUNITY from email (Stage 4) ──
+
+export async function createProspectAndOpportunity(emailId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifié" };
+
+  const email = await prisma.email.findUnique({ where: { id: emailId } });
+  if (!email) return { error: "Email non trouvé" };
+
+  // 1. Resolve clientId (idempotent: 3 sequential checks)
+  let clientId = email.clientId;
+  let clientName = "";
+  let clientCreated = false;
+
+  if (!clientId) {
+    // Check if a client already matches this sender email
+    clientId = await matchClientByEmail(email.expediteur);
+  }
+
+  if (!clientId) {
+    // Create prospect from sender info
+    let expediteurNom = "";
+    let expediteurEntreprise = "";
+    if (email.analyseIA) {
+      try {
+        const analysis = JSON.parse(email.analyseIA);
+        expediteurNom = analysis.expediteurNom || "";
+        expediteurEntreprise = analysis.expediteurEntreprise || "";
+      } catch { /* ignore */ }
+    }
+
+    if (!expediteurNom) {
+      const match = email.expediteur.match(/^([^<]+)\s*</);
+      expediteurNom = match ? match[1].trim() : email.expediteur.split("@")[0];
+    }
+
+    const emailAddr = extractEmailAddress(email.expediteur);
+    const nameParts = expediteurNom.split(" ");
+    const prenom = nameParts[0] || expediteurNom;
+    const nom = nameParts.slice(1).join(" ") || prenom;
+
+    const client = await prisma.client.create({
+      data: {
+        raisonSociale: expediteurEntreprise || expediteurNom,
+        prenom,
+        nom,
+        email: emailAddr,
+        statut: "prospect",
+        sourceAcquisition: "Email entrant",
+        notes: `Créé depuis l'email: "${email.sujet}"`,
+        derniereInteraction: email.dateEnvoi,
+      },
+    });
+
+    clientId = client.id;
+    clientName = client.raisonSociale;
+    clientCreated = true;
+  } else {
+    // Fetch existing client name
+    const existing = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { raisonSociale: true },
+    });
+    clientName = existing?.raisonSociale || "";
+  }
+
+  // 2. Link email to client (idempotent)
+  if (email.clientId !== clientId) {
+    await prisma.email.update({
+      where: { id: emailId },
+      data: { clientId },
+    });
+  }
+
+  // 3. Parse analysis data for signal extraction
+  let analysisData: {
+    produitsMentionnes?: string[];
+    sentiment?: string;
+    urgence?: string;
+    notes?: string;
+    actions?: Array<{ type: string; titre: string; priorite?: string; details?: string }>;
+    dealUpdate?: { etapeSuggeree?: string };
+    type?: string;
+    resume?: string;
+  } = {};
+  if (email.analyseIA) {
+    try {
+      analysisData = JSON.parse(email.analyseIA);
+    } catch { /* ignore */ }
+  }
+
+  // 4. Extract signals (deterministic, no AI call)
+  const signals = extraireSignauxCommerciaux({
+    produitsMentionnes: analysisData.produitsMentionnes ?? null,
+    sentiment: analysisData.sentiment ?? null,
+    urgence: analysisData.urgence ?? email.urgence ?? null,
+    notes: analysisData.notes ?? null,
+    actions: analysisData.actions ?? [],
+    dealUpdate: analysisData.dealUpdate ?? null,
+    type: analysisData.type ?? email.typeEmail ?? null,
+  });
+
+  // 5. Update commercial memory (idempotent via emailId check)
+  try {
+    if (signals.length > 0) {
+      await mettreAJourMemoireCommerciale(clientId, emailId, signals);
+    }
+  } catch (err) {
+    console.error("[createProspectAndOpportunity] Signal persistence error:", err);
+  }
+
+  // 6. Detect opportunities (idempotent via dedupeKey)
+  try {
+    await detecterOpportunitesDepuisEmail({
+      clientId,
+      emailId,
+      signals,
+      emailAnalysis: {
+        type: analysisData.type ?? email.typeEmail ?? null,
+        sentiment: analysisData.sentiment ?? email.sentiment ?? null,
+        urgence: analysisData.urgence ?? email.urgence ?? null,
+        resume: analysisData.resume ?? email.resume ?? null,
+        produitsMentionnes: analysisData.produitsMentionnes ?? null,
+        notes: analysisData.notes ?? null,
+        actions: analysisData.actions ?? [],
+      },
+    });
+  } catch (err) {
+    console.error("[createProspectAndOpportunity] Opportunity detection error:", err);
+  }
+
+  // 7. Count opportunities linked to this email
+  const opportunitesCount = await prisma.opportuniteCommerciale.count({
+    where: { clientId, sourceEmailId: emailId },
+  });
+
+  revalidatePath("/emails");
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+
+  return {
+    success: true as const,
+    clientId,
+    clientName,
+    clientCreated,
+    opportunitesCount,
+  };
 }
 
 // ── CREATE TASK from email suggestion ──

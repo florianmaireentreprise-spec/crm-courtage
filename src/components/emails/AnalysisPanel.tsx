@@ -34,6 +34,7 @@ import {
   createDealFromEmail,
   createClientFromEmail,
   createContactFromEmail,
+  createProspectAndOpportunity,
   saveDraft,
   sendDraft,
   executeEmailAction,
@@ -115,6 +116,10 @@ export function AnalysisPanel({ email }: Props) {
   const [creatingContact, setCreatingContact] = useState<string | null>(null);
   const [contactCreated, setContactCreated] = useState<{ name: string; type: string } | null>(null);
 
+  // Prospect + Opportunity creation (Stage 4)
+  const [creatingProspectOpp, setCreatingProspectOpp] = useState(false);
+  const [prospectOppResult, setProspectOppResult] = useState<{ clientId: string; clientName: string; opportunitesCount: number } | null>(null);
+
   const [executingAction, setExecutingAction] = useState<number | null>(null);
   const [actionStates, setActionStates] = useState<Record<number, "executed" | "ignored">>({});
   const [closingTask, setClosingTask] = useState<string | null>(null);
@@ -184,6 +189,26 @@ export function AnalysisPanel({ email }: Props) {
       setContactCreated({ name: result.contactName ?? "Contact créé", type: result.contactType ?? type });
     }
     setCreatingContact(null);
+  }
+
+  // Stage 4: Prospect + Opportunity creation
+  const QUOTE_KEYWORDS = ["devis", "cotation", "tarif", "proposition"];
+  const hasCommercialIntent =
+    produitsMentionnes.length > 0 ||
+    email.typeEmail === "prospect" ||
+    (email.actionRequise && email.urgence === "haute") ||
+    actions.some((a) => a.type === "deal" || a.type === "relance") ||
+    (email.resume && QUOTE_KEYWORDS.some((kw) => email.resume!.toLowerCase().includes(kw)));
+
+  const CTA_LABEL = "Créer Prospect + Opportunité";
+
+  async function handleCreateProspectAndOpportunity() {
+    setCreatingProspectOpp(true);
+    const result = await createProspectAndOpportunity(email.id);
+    if (result.success) {
+      setProspectOppResult({ clientId: result.clientId, clientName: result.clientName, opportunitesCount: result.opportunitesCount });
+    }
+    setCreatingProspectOpp(false);
   }
 
   function handleSaveDraft() {
@@ -304,6 +329,19 @@ export function AnalysisPanel({ email }: Props) {
               {contactCreated.type === "prescripteur" ? "Prescripteur" : "Client"} créé : {contactCreated.name}
             </span>
           </div>
+        ) : prospectOppResult ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="text-xs text-emerald-600 font-medium">
+              {prospectOppResult.clientName}
+              {prospectOppResult.opportunitesCount > 0 && (
+                <> — {prospectOppResult.opportunitesCount} opportunité{prospectOppResult.opportunitesCount > 1 ? "s" : ""} détectée{prospectOppResult.opportunitesCount > 1 ? "s" : ""}</>
+              )}
+            </span>
+            <a href={`/clients/${prospectOppResult.clientId}`} className="text-xs text-emerald-600 hover:underline ml-1">
+              Voir la fiche →
+            </a>
+          </div>
         ) : clientCreated ? (
           <div className="flex items-center gap-2">
             <Check className="h-3.5 w-3.5 text-green-600" />
@@ -321,6 +359,31 @@ export function AnalysisPanel({ email }: Props) {
                 {expediteurEntreprise && <> ({expediteurEntreprise})</>}
               </span>
             </div>
+            {hasCommercialIntent && !prospectOppResult && (
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleCreateProspectAndOpportunity}
+                disabled={creatingProspectOpp}
+              >
+                {creatingProspectOpp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                {CTA_LABEL}
+              </Button>
+            )}
+            {prospectOppResult && (
+              <div className="flex items-center gap-2 text-xs">
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-emerald-600 font-medium">
+                  {prospectOppResult.clientName}
+                  {prospectOppResult.opportunitesCount > 0 && (
+                    <> — {prospectOppResult.opportunitesCount} opportunité{prospectOppResult.opportunitesCount > 1 ? "s" : ""} détectée{prospectOppResult.opportunitesCount > 1 ? "s" : ""}</>
+                  )}
+                </span>
+                <a href={`/clients/${prospectOppResult.clientId}`} className="text-emerald-600 hover:underline ml-1">
+                  Voir la fiche →
+                </a>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

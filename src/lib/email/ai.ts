@@ -157,6 +157,7 @@ RÈGLES :
 - actions : tâches concrètes (tache=rappeler/devis, relance=suivi commercial, deal=affaire pipeline, enrichissement=info fiche, alerte=urgent). Moins d'actions pour emails sortants
 - draftReply : commencer par "Bonjour [nom]," terminer par "Cordialement,
 GargarineV1 — Courtage en assurances". Concise et pro. null si email sortant ou pas de réponse nécessaire
+- draftReply qualification : si l'email mentionne mutuelle collective ou prévoyance collective, demander dans la réponse : (1) convention collective applicable, (2) assureur actuel et échéance du contrat, (3) date souhaitée de mise en place, (4) nombre exact de salariés si non précisé. Rester concis et professionnel
 - produitsMentionnes : codes parmi SANTE_COLLECTIVE, PREVOYANCE_COLLECTIVE, SANTE_MADELIN, PREVOYANCE_MADELIN, PER, PROTECTION_JURIDIQUE, RCP_PRO, ASSURANCE_VIE
 - tachesAFermerDetails : IDs des tâches ouvertes résolues par cet email. [] si aucune
 - notes : info business à retenir (ex: "souhaite changer de mutuelle en sept."). null si rien
