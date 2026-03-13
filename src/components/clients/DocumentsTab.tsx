@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Upload, FileText, Download, Archive, Filter, Loader2, X, Eye,
+  Upload, FileText, Download, Archive, Filter, Loader2, X, Eye, Trash2,
 } from "lucide-react";
 
 // ── Taxonomy ──
@@ -83,6 +83,8 @@ export function DocumentsTab({ clientId, contrats, opportunites, deals }: Props)
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   // Upload form state
   const fileRef = useRef<HTMLInputElement>(null);
@@ -184,6 +186,25 @@ export function DocumentsTab({ clientId, contrats, opportunites, deals }: Props)
       console.error("[DocumentsTab] archive error");
     } finally {
       setArchiving(null);
+    }
+  }
+
+  // Delete handler (with prior confirmation)
+  async function handleDelete(docId: string) {
+    setDeleting(docId);
+    try {
+      const res = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erreur lors de la suppression");
+        return;
+      }
+      await fetchDocuments();
+    } catch {
+      alert("Erreur lors de la suppression du document");
+    } finally {
+      setDeleting(null);
+      setConfirmDeleteId(null);
     }
   }
 
@@ -505,6 +526,38 @@ export function DocumentsTab({ clientId, contrats, opportunites, deals }: Props)
                       ) : (
                         <Archive className="h-3.5 w-3.5" />
                       )}
+                    </Button>
+                  )}
+                  {confirmDeleteId === doc.id ? (
+                    <div className="flex items-center gap-1 ml-1 border border-destructive/30 rounded px-1.5 py-0.5 bg-destructive/5">
+                      <span className="text-[10px] text-destructive font-medium">Supprimer ?</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-1.5 text-[10px] text-destructive hover:bg-destructive/10"
+                        disabled={deleting === doc.id}
+                        onClick={() => handleDelete(doc.id)}
+                      >
+                        {deleting === doc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Oui"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-1.5 text-[10px]"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Non
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      title="Supprimer definitivement"
+                      onClick={() => setConfirmDeleteId(doc.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
