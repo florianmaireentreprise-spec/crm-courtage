@@ -243,41 +243,63 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
   }
 
 
-  // 12. Opportunite detectee non qualifiee
+  // 12. Opportunite detectee non qualifiee (suggest qualification)
   if (client.opportunites?.length) {
-    const nonQualifiees = client.opportunites.filter(o => o.statut === "detectee" && o.confiance === "haute");
-    for (const opp of nonQualifiees.slice(0, 1)) {
+    const nonQualifiees = client.opportunites.filter(o => o.statut === "detectee");
+    for (const opp of nonQualifiees.slice(0, 2)) {
       actions.push({
         id: `opp-qualifier-${opp.id}`,
-        priorite: "haute",
+        priorite: opp.confiance === "haute" ? "haute" : "normale",
         titre: `Qualifier : ${opp.titre.slice(0, 50)}`,
-        detail: "Opportunite haute confiance detectee automatiquement",
+        detail: opp.confiance === "haute"
+          ? "Opportunite haute confiance detectee automatiquement"
+          : "Opportunite detectee — a evaluer",
         type: "opportunite",
         lien: `/clients/${client.id}`,
       });
     }
 
-    // 13. Opportunite active sans activite recente (> 14 jours)
-    const staleOpps = client.opportunites.filter(o => {
-      if (!["qualifiee", "en_cours"].includes(o.statut)) return false;
+    // 13. Qualifiee stale (> 7 jours) — suggest starting active pursuit
+    const staleQualifiees = client.opportunites.filter(o => {
+      if (o.statut !== "qualifiee") return false;
+      const joursInactif = (now - new Date(o.derniereActivite).getTime()) / 86400000;
+      return joursInactif > 7;
+    });
+    for (const opp of staleQualifiees.slice(0, 1)) {
+      const jours = Math.round((now - new Date(opp.derniereActivite).getTime()) / 86400000);
+      actions.push({
+        id: `opp-demarrer-${opp.id}`,
+        priorite: "haute",
+        titre: `Demarrer : ${opp.titre.slice(0, 45)}`,
+        detail: `Qualifiee il y a ${jours} jours, pas encore en cours`,
+        type: "opportunite",
+        lien: `/clients/${client.id}`,
+      });
+    }
+
+    // 14. En cours stale (> 14 jours) — suggest follow-up or close
+    const staleEnCours = client.opportunites.filter(o => {
+      if (o.statut !== "en_cours") return false;
       const joursInactif = (now - new Date(o.derniereActivite).getTime()) / 86400000;
       return joursInactif > 14;
     });
-    for (const opp of staleOpps.slice(0, 1)) {
+    for (const opp of staleEnCours.slice(0, 1)) {
       const jours = Math.round((now - new Date(opp.derniereActivite).getTime()) / 86400000);
       actions.push({
         id: `opp-relance-${opp.id}`,
-        priorite: "normale",
+        priorite: jours > 30 ? "haute" : "normale",
         titre: `Relancer opportunite : ${opp.titre.slice(0, 40)}`,
-        detail: `Aucune activite depuis ${jours} jours`,
+        detail: jours > 30
+          ? `Aucune activite depuis ${jours} jours — cloturer si perdue`
+          : `Aucune activite depuis ${jours} jours`,
         type: "opportunite",
         lien: `/clients/${client.id}`,
       });
     }
 
-    // 14. Opportunite tres ancienne (> 30 jours)
+    // 15. Detectee very old (> 30 jours) — suggest review or reject
     const veryStale = client.opportunites.filter(o => {
-      if (!["detectee", "qualifiee", "en_cours"].includes(o.statut)) return false;
+      if (o.statut !== "detectee") return false;
       const joursAge = (now - new Date(o.detecteeLe).getTime()) / 86400000;
       return joursAge > 30;
     });
@@ -286,7 +308,7 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
         id: `opp-review-${opp.id}`,
         priorite: "basse",
         titre: `Revoir opportunite : ${opp.titre.slice(0, 40)}`,
-        detail: "Opportunite ouverte depuis plus de 30 jours",
+        detail: "Detectee depuis plus de 30 jours sans qualification",
         type: "opportunite",
         lien: `/clients/${client.id}`,
       });

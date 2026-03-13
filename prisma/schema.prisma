@@ -473,7 +473,7 @@ model OpportuniteCommerciale {
   typeProduit       String?  // SANTE_COLLECTIVE, PER, etc.
   titre             String
   description       String?
-  statut            String   @default("detectee") // detectee | qualifiee | en_cours | convertie | rejetee | expiree
+  statut            String   @default("detectee") // detectee | qualifiee | en_cours | gagnee | perdue | rejetee
   confiance         String   @default("moyenne")  // haute | moyenne | basse
   temperature       String?  // chaud | tiede | froid
   origineSignal     String?  // type of signal that triggered detection
@@ -482,6 +482,8 @@ model OpportuniteCommerciale {
   derniereActivite  DateTime @default(now())
   convertieEnDealId String?  // link to Deal if converted
   motifRejet        String?
+  closedAt          DateTime?
+  closeReason       String?
   metadata          Json?
 
   createdAt         DateTime @default(now())
