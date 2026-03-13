@@ -85,10 +85,12 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  // Detect and persist cross-sell opportunities (fire-and-forget, idempotent)
-  persisterOpportunitesCrossSell(client.id, client.contrats).catch((err) => {
+  // Detect and persist cross-sell opportunities (idempotent, awaited)
+  try {
+    await persisterOpportunitesCrossSell(client.id, client.contrats);
+  } catch (err) {
     console.error("[cross-sell] persistence error for client", client.id, err);
-  });
+  }
 
   // Fetch completed tasks for the timeline
   const tachesTerminees = await prisma.tache.findMany({
