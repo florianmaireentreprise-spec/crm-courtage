@@ -19,6 +19,7 @@ type Opportunite = {
   statut: string;
   confiance: string;
   temperature: string | null;
+  sourceType: string;
   origineSignal: string | null;
   detecteeLe: string;
   derniereActivite: string;
@@ -54,6 +55,12 @@ const STATUT_LABELS: Record<string, { label: string; color: string }> = {
   // Legacy
   convertie: { label: "Convertie", color: "#10B981" },
   expiree: { label: "Expiree", color: "#94A3B8" },
+};
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  signal: "📧 Signal client",
+  email_analysis: "📧 Signal client",
+  cross_sell: "🛡️ Analyse portefeuille",
 };
 
 const ORIGINE_SIGNAL_LABELS: Record<string, { label: string; icon: string }> = {
@@ -220,6 +227,9 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                 <Badge variant="outline" className={`text-[10px] ${confianceStyle.bg} ${confianceStyle.text} border-0`}>
                   {confianceStyle.label}
                 </Badge>
+                {SOURCE_TYPE_LABELS[opp.sourceType] && (
+                  <span className="text-[10px] text-muted-foreground/70">{SOURCE_TYPE_LABELS[opp.sourceType]}</span>
+                )}
                 <span className="text-[10px] text-muted-foreground">
                   {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal]
                     ? `${ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon} ${ORIGINE_SIGNAL_LABELS[opp.origineSignal].label}`
@@ -260,6 +270,9 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                         {statutConfig?.label || opp.statut}
                       </Badge>
                       <span className="truncate">{opp.titre}</span>
+                      {SOURCE_TYPE_LABELS[opp.sourceType] && (
+                        <span className="text-[9px] text-muted-foreground/70 shrink-0">{opp.sourceType === "cross_sell" ? "🛡️" : "📧"}</span>
+                      )}
                       <span className="text-[9px] shrink-0">
                         {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal]
                           ? ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon

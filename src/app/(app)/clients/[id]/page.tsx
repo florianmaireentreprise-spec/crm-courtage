@@ -75,7 +75,7 @@ export default async function ClientDetailPage({
         take: 20,
         select: {
           id: true, typeProduit: true, titre: true, description: true,
-          statut: true, confiance: true, temperature: true,
+          statut: true, confiance: true, temperature: true, sourceType: true,
           origineSignal: true, detecteeLe: true, derniereActivite: true,
           closedAt: true, closeReason: true, motifRejet: true,
         },
