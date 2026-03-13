@@ -10,10 +10,13 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q || q.length < 2) {
-    return NextResponse.json({ clients: [], contrats: [], deals: [], prescripteurs: [], emails: [] });
+    return NextResponse.json({
+      clients: [], dirigeants: [], contrats: [], deals: [],
+      prescripteurs: [], compagnies: [], documents: [], emails: [],
+    });
   }
 
-  const [clients, contrats, deals, prescripteurs, emails] = await Promise.all([
+  const [clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails] = await Promise.all([
     prisma.client.findMany({
       where: {
         OR: [
@@ -27,14 +30,35 @@ export async function GET(req: NextRequest) {
       select: { id: true, raisonSociale: true, nom: true, prenom: true, statut: true, ville: true },
       take: 5,
     }),
+    prisma.dirigeant.findMany({
+      where: {
+        OR: [
+          { nom: { contains: q, mode: "insensitive" } },
+          { prenom: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+          { client: { raisonSociale: { contains: q, mode: "insensitive" } } },
+        ],
+      },
+      select: {
+        id: true, prenom: true, nom: true, email: true, statutProfessionnel: true,
+        client: { select: { id: true, raisonSociale: true } },
+      },
+      take: 5,
+    }),
     prisma.contrat.findMany({
       where: {
         OR: [
           { nomProduit: { contains: q, mode: "insensitive" } },
+          { numeroContrat: { contains: q, mode: "insensitive" } },
           { client: { raisonSociale: { contains: q, mode: "insensitive" } } },
+          { compagnie: { nom: { contains: q, mode: "insensitive" } } },
         ],
       },
-      select: { id: true, typeProduit: true, nomProduit: true, client: { select: { raisonSociale: true } } },
+      select: {
+        id: true, typeProduit: true, nomProduit: true, numeroContrat: true,
+        client: { select: { raisonSociale: true } },
+        compagnie: { select: { nom: true } },
+      },
       take: 5,
     }),
     prisma.deal.findMany({
@@ -44,7 +68,7 @@ export async function GET(req: NextRequest) {
           { client: { raisonSociale: { contains: q, mode: "insensitive" } } },
         ],
       },
-      select: { id: true, titre: true, etape: true, client: { select: { raisonSociale: true } } },
+      select: { id: true, titre: true, etape: true, clientId: true, client: { select: { raisonSociale: true } } },
       take: 5,
     }),
     prisma.prescripteur.findMany({
@@ -53,9 +77,36 @@ export async function GET(req: NextRequest) {
           { nom: { contains: q, mode: "insensitive" } },
           { prenom: { contains: q, mode: "insensitive" } },
           { entreprise: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
         ],
       },
       select: { id: true, nom: true, prenom: true, type: true, entreprise: true },
+      take: 5,
+    }),
+    prisma.compagnie.findMany({
+      where: {
+        OR: [
+          { nom: { contains: q, mode: "insensitive" } },
+          { contactNom: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, nom: true, type: true, nbContratsActifs: true },
+      take: 5,
+    }),
+    prisma.document.findMany({
+      where: {
+        archive: false,
+        OR: [
+          { nomAffiche: { contains: q, mode: "insensitive" } },
+          { nomFichier: { contains: q, mode: "insensitive" } },
+          { notes: { contains: q, mode: "insensitive" } },
+          { client: { raisonSociale: { contains: q, mode: "insensitive" } } },
+        ],
+      },
+      select: {
+        id: true, nomAffiche: true, categorie: true, typeDocument: true, clientId: true,
+        client: { select: { raisonSociale: true } },
+      },
       take: 5,
     }),
     prisma.email.findMany({
@@ -65,10 +116,12 @@ export async function GET(req: NextRequest) {
           { expediteur: { contains: q, mode: "insensitive" } },
         ],
       },
-      select: { id: true, sujet: true, expediteur: true, dateEnvoi: true },
+      select: { id: true, sujet: true, expediteur: true, dateEnvoi: true, clientId: true },
       take: 5,
     }),
   ]);
 
-  return NextResponse.json({ clients, contrats, deals, prescripteurs, emails });
+  return NextResponse.json({
+    clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails,
+  });
 }
