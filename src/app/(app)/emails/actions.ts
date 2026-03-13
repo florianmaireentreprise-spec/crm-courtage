@@ -287,6 +287,11 @@ export async function analyzeEmail(emailId: string) {
   const email = await prisma.email.findUnique({ where: { id: emailId } });
   if (!email) return { error: "Email non trouvé" };
 
+  // Already analyzed — return immediately
+  if (email.analyseStatut === "analyse") {
+    return { success: true, alreadyAnalyzed: true };
+  }
+
   const webhookBase = process.env.N8N_WEBHOOK_URL;
   if (!webhookBase) {
     return { error: "N8N_WEBHOOK_URL non configuré" };
@@ -298,33 +303,75 @@ export async function analyzeEmail(emailId: string) {
     data: { analyseStatut: "en_cours" },
   });
 
-  // Trigger WF05v2 (fire-and-forget — results come back async via POST /api/n8n/emails)
+  // Trigger n8n analysis webhook
   const webhookUrl = (webhookBase.endsWith("/") ? webhookBase.slice(0, -1) : webhookBase) + "/webhook/email.received";
-  fetch(webhookUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
-    },
-    body: JSON.stringify({
-      emailId: email.id,
-      sujet: email.sujet,
-      expediteur: email.expediteur,
-      direction: email.direction,
-      extrait: email.extrait,
-    }),
-    signal: AbortSignal.timeout(30000),
-  }).catch((err) => {
-    console.error("[analyzeEmail] WF05v2 webhook error:", err);
-    // Reset status so user can retry
-    prisma.email.update({
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-n8n-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
+      },
+      body: JSON.stringify({
+        emailId: email.id,
+        sujet: email.sujet,
+        expediteur: email.expediteur,
+        direction: email.direction,
+        extrait: email.extrait,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (err) {
+    console.error("[analyzeEmail] webhook trigger failed:", err);
+    await prisma.email.update({
       where: { id: emailId },
       data: { analyseStatut: "erreur" },
     }).catch(() => {});
-  });
+    revalidatePath("/emails");
+    return { error: "Impossible de contacter le service d'analyse. Réessayez." };
+  }
 
+  // Poll DB until analysis completes (n8n POSTs result to /api/n8n/emails)
+  // Mistral Small typically takes 3-8 seconds
+  const MAX_WAIT_MS = 30_000;
+  const POLL_INTERVAL_MS = 1_500;
+  const start = Date.now();
+
+  while (Date.now() - start < MAX_WAIT_MS) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+    const updated = await prisma.email.findUnique({
+      where: { id: emailId },
+      select: { analyseStatut: true, resume: true, typeEmail: true, urgence: true },
+    });
+
+    if (!updated) break;
+
+    if (updated.analyseStatut === "analyse") {
+      // Analysis completed — return result to UI
+      revalidatePath("/emails");
+      return {
+        success: true,
+        immediate: true,
+        type: updated.typeEmail,
+        urgence: updated.urgence,
+        resume: updated.resume,
+      };
+    }
+
+    if (updated.analyseStatut === "erreur") {
+      revalidatePath("/emails");
+      return { error: "L'analyse a échoué. Réessayez." };
+    }
+  }
+
+  // Timeout — analysis still running in n8n, will complete in background
   revalidatePath("/emails");
-  return { success: true, message: "Analyse déclenchée via n8n" };
+  return {
+    success: true,
+    immediate: false,
+    message: "Analyse en cours — le résultat apparaîtra dans quelques instants.",
+  };
 }
 
 export async function markEmailRead(emailId: string) {

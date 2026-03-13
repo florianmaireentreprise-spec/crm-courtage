@@ -59,14 +59,20 @@ const PRODUCT_SHORT: Record<string, string> = {
 export function EmailCard({ email, onClick, opportunityInfo }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [treated, setTreated] = useState(email.actionTraitee);
 
   async function handleAnalyze(e: React.MouseEvent) {
     e.stopPropagation();
     setAnalyzing(true);
-    await analyzeEmail(email.id);
+    setAnalyzeError(null);
+    const result = await analyzeEmail(email.id);
     setAnalyzing(false);
-    setExpanded(true);
+    if (result && "error" in result) {
+      setAnalyzeError(result.error as string);
+    } else {
+      setExpanded(true);
+    }
   }
 
   async function handleClick() {
@@ -200,28 +206,35 @@ export function EmailCard({ email, onClick, opportunityInfo }: Props) {
             )}
 
             {/* Analysis status */}
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                statusColors[email.analyseStatut] ?? statusColors.non_analyse
-              }`}
-            >
-              {statusLabels[email.analyseStatut] ?? "Non analyse"}
-            </span>
+            {!analyzing && (
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  statusColors[email.analyseStatut] ?? statusColors.non_analyse
+                }`}
+              >
+                {statusLabels[email.analyseStatut] ?? "Non analyse"}
+              </span>
+            )}
 
-            {email.analyseStatut === "non_analyse" && (
+            {analyzing ? (
+              <span className="flex items-center gap-1 text-[10px] text-amber-600 font-medium">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Analyse IA en cours…
+              </span>
+            ) : (email.analyseStatut === "non_analyse" || email.analyseStatut === "erreur") && (
               <Button
                 variant="outline"
                 size="sm"
                 className="h-7 px-2 text-xs"
                 onClick={handleAnalyze}
-                disabled={analyzing}
               >
-                {analyzing ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <><Sparkles className="h-3 w-3 mr-1" />Analyser</>
-                )}
+                <Sparkles className="h-3 w-3 mr-1" />
+                {email.analyseStatut === "erreur" ? "Réessayer" : "Analyser"}
               </Button>
+            )}
+
+            {analyzeError && !analyzing && (
+              <span className="text-[10px] text-red-500">{analyzeError}</span>
             )}
 
             {expanded ? (
