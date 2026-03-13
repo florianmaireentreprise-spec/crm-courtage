@@ -160,7 +160,8 @@ export function FeedbackStatsCard({ stats }: { stats: FeedbackStats }) {
                         )}
                         {data.rejected > 0 && (
                           <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700">
-                            {data.rejected} rejetee{data.rejected > 1 ? "s" : ""} sur {data.total} ({pct(data.rejected, data.total)})
+                            {data.rejected} rejetee{data.rejected > 1 ? "s" : ""} sur {data.total}
+                            {data.total >= 5 ? ` (${pct(data.rejected, data.total)})` : ""}
                           </Badge>
                         )}
                         {data.rejected === 0 && data.total > 0 && (

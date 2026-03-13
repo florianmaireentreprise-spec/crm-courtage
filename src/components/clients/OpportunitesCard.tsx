@@ -218,11 +218,11 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                 <Badge variant="outline" className={`text-[10px] ${confianceStyle.bg} ${confianceStyle.text} border-0`}>
                   {confianceStyle.label}
                 </Badge>
-                {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal] && (
-                  <span className="text-[10px] text-muted-foreground">
-                    {ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon} {ORIGINE_SIGNAL_LABELS[opp.origineSignal].label}
-                  </span>
-                )}
+                <span className="text-[10px] text-muted-foreground">
+                  {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal]
+                    ? `${ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon} ${ORIGINE_SIGNAL_LABELS[opp.origineSignal].label}`
+                    : "🔍 Autre signal"}
+                </span>
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto">
                   <Clock className="h-2.5 w-2.5" /> {formatDate(opp.derniereActivite)}
                 </span>
@@ -258,6 +258,11 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                         {statutConfig?.label || opp.statut}
                       </Badge>
                       <span className="truncate">{opp.titre}</span>
+                      <span className="text-[9px] shrink-0">
+                        {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal]
+                          ? ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon
+                          : "🔍"}
+                      </span>
                       {reason && <span className="text-[10px] italic truncate ml-auto">— {reason}</span>}
                       {opp.closedAt && <span className="text-[10px] shrink-0">{formatDate(opp.closedAt)}</span>}
                     </div>
