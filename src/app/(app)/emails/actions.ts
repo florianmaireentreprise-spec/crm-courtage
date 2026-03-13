@@ -292,6 +292,48 @@ export async function analyzeEmail(emailId: string) {
     return { success: true, alreadyAnalyzed: true };
   }
 
+  // Already being processed (e.g. WF10 batch picked it up) — skip webhook, just poll
+  if (email.analyseStatut === "en_cours") {
+    // Poll for the result without triggering another webhook
+    const MAX_WAIT_MS = 25_000;
+    const POLL_INTERVAL_MS = 1_500;
+    const start = Date.now();
+
+    while (Date.now() - start < MAX_WAIT_MS) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+      const updated = await prisma.email.findUnique({
+        where: { id: emailId },
+        select: { analyseStatut: true, resume: true, typeEmail: true, urgence: true },
+      });
+
+      if (!updated) break;
+
+      if (updated.analyseStatut === "analyse") {
+        revalidatePath("/emails");
+        return {
+          success: true,
+          immediate: true,
+          type: updated.typeEmail,
+          urgence: updated.urgence,
+          resume: updated.resume,
+        };
+      }
+
+      if (updated.analyseStatut === "erreur") {
+        revalidatePath("/emails");
+        return { error: "L'analyse a échoué. Réessayez." };
+      }
+    }
+
+    revalidatePath("/emails");
+    return {
+      success: true,
+      immediate: false,
+      message: "Analyse en cours — le résultat apparaîtra dans quelques instants.",
+    };
+  }
+
   const webhookBase = process.env.N8N_WEBHOOK_URL;
   if (!webhookBase) {
     return { error: "N8N_WEBHOOK_URL non configuré" };
@@ -333,7 +375,7 @@ export async function analyzeEmail(emailId: string) {
 
   // Poll DB until analysis completes (n8n POSTs result to /api/n8n/emails)
   // Mistral Small typically takes 3-8 seconds
-  const MAX_WAIT_MS = 30_000;
+  const MAX_WAIT_MS = 25_000;
   const POLL_INTERVAL_MS = 1_500;
   const start = Date.now();
 

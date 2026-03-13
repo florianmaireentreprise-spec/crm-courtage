@@ -118,6 +118,37 @@ export async function PATCH(req: Request) {
     data: updateData,
   });
 
+  // Track lifecycle transition as feedback (fire-and-forget)
+  if (statut && TERMINAL_STATUSES.includes(statut) && opp.sourceEmailId && session.user?.id) {
+    const feedbackType = statut === "gagnee"
+      ? "opportunity_won"
+      : statut === "perdue"
+        ? "opportunity_lost"
+        : statut === "rejetee"
+          ? "opportunity_rejected"
+          : null;
+
+    if (feedbackType) {
+      prisma.feedbackIA.create({
+        data: {
+          emailId: opp.sourceEmailId,
+          userId: session.user.id,
+          type: feedbackType,
+          valeurIA: opp.titre,
+          valeurUser: closeReason || motifRejet || undefined,
+          metadata: JSON.stringify({
+            opportunityId: opp.id,
+            previousStatut: opp.statut,
+            confiance: opp.confiance,
+            typeProduit: opp.typeProduit,
+          }),
+        },
+      }).catch((err: unknown) => {
+        console.error("[opportunities] feedback tracking error:", err);
+      });
+    }
+  }
+
   revalidatePath(`/clients/${opp.clientId}`);
 
   return NextResponse.json(updated);

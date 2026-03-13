@@ -199,10 +199,20 @@ async function getDashboardDataInternal() {
           take: 8,
         })
       : Promise.resolve([]),
-    // Recent emails for activity feed
+    // Recent emails for activity feed (exclude system/junk emails)
     userId
       ? prisma.email.findMany({
-          where: { userId, analyseStatut: "analyse" },
+          where: {
+            userId,
+            analyseStatut: "analyse",
+            typeEmail: { notIn: ["autre", "newsletter", "spam"] },
+            NOT: {
+              expediteur: {
+                contains: "noreply",
+                mode: "insensitive",
+              },
+            },
+          },
           select: {
             id: true, sujet: true, dateEnvoi: true, expediteur: true,
             client: { select: { id: true, raisonSociale: true } },

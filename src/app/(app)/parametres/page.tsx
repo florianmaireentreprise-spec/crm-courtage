@@ -4,13 +4,47 @@ import { Card, CardContent } from "@/components/ui/card";
 import { UserManagement } from "@/components/parametres/UserManagement";
 import { CommissionSettings } from "@/components/parametres/CommissionSettings";
 import { CabinetSettings } from "@/components/parametres/CabinetSettings";
+import { FeedbackStatsCard, type FeedbackStats } from "@/components/parametres/FeedbackStatsCard";
 import { getSettings, getTauxCommission } from "@/lib/settings";
 import { FileBarChart, ChevronRight } from "lucide-react";
 
+async function getFeedbackStats(): Promise<FeedbackStats> {
+  const feedbacks = await prisma.feedbackIA.groupBy({
+    by: ["type"],
+    _count: true,
+  });
+
+  const byType: Record<string, number> = {};
+  let total = 0;
+  for (const f of feedbacks) {
+    byType[f.type] = f._count;
+    total += f._count;
+  }
+
+  return {
+    total,
+    byType,
+    opportunityOutcomes: {
+      won: byType.opportunity_won ?? 0,
+      lost: byType.opportunity_lost ?? 0,
+      rejected: byType.opportunity_rejected ?? 0,
+    },
+    replyStats: {
+      sent: byType.reply_sent ?? 0,
+      edited: byType.reply_edited ?? 0,
+    },
+    actionStats: {
+      executed: byType.action_executed ?? 0,
+      ignored: byType.action_ignored ?? 0,
+    },
+  };
+}
+
 export default async function ParametresPage() {
-  const [users, settings] = await Promise.all([
+  const [users, settings, feedbackStats] = await Promise.all([
     prisma.user.findMany({ orderBy: { dateCreation: "asc" } }),
     getSettings(),
+    getFeedbackStats(),
   ]);
 
   const taux = getTauxCommission(settings);
@@ -62,6 +96,8 @@ export default async function ParametresPage() {
       <UserManagement users={users} />
 
       <CommissionSettings taux={taux} />
+
+      <FeedbackStatsCard stats={feedbackStats} />
 
       <CabinetSettings cabinet={cabinet} />
     </div>
