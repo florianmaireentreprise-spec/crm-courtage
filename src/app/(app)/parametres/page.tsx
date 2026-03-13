@@ -9,16 +9,36 @@ import { getSettings, getTauxCommission } from "@/lib/settings";
 import { FileBarChart, ChevronRight } from "lucide-react";
 
 async function getFeedbackStats(): Promise<FeedbackStats> {
-  const feedbacks = await prisma.feedbackIA.groupBy({
-    by: ["type"],
-    _count: true,
-  });
+  const [feedbacks, oppByRule] = await Promise.all([
+    prisma.feedbackIA.groupBy({
+      by: ["type"],
+      _count: true,
+    }),
+    // Opportunity counts grouped by origineSignal + statut (for detection quality)
+    prisma.opportuniteCommerciale.groupBy({
+      by: ["origineSignal", "statut"],
+      _count: true,
+    }),
+  ]);
 
   const byType: Record<string, number> = {};
   let total = 0;
   for (const f of feedbacks) {
     byType[f.type] = f._count;
     total += f._count;
+  }
+
+  // Build per-rule detection quality: { ruleType: { total, rejected, won, lost } }
+  const detectionQuality: Record<string, { total: number; rejected: number; won: number; lost: number }> = {};
+  for (const row of oppByRule) {
+    const rule = row.origineSignal || "inconnu";
+    if (!detectionQuality[rule]) {
+      detectionQuality[rule] = { total: 0, rejected: 0, won: 0, lost: 0 };
+    }
+    detectionQuality[rule].total += row._count;
+    if (row.statut === "rejetee") detectionQuality[rule].rejected += row._count;
+    if (row.statut === "gagnee") detectionQuality[rule].won += row._count;
+    if (row.statut === "perdue") detectionQuality[rule].lost += row._count;
   }
 
   return {
@@ -37,6 +57,7 @@ async function getFeedbackStats(): Promise<FeedbackStats> {
       executed: byType.action_executed ?? 0,
       ignored: byType.action_ignored ?? 0,
     },
+    detectionQuality,
   };
 }
 

@@ -56,6 +56,15 @@ const STATUT_LABELS: Record<string, { label: string; color: string }> = {
   expiree: { label: "Expiree", color: "#94A3B8" },
 };
 
+const ORIGINE_SIGNAL_LABELS: Record<string, { label: string; icon: string }> = {
+  produit_mentionne: { label: "Produit mentionne", icon: "📦" },
+  besoin: { label: "Besoin identifie", icon: "🎯" },
+  demande_devis: { label: "Demande de devis", icon: "📋" },
+  renouvellement: { label: "Renouvellement", icon: "🔄" },
+  nouveau_besoin: { label: "Nouveau besoin", icon: "✨" },
+  urgence_produit: { label: "Signal urgent", icon: "⚡" },
+};
+
 const ACTIVE_STATUSES = ["detectee", "qualifiee", "en_cours"];
 
 export function OpportunitesCard({ opportunites, clientId }: Props) {
@@ -209,6 +218,11 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                 <Badge variant="outline" className={`text-[10px] ${confianceStyle.bg} ${confianceStyle.text} border-0`}>
                   {confianceStyle.label}
                 </Badge>
+                {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal] && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {ORIGINE_SIGNAL_LABELS[opp.origineSignal].icon} {ORIGINE_SIGNAL_LABELS[opp.origineSignal].label}
+                  </span>
+                )}
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto">
                   <Clock className="h-2.5 w-2.5" /> {formatDate(opp.derniereActivite)}
                 </span>
