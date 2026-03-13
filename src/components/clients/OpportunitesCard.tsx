@@ -63,6 +63,8 @@ const ORIGINE_SIGNAL_LABELS: Record<string, { label: string; icon: string }> = {
   renouvellement: { label: "Renouvellement", icon: "🔄" },
   nouveau_besoin: { label: "Nouveau besoin", icon: "✨" },
   urgence_produit: { label: "Signal urgent", icon: "⚡" },
+  couverture_manquante: { label: "Couverture manquante", icon: "🛡️" },
+  echeance_proche: { label: "Echeance proche", icon: "📅" },
 };
 
 const ACTIVE_STATUSES = ["detectee", "qualifiee", "en_cours"];

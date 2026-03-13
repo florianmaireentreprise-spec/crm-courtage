@@ -18,6 +18,7 @@ import { calculerProchainesActions } from "@/lib/scoring/next-actions";
 import { NextActionWidget } from "@/components/clients/NextActionWidget";
 import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard";
 import { OpportunitesCard } from "@/components/clients/OpportunitesCard";
+import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 
 export default async function ClientDetailPage({
   params,
@@ -83,6 +84,11 @@ export default async function ClientDetailPage({
   });
 
   if (!client) notFound();
+
+  // Detect and persist cross-sell opportunities (fire-and-forget, idempotent)
+  persisterOpportunitesCrossSell(client.id, client.contrats).catch((err) => {
+    console.error("[cross-sell] persistence error for client", client.id, err);
+  });
 
   // Fetch completed tasks for the timeline
   const tachesTerminees = await prisma.tache.findMany({

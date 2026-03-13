@@ -18,7 +18,7 @@ type DetectionContext = {
   };
 };
 
-type OpportuniteCandidate = {
+export type OpportuniteCandidate = {
   sourceType: string;
   typeProduit: string | null;
   titre: string;
@@ -27,6 +27,7 @@ type OpportuniteCandidate = {
   temperature: string | null;
   origineSignal: string | null;
   dedupeKey: string;
+  metadata?: Record<string, unknown>;
 };
 
 // ── Keywords pour detection d'intention ──
@@ -177,9 +178,9 @@ function deduplicateCandidates(candidates: OpportuniteCandidate[]): OpportuniteC
 const STATUTS_ACTIFS = ["detectee", "qualifiee", "en_cours"];
 const REJETEE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-async function persistOpportunites(
+export async function persistOpportunites(
   clientId: string,
-  emailId: string,
+  emailId: string | null,
   candidates: OpportuniteCandidate[],
 ): Promise<void> {
   // Fetch active + recently rejected opportunities for this client
@@ -250,7 +251,7 @@ async function persistOpportunites(
         data: {
           clientId,
           sourceType: candidate.sourceType,
-          sourceEmailId: emailId,
+          sourceEmailId: emailId ?? undefined,
           typeProduit: candidate.typeProduit,
           titre: candidate.titre.slice(0, 200),
           description: candidate.description,
@@ -259,6 +260,7 @@ async function persistOpportunites(
           temperature: candidate.temperature,
           origineSignal: candidate.origineSignal,
           dedupeKey: candidate.dedupeKey,
+          ...(candidate.metadata ? { metadata: candidate.metadata } : {}),
         },
       });
     }

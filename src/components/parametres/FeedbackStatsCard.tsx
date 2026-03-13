@@ -30,6 +30,8 @@ const RULE_LABELS: Record<string, string> = {
   renouvellement: "Renouvellement",
   nouveau_besoin: "Nouveau besoin",
   urgence_produit: "Signal urgent",
+  couverture_manquante: "Couverture manquante",
+  echeance_proche: "Echeance proche",
   inconnu: "Autre",
 };
 

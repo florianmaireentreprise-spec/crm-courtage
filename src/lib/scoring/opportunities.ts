@@ -1,4 +1,5 @@
 import type { Contrat } from "@prisma/client";
+import { persistOpportunites, type OpportuniteCandidate } from "@/lib/opportunities/detection";
 
 export type Opportunite = {
   id: string;
@@ -106,4 +107,39 @@ export function detecterOpportunites(
   return opportunites.sort((a, b) =>
     a.priorite === "haute" && b.priorite !== "haute" ? -1 : b.priorite === "haute" && a.priorite !== "haute" ? 1 : 0
   );
+}
+
+// ── Persistance cross-sell ──
+
+/**
+ * Evalue les regles cross-sell pour un client et persiste les opportunites detectees.
+ * Idempotent grace a dedupeKey + cooldown 30j dans persistOpportunites().
+ * Non-bloquant (appeler dans try/catch).
+ */
+export async function persisterOpportunitesCrossSell(
+  clientId: string,
+  contrats: Pick<Contrat, "typeProduit" | "statut" | "dateEcheance">[],
+): Promise<number> {
+  const candidates: OpportuniteCandidate[] = [];
+
+  for (const regle of REGLES_OPPORTUNITES) {
+    if (regle.condition(contrats)) {
+      candidates.push({
+        sourceType: "cross_sell",
+        typeProduit: regle.produitCible,
+        titre: regle.titre,
+        description: regle.message,
+        confiance: regle.priorite === "haute" ? "haute" : "moyenne",
+        temperature: null,
+        origineSignal: regle.id === "CONTRAT_ECHEANCE_SWITCH" ? "echeance_proche" : "couverture_manquante",
+        dedupeKey: `${clientId}:${regle.produitCible || "_general"}:cross_sell`,
+        metadata: { regleId: regle.id },
+      });
+    }
+  }
+
+  if (candidates.length === 0) return 0;
+
+  await persistOpportunites(clientId, null, candidates);
+  return candidates.length;
 }
