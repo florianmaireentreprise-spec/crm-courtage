@@ -271,7 +271,7 @@ export function OpportunitesCard({ opportunites, clientId }: Props) {
                       </Badge>
                       <span className="truncate">{opp.titre}</span>
                       {SOURCE_TYPE_LABELS[opp.sourceType] && (
-                        <span className="text-[9px] text-muted-foreground/70 shrink-0">{opp.sourceType === "cross_sell" ? "🛡️" : "📧"}</span>
+                        <span className="text-[9px] text-muted-foreground/70 shrink-0">{SOURCE_TYPE_LABELS[opp.sourceType]}</span>
                       )}
                       <span className="text-[9px] shrink-0">
                         {opp.origineSignal && ORIGINE_SIGNAL_LABELS[opp.origineSignal]
