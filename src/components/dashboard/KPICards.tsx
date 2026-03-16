@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, FileText, TrendingUp, Target, Clock, Euro, UserCheck, Handshake, ShoppingCart, Layers, AlertTriangle, Zap } from "lucide-react";
+import { Users, FileText, TrendingUp, Target, Clock, Euro, UserCheck, Handshake, ShoppingCart, Layers, AlertTriangle, Zap, Play } from "lucide-react";
 import type { DashboardKPIs } from "@/types";
 
 function formatCurrency(amount: number) {
@@ -106,6 +106,14 @@ const kpiConfig = [
     format: formatCurrency,
     color: "text-emerald-600",
     bg: "bg-emerald-50",
+  },
+  {
+    key: "sequencesActives" as const,
+    label: "Sequences actives",
+    icon: Play,
+    format: (v: number) => v.toString(),
+    color: "text-purple-600",
+    bg: "bg-purple-50",
   },
 ];
 

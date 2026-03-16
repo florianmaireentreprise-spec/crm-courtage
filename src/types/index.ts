@@ -77,6 +77,7 @@ export type DashboardKPIs = {
   tauxMultiEquipement: string;
   contratsARenouveler30j: number;
   totalPotentiel: number;
+  sequencesActives: number;
 };
 
 // For the pipeline kanban

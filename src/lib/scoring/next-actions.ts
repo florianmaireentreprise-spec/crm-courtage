@@ -7,7 +7,7 @@ export type NextAction = {
   priorite: "haute" | "normale" | "basse";
   titre: string;
   detail: string;
-  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance" | "signal" | "opportunite";
+  type: "email" | "tache" | "contrat" | "couverture" | "deal" | "dirigeant" | "relance" | "signal" | "opportunite" | "sequence";
   lien?: string;
 };
 
@@ -18,6 +18,14 @@ type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSala
   deals: Pick<Deal, "id" | "titre" | "etape" | "dateMaj" | "produitsCibles">[];
   opportunites?: Pick<OpportuniteCommerciale, "id" | "titre" | "statut" | "confiance" | "typeProduit" | "derniereActivite" | "detecteeLe">[];
   dirigeant: Pick<Dirigeant, "id" | "dateAuditDirigeant" | "mutuellePerso" | "prevoyancePerso"> | null;
+  sequenceInscriptions?: {
+    id: string;
+    etapeActuelle: number;
+    statut: string;
+    dateProchaineAction: Date | null;
+    dateInscription: Date;
+    sequence: { nom: string; etapes: string };
+  }[];
 };
 
 /**
@@ -332,6 +340,36 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
           });
         }
       } catch { /* JSON parse error */ }
+    }
+  }
+
+  // 16. Sequence action due/overdue
+  if (client.sequenceInscriptions?.length) {
+    for (const insc of client.sequenceInscriptions) {
+      if (insc.statut !== "en_cours" || !insc.dateProchaineAction) continue;
+      const dueMs = new Date(insc.dateProchaineAction).getTime();
+      if (dueMs > now) continue;
+
+      let stepTitre = "Action de sequence";
+      try {
+        const etapes = JSON.parse(insc.sequence.etapes) as { jour: number; action: string; titre: string }[];
+        if (etapes[insc.etapeActuelle]) {
+          stepTitre = etapes[insc.etapeActuelle].titre;
+        }
+      } catch { /* JSON parse error */ }
+
+      const joursRetard = Math.round((now - dueMs) / 86400000);
+      actions.push({
+        id: `sequence-${insc.id}`,
+        priorite: joursRetard > 2 ? "haute" : "normale",
+        titre: `Sequence : ${stepTitre}`,
+        detail: joursRetard > 0
+          ? `${insc.sequence.nom} — en retard de ${joursRetard}j`
+          : `${insc.sequence.nom} — action due aujourd'hui`,
+        type: "sequence",
+        lien: "/sequences",
+      });
+      break; // max 1 sequence action per client
     }
   }
 

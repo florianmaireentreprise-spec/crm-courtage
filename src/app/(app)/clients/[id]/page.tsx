@@ -18,6 +18,7 @@ import { calculerProchainesActions } from "@/lib/scoring/next-actions";
 import { NextActionWidget } from "@/components/clients/NextActionWidget";
 import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard";
 import { OpportunitesCard } from "@/components/clients/OpportunitesCard";
+import { SequenceCard } from "@/components/clients/SequenceCard";
 import { DocumentsTab } from "@/components/clients/DocumentsTab";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 
@@ -80,6 +81,10 @@ export default async function ClientDetailPage({
           origineSignal: true, detecteeLe: true, derniereActivite: true,
           closedAt: true, closeReason: true, motifRejet: true,
         },
+      },
+      sequenceInscriptions: {
+        where: { statut: "en_cours" },
+        include: { sequence: { select: { id: true, nom: true, etapes: true } } },
       },
     },
   });
@@ -210,6 +215,7 @@ export default async function ClientDetailPage({
       deals: client.deals,
       dirigeant: client.dirigeant,
       opportunites: client.opportunites,
+      sequenceInscriptions: client.sequenceInscriptions,
     });
   } catch (err) {
     console.error("[client page] NBA computation error:", err);
@@ -325,6 +331,8 @@ export default async function ClientDetailPage({
             }))}
             clientId={client.id}
           />
+
+          <SequenceCard inscriptions={client.sequenceInscriptions} />
 
           {/* Resume IA */}
           {client.resumeIA && (

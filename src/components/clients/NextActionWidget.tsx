@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
   Zap, Mail, FileText, Shield, Target, UserCheck, Clock,
-  ArrowRight, AlertTriangle, CheckCircle2, Lightbulb,
+  ArrowRight, AlertTriangle, CheckCircle2, Lightbulb, Play,
 } from "lucide-react";
 import type { NextAction } from "@/lib/scoring/next-actions";
 
@@ -17,6 +17,7 @@ const TYPE_ICONS: Record<string, typeof Zap> = {
   relance: Clock,
   signal: Zap,
   opportunite: Lightbulb,
+  sequence: Play,
 };
 
 const PRIORITE_STYLES: Record<string, { bg: string; text: string; border: string }> = {

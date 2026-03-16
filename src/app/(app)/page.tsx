@@ -40,6 +40,7 @@ function getEmptyDashboard() {
       nbContratsActifs: 0, pipelineEnCours: 0, nbTachesEnRetard: 0,
       nbPrescripteurs: 0, nbDirigeants: 0, panierMoyen: 0,
       tauxMultiEquipement: "0", contratsARenouveler30j: 0, totalPotentiel: 0,
+      sequencesActives: 0,
     },
     caEvolution: [] as { mois: string; reel: number; theorique: number }[],
     contratsByType: [] as { typeProduit: string; _sum: { commissionAnnuelle: number | null }; _count: number }[],
@@ -75,6 +76,7 @@ async function getDashboardDataInternal() {
     emailsPending,
     emailsPendingCount,
     commissionsParMois,
+    sequencesActives,
   ] = await Promise.all([
     prisma.client.count({ where: { statut: "client_actif" } }),
     prisma.contrat.count({ where: { statut: "actif" } }),
@@ -174,6 +176,8 @@ async function getDashboardDataInternal() {
         dateCreation: true,
       },
     }),
+    // Sequences actives
+    prisma.sequenceInscription.count({ where: { statut: "en_cours" } }),
   ]);
 
   // Fetch urgent emails and recent activity (non-blocking, after main queries)
@@ -354,6 +358,7 @@ async function getDashboardDataInternal() {
       tauxMultiEquipement,
       contratsARenouveler30j: contrats30j,
       totalPotentiel,
+      sequencesActives,
     },
     caEvolution,
     contratsByType,
