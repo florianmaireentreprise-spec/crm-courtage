@@ -7,6 +7,29 @@ datasource db {
   url       = env("DATABASE_URL")
 }
 
+// ── Workspace (Phase 1 — Demo/Real separation) ──
+
+model Workspace {
+  id        String   @id @default(cuid())
+  slug      String   @unique // "demo" | "real"
+  nom       String   // "Démonstration" | "Production"
+  isDefault Boolean  @default(false) // true = new writes go here
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clients              Client[]
+  dirigeants           Dirigeant[]
+  contrats             Contrat[]
+  commissions          Commission[]
+  deals                Deal[]
+  taches               Tache[]
+  prescripteurs        Prescripteur[]
+  compagnies           Compagnie[]
+  documents            Document[]
+  opportunites         OpportuniteCommerciale[]
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -19,6 +42,8 @@ model User {
 
 model Client {
   id                   String    @id @default(cuid())
+  workspaceId          String?
+  workspace            Workspace? @relation(fields: [workspaceId], references: [id])
   // Entreprise
   raisonSociale        String
   siret                String?   @unique
@@ -98,6 +123,8 @@ model Client {
 
 model Dirigeant {
   id                  String    @id @default(cuid())
+  workspaceId         String?
+  workspace           Workspace? @relation(fields: [workspaceId], references: [id])
   clientId            String    @unique
   client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Identite
@@ -130,6 +157,8 @@ model Dirigeant {
 
 model Prescripteur {
   id                  String    @id @default(cuid())
+  workspaceId         String?
+  workspace           Workspace? @relation(fields: [workspaceId], references: [id])
   // Identite
   type                String    // expert_comptable / avocat / partenaire / client_prescripteur
   civilite            String?
@@ -157,6 +186,8 @@ model Prescripteur {
 
 model Contrat {
   id                 String       @id @default(cuid())
+  workspaceId        String?
+  workspace          Workspace?   @relation(fields: [workspaceId], references: [id])
   clientId           String
   client             Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Produit
@@ -191,6 +222,8 @@ model Contrat {
 
 model Compagnie {
   id                 String    @id @default(cuid())
+  workspaceId        String?
+  workspace          Workspace? @relation(fields: [workspaceId], references: [id])
   nom                String    @unique
   type               String?
   contactNom         String?
@@ -211,6 +244,8 @@ model Compagnie {
 
 model Deal {
   id                    String       @id @default(cuid())
+  workspaceId           String?
+  workspace             Workspace?   @relation(fields: [workspaceId], references: [id])
   clientId              String
   client                Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // Pipeline
@@ -253,6 +288,8 @@ model Deal {
 
 model Commission {
   id            String    @id @default(cuid())
+  workspaceId   String?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
   contratId     String
   contrat       Contrat   @relation(fields: [contratId], references: [id], onDelete: Cascade)
   // Montant
@@ -267,6 +304,8 @@ model Commission {
 
 model Tache {
   id              String    @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id])
   clientId        String?
   client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   emailId         String?
@@ -475,6 +514,8 @@ model Settings {
 
 model OpportuniteCommerciale {
   id                String   @id @default(cuid())
+  workspaceId       String?
+  workspace         Workspace? @relation(fields: [workspaceId], references: [id])
   clientId          String
   client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   sourceType        String   // "signal" | "email_analysis" | "cross_sell" | "manual"
@@ -508,6 +549,8 @@ model OpportuniteCommerciale {
 
 model Document {
   id              String    @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id])
   clientId        String
   client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contratId       String?
