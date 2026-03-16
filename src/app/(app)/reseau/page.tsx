@@ -6,6 +6,7 @@ import { CATEGORIES_RESEAU } from "@/lib/constants";
 import { ReseauObjectifForm } from "@/components/reseau/ReseauObjectifForm";
 import { AddContactButton } from "@/components/reseau/AddContactButton";
 import { ReseauContactList } from "@/components/reseau/ReseauContactList";
+import { ReseauForecast } from "@/components/reseau/ReseauForecast";
 
 export default async function ReseauPage() {
   const clientsReseau = await prisma.client.findMany({
@@ -51,6 +52,18 @@ export default async function ReseauPage() {
   const totalActifs = clientsReseau.filter((c) => c.statut === "client_actif").length;
   const tauxConversionGlobal = totalReseau > 0 ? (totalActifs / totalReseau) * 100 : 0;
   const potentielGlobal = categorieStats.reduce((sum, c) => sum + c.potentielTotal, 0);
+
+  // Forecast data (per-contact potentiel for ReseauForecast)
+  const forecastContacts = clientsReseau.map((c) => ({
+    id: c.id,
+    raisonSociale: c.raisonSociale,
+    categorieReseau: c.categorieReseau,
+    typeRelation: c.typeRelation,
+    statutReseau: c.statutReseau,
+    niveauPotentiel: c.niveauPotentiel,
+    potentielEstimeAnnuel: c.potentielEstimeAnnuel,
+    horizonActivation: c.horizonActivation,
+  }));
 
   // Serialize for client component (dates → ISO strings)
   const clientsForList = clientsReseau.map((c) => ({
@@ -186,6 +199,8 @@ export default async function ReseauPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ReseauForecast contacts={forecastContacts} />
 
       <ReseauContactList clients={clientsForList} />
     </div>

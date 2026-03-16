@@ -217,6 +217,20 @@ export const HORIZONS_ACTIVATION = [
   { id: "long", label: "Long terme (> 6 mois)" },
 ] as const;
 
+// Coefficients de ponderation par statut reseau pour le forecasting
+// Represente la probabilite de conversion en CA reel
+export const COEFFICIENTS_STATUT_RESEAU: Record<string, number> = {
+  identifie: 0.10,
+  a_qualifier: 0.15,
+  a_contacter: 0.25,
+  contacte: 0.35,
+  echange_fait: 0.50,
+  suivi_en_cours: 0.65,
+  client: 1.00,
+  prescripteur_actif: 0, // potentiel indirect via referrals, pas de CA direct
+  sans_suite: 0,
+} as const;
+
 // Checklist items pour l'audit protection sociale
 export const AUDIT_CHECKLIST_ITEMS = [
   { id: "mutuelle_entreprise", label: "Mutuelle entreprise" },
