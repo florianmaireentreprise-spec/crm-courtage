@@ -18,6 +18,7 @@ type SequenceWithInscriptions = {
     statut: string;
     dateInscription: Date;
     dateProchaineAction: Date | null;
+    dateMaj: Date;
     client: { id: string; raisonSociale: string };
   }[];
 };
