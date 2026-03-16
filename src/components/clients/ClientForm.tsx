@@ -320,112 +320,117 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
             </Select>
           </div>
           {client?.categorieReseau && (
-            <>
-              <div className="space-y-2">
-                <Label>Type de relation</Label>
-                <Select name="typeRelation" defaultValue={client?.typeRelation ?? ""}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPES_RELATION_RESEAU.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="md:col-span-2 border rounded-lg p-4 space-y-4 bg-muted/30">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Qualification reseau
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Type de relation</Label>
+                  <Select name="typeRelation" defaultValue={client?.typeRelation ?? ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TYPES_RELATION_RESEAU.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Statut reseau</Label>
+                  <Select name="statutReseau" defaultValue={client?.statutReseau ?? ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUTS_RESEAU.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Niveau potentiel</Label>
+                  <Select name="niveauPotentiel" defaultValue={client?.niveauPotentiel ?? ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NIVEAUX_POTENTIEL.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Potentiel estime annuel</Label>
+                  <Input
+                    name="potentielEstimeAnnuel"
+                    type="number"
+                    min={0}
+                    step={100}
+                    defaultValue={client?.potentielEstimeAnnuel ?? ""}
+                    placeholder="€/an"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Horizon activation</Label>
+                  <Select name="horizonActivation" defaultValue={client?.horizonActivation ?? ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HORIZONS_ACTIVATION.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Prochaine action reseau</Label>
+                  <Input
+                    name="prochaineActionReseau"
+                    defaultValue={client?.prochaineActionReseau ?? ""}
+                    placeholder="Ex: Inviter a un dejeuner"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date relance reseau</Label>
+                  <Input
+                    name="dateRelanceReseau"
+                    type="date"
+                    defaultValue={client?.dateRelanceReseau ? new Date(client.dateRelanceReseau).toISOString().slice(0, 10) : ""}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date dernier contact</Label>
+                  <Input
+                    name="dateDernierContact"
+                    type="date"
+                    defaultValue={client?.dateDernierContact ? new Date(client.dateDernierContact).toISOString().slice(0, 10) : ""}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Commentaire reseau</Label>
+                  <Textarea
+                    name="commentaireReseau"
+                    rows={2}
+                    defaultValue={client?.commentaireReseau ?? ""}
+                    placeholder="Notes specifiques au reseau..."
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Statut reseau</Label>
-                <Select name="statutReseau" defaultValue={client?.statutReseau ?? ""}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUTS_RESEAU.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Niveau potentiel</Label>
-                <Select name="niveauPotentiel" defaultValue={client?.niveauPotentiel ?? ""}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NIVEAUX_POTENTIEL.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Potentiel estime annuel</Label>
-                <Input
-                  name="potentielEstimeAnnuel"
-                  type="number"
-                  min={0}
-                  step={100}
-                  defaultValue={client?.potentielEstimeAnnuel ?? ""}
-                  placeholder="€/an"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Horizon activation</Label>
-                <Select name="horizonActivation" defaultValue={client?.horizonActivation ?? ""}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HORIZONS_ACTIVATION.map((h) => (
-                      <SelectItem key={h.id} value={h.id}>
-                        {h.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Prochaine action reseau</Label>
-                <Input
-                  name="prochaineActionReseau"
-                  defaultValue={client?.prochaineActionReseau ?? ""}
-                  placeholder="Ex: Inviter a un dejeuner"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Date relance reseau</Label>
-                <Input
-                  name="dateRelanceReseau"
-                  type="date"
-                  defaultValue={client?.dateRelanceReseau ? new Date(client.dateRelanceReseau).toISOString().slice(0, 10) : ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Date dernier contact</Label>
-                <Input
-                  name="dateDernierContact"
-                  type="date"
-                  defaultValue={client?.dateDernierContact ? new Date(client.dateDernierContact).toISOString().slice(0, 10) : ""}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Commentaire reseau</Label>
-                <Textarea
-                  name="commentaireReseau"
-                  rows={2}
-                  defaultValue={client?.commentaireReseau ?? ""}
-                  placeholder="Notes specifiques au reseau..."
-                />
-              </div>
-            </>
+            </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="assigneA">Assigne a</Label>

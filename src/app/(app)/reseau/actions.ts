@@ -5,6 +5,28 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+// ── Enum whitelists (mirrored from constants, kept inline for server action isolation) ──
+const TYPES_RELATION_IDS = [
+  "prescripteur_potentiel", "partenaire", "client_potentiel_direct",
+  "influenceur", "ancien_client", "autre",
+] as const;
+
+const STATUTS_RESEAU_IDS = [
+  "identifie", "a_qualifier", "a_contacter", "contacte",
+  "echange_fait", "suivi_en_cours", "client", "prescripteur_actif", "sans_suite",
+] as const;
+
+const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
+const HORIZONS_ACTIVATION_IDS = ["court", "moyen", "long"] as const;
+
+// ── Date coercion helper ──
+const optionalDate = z
+  .union([z.coerce.date(), z.literal(""), z.null()])
+  .optional()
+  .transform((v) => (v instanceof Date && !isNaN(v.getTime()) ? v : null));
+
+// ── Objectif schema ──
+
 const objectifSchema = z.object({
   categorie: z.string().min(1),
   contactsObjectif: z.coerce.number().min(0),
@@ -43,6 +65,8 @@ export async function upsertReseauObjectif(formData: FormData) {
   revalidatePath("/reseau");
 }
 
+// ── Add contact schema — lightweight, no commentaireReseau, no dateRelanceReseau ──
+
 const addContactSchema = z.object({
   raisonSociale: z.string().min(1),
   civilite: z.string().optional(),
@@ -53,16 +77,14 @@ const addContactSchema = z.object({
   categorieReseau: z.string().min(1),
   ville: z.string().optional(),
   secteurActivite: z.string().optional(),
-  // Qualification reseau
-  typeRelation: z.string().optional(),
-  statutReseau: z.string().optional(),
-  niveauPotentiel: z.string().optional(),
+  // Qualification reseau — strict enum validation
+  typeRelation: z.enum(TYPES_RELATION_IDS).optional().or(z.literal("")),
+  statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().or(z.literal("")),
+  niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().or(z.literal("")),
   potentielEstimeAnnuel: z.coerce.number().min(0).optional(),
-  horizonActivation: z.string().optional(),
+  horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().or(z.literal("")),
   prochaineActionReseau: z.string().optional(),
-  dateRelanceReseau: z.string().optional(),
-  dateDernierContact: z.string().optional(),
-  commentaireReseau: z.string().optional(),
+  dateDernierContact: optionalDate,
   notes: z.string().optional(),
 });
 
@@ -91,9 +113,7 @@ export async function addContactReseau(formData: FormData) {
       potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
       horizonActivation: data.horizonActivation || null,
       prochaineActionReseau: data.prochaineActionReseau || null,
-      dateRelanceReseau: data.dateRelanceReseau ? new Date(data.dateRelanceReseau) : null,
-      dateDernierContact: data.dateDernierContact ? new Date(data.dateDernierContact) : null,
-      commentaireReseau: data.commentaireReseau || null,
+      dateDernierContact: data.dateDernierContact,
       ville: data.ville || null,
       secteurActivite: data.secteurActivite || null,
       notes: data.notes || null,
@@ -106,11 +126,13 @@ export async function addContactReseau(formData: FormData) {
   redirect("/reseau");
 }
 
+// ── Quick update schema ──
+
 const quickUpdateSchema = z.object({
   clientId: z.string().min(1),
-  statutReseau: z.string().optional(),
+  statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().or(z.literal("")),
   prochaineActionReseau: z.string().optional(),
-  dateRelanceReseau: z.string().optional(),
+  dateRelanceReseau: optionalDate,
 });
 
 export async function quickUpdateReseau(data: {
@@ -129,7 +151,7 @@ export async function quickUpdateReseau(data: {
   const updateData: Record<string, unknown> = {};
   if (fields.statutReseau !== undefined) updateData.statutReseau = fields.statutReseau || null;
   if (fields.prochaineActionReseau !== undefined) updateData.prochaineActionReseau = fields.prochaineActionReseau || null;
-  if (fields.dateRelanceReseau !== undefined) updateData.dateRelanceReseau = fields.dateRelanceReseau ? new Date(fields.dateRelanceReseau) : null;
+  if (fields.dateRelanceReseau !== undefined) updateData.dateRelanceReseau = fields.dateRelanceReseau;
 
   if (Object.keys(updateData).length === 0) {
     return { error: "Aucun champ a mettre a jour" };

@@ -117,7 +117,7 @@ export function AddContactButton() {
               </div>
             </div>
 
-            {/* Qualification reseau */}
+            {/* Qualification reseau — lightweight: no commentaireReseau, no dateRelanceReseau */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type de relation</Label>

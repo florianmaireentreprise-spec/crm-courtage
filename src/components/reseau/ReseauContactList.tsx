@@ -439,7 +439,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                             {typeConfig.label}
                           </Badge>
                         )}
-                        {client.niveauPotentiel && (
+                        {client.niveauPotentiel && NIVEAUX_POTENTIEL.find((n) => n.id === client.niveauPotentiel) && (
                           <Badge
                             variant="secondary"
                             className={`text-[10px] px-1.5 ${
@@ -450,7 +450,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                                 : ""
                             }`}
                           >
-                            {client.niveauPotentiel === "fort" ? "Fort" : client.niveauPotentiel === "moyen" ? "Moyen" : "Faible"}
+                            {NIVEAUX_POTENTIEL.find((n) => n.id === client.niveauPotentiel)!.label}
                           </Badge>
                         )}
                         {client.potentielEstimeAnnuel != null && client.potentielEstimeAnnuel > 0 && (
