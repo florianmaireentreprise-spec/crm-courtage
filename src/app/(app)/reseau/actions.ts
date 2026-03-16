@@ -105,3 +105,41 @@ export async function addContactReseau(formData: FormData) {
   revalidatePath("/reseau");
   redirect("/reseau");
 }
+
+const quickUpdateSchema = z.object({
+  clientId: z.string().min(1),
+  statutReseau: z.string().optional(),
+  prochaineActionReseau: z.string().optional(),
+  dateRelanceReseau: z.string().optional(),
+});
+
+export async function quickUpdateReseau(data: {
+  clientId: string;
+  statutReseau?: string;
+  prochaineActionReseau?: string;
+  dateRelanceReseau?: string;
+}) {
+  const parsed = quickUpdateSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: "Donnees invalides" };
+  }
+
+  const { clientId, ...fields } = parsed.data;
+
+  const updateData: Record<string, unknown> = {};
+  if (fields.statutReseau !== undefined) updateData.statutReseau = fields.statutReseau || null;
+  if (fields.prochaineActionReseau !== undefined) updateData.prochaineActionReseau = fields.prochaineActionReseau || null;
+  if (fields.dateRelanceReseau !== undefined) updateData.dateRelanceReseau = fields.dateRelanceReseau ? new Date(fields.dateRelanceReseau) : null;
+
+  if (Object.keys(updateData).length === 0) {
+    return { error: "Aucun champ a mettre a jour" };
+  }
+
+  await prisma.client.update({
+    where: { id: clientId },
+    data: updateData,
+  });
+
+  revalidatePath("/reseau");
+  return { success: true };
+}

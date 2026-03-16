@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Network, Users, Target, ArrowRight, TrendingUp } from "lucide-react";
-import { CATEGORIES_RESEAU, STATUTS_CLIENT, STATUTS_RESEAU } from "@/lib/constants";
+import { TrendingUp } from "lucide-react";
+import { CATEGORIES_RESEAU } from "@/lib/constants";
 import { ReseauObjectifForm } from "@/components/reseau/ReseauObjectifForm";
 import { AddContactButton } from "@/components/reseau/AddContactButton";
+import { ReseauContactList } from "@/components/reseau/ReseauContactList";
 
 export default async function ReseauPage() {
   const clientsReseau = await prisma.client.findMany({
@@ -51,6 +51,28 @@ export default async function ReseauPage() {
   const totalActifs = clientsReseau.filter((c) => c.statut === "client_actif").length;
   const tauxConversionGlobal = totalReseau > 0 ? (totalActifs / totalReseau) * 100 : 0;
   const potentielGlobal = categorieStats.reduce((sum, c) => sum + c.potentielTotal, 0);
+
+  // Serialize for client component (dates → ISO strings)
+  const clientsForList = clientsReseau.map((c) => ({
+    id: c.id,
+    raisonSociale: c.raisonSociale,
+    prenom: c.prenom,
+    nom: c.nom,
+    email: c.email,
+    telephone: c.telephone,
+    ville: c.ville,
+    statut: c.statut,
+    categorieReseau: c.categorieReseau,
+    typeRelation: c.typeRelation,
+    statutReseau: c.statutReseau,
+    niveauPotentiel: c.niveauPotentiel,
+    potentielEstimeAnnuel: c.potentielEstimeAnnuel,
+    horizonActivation: c.horizonActivation,
+    prochaineActionReseau: c.prochaineActionReseau,
+    dateRelanceReseau: c.dateRelanceReseau?.toISOString() ?? null,
+    dateDernierContact: c.dateDernierContact?.toISOString() ?? null,
+    _count: c._count,
+  }));
 
   return (
     <div className="space-y-6">
@@ -165,110 +187,7 @@ export default async function ReseauPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categorieStats.map((cat) => (
-          <Card key={cat.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                  {cat.label}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  {cat.tauxConversionReel > 0 && (
-                    <Badge variant="secondary" className="text-[10px]">
-                      {cat.tauxConversionReel.toFixed(0)}% conv.
-                    </Badge>
-                  )}
-                  <Badge variant="outline">{cat.total}</Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {cat.clients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun contact</p>
-              ) : (
-                <div className="space-y-2">
-                  {cat.clients.slice(0, 5).map((client) => {
-                    const statutConfig = STATUTS_CLIENT.find((s) => s.id === client.statut);
-                    return (
-                      <Link key={client.id} href={`/clients/${client.id}`} className="block">
-                        <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/30 transition-colors">
-                          <div>
-                            <p className="text-sm font-medium">{client.raisonSociale}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {client.prenom} {client.nom}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className="text-[10px]"
-                              style={{ borderColor: statutConfig?.color, color: statutConfig?.color }}
-                            >
-                              {statutConfig?.label}
-                            </Badge>
-                            {client.statutReseau && (() => {
-                              const sr = STATUTS_RESEAU.find((s) => s.id === client.statutReseau);
-                              return sr ? (
-                                <Badge variant="outline" className="text-[10px]" style={{ borderColor: sr.color, color: sr.color }}>
-                                  {sr.label}
-                                </Badge>
-                              ) : null;
-                            })()}
-                            {client.niveauPotentiel && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {client.niveauPotentiel === "fort" ? "Fort" : client.niveauPotentiel === "moyen" ? "Moyen" : "Faible"}
-                              </Badge>
-                            )}
-                            {client._count.deals > 0 && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {client._count.deals} deal{client._count.deals > 1 ? "s" : ""}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                  {cat.clients.length > 5 && (
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                      + {cat.clients.length - 5} autres
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Objectif : Proposer un audit initial
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Network className="h-4 w-4 text-blue-500" />
-              <span>Contact identifie</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-amber-500" />
-              <span>Audit propose</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-green-500" />
-              <span>Recommandation & signature</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ReseauContactList clients={clientsForList} />
     </div>
   );
 }
