@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { CATEGORIES_RESEAU } from "@/lib/constants";
+import { CATEGORIES_RESEAU, TYPES_RELATION_RESEAU, STATUTS_RESEAU, NIVEAUX_POTENTIEL, HORIZONS_ACTIVATION } from "@/lib/constants";
 import { addContactReseau } from "@/app/(app)/reseau/actions";
 
 export function AddContactButton() {
@@ -114,6 +114,88 @@ export function AddContactButton() {
               <div className="space-y-2">
                 <Label>Secteur d&apos;activite</Label>
                 <Input name="secteurActivite" placeholder="Medecine, Droit..." />
+              </div>
+            </div>
+
+            {/* Qualification reseau */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type de relation</Label>
+                <Select name="typeRelation">
+                  <SelectTrigger>
+                    <SelectValue placeholder="-" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPES_RELATION_RESEAU.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Statut reseau</Label>
+                <Select name="statutReseau" defaultValue="identifie">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Identifie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUTS_RESEAU.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Niveau potentiel</Label>
+                <Select name="niveauPotentiel">
+                  <SelectTrigger>
+                    <SelectValue placeholder="-" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NIVEAUX_POTENTIEL.map((n) => (
+                      <SelectItem key={n.id} value={n.id}>
+                        {n.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Potentiel estime annuel</Label>
+                <Input name="potentielEstimeAnnuel" type="number" min={0} step={100} placeholder="€/an" />
+              </div>
+              <div className="space-y-2">
+                <Label>Horizon activation</Label>
+                <Select name="horizonActivation">
+                  <SelectTrigger>
+                    <SelectValue placeholder="-" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HORIZONS_ACTIVATION.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Prochaine action</Label>
+                <Input name="prochaineActionReseau" placeholder="Ex: Inviter a un dejeuner" />
+              </div>
+              <div className="space-y-2">
+                <Label>Date dernier contact</Label>
+                <Input name="dateDernierContact" type="date" />
               </div>
             </div>
 

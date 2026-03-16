@@ -183,6 +183,40 @@ export const CATEGORIES_RESEAU = [
   { id: "autre", label: "Autres", color: "#94A3B8" },
 ] as const;
 
+// Qualification reseau
+export const TYPES_RELATION_RESEAU = [
+  { id: "prescripteur_potentiel", label: "Prescripteur potentiel" },
+  { id: "partenaire", label: "Partenaire" },
+  { id: "client_potentiel_direct", label: "Client potentiel direct" },
+  { id: "influenceur", label: "Influenceur / relais" },
+  { id: "ancien_client", label: "Ancien client" },
+  { id: "autre", label: "Autre" },
+] as const;
+
+export const STATUTS_RESEAU = [
+  { id: "identifie", label: "Identifie", color: "#94a3b8" },
+  { id: "a_qualifier", label: "A qualifier", color: "#60a5fa" },
+  { id: "a_contacter", label: "A contacter", color: "#818cf8" },
+  { id: "contacte", label: "Contacte", color: "#a78bfa" },
+  { id: "echange_fait", label: "Echange fait", color: "#f59e0b" },
+  { id: "suivi_en_cours", label: "Suivi en cours", color: "#f97316" },
+  { id: "client", label: "Client", color: "#22c55e" },
+  { id: "prescripteur_actif", label: "Prescripteur actif", color: "#14b8a6" },
+  { id: "sans_suite", label: "Sans suite", color: "#6b7280" },
+] as const;
+
+export const NIVEAUX_POTENTIEL = [
+  { id: "faible", label: "Faible" },
+  { id: "moyen", label: "Moyen" },
+  { id: "fort", label: "Fort" },
+] as const;
+
+export const HORIZONS_ACTIVATION = [
+  { id: "court", label: "Court terme (< 3 mois)" },
+  { id: "moyen", label: "Moyen terme (3-6 mois)" },
+  { id: "long", label: "Long terme (> 6 mois)" },
+] as const;
+
 // Checklist items pour l'audit protection sociale
 export const AUDIT_CHECKLIST_ITEMS = [
   { id: "mutuelle_entreprise", label: "Mutuelle entreprise" },

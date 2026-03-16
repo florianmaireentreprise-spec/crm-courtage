@@ -30,6 +30,16 @@ export const clientSchema = z.object({
   statut: z.string().default("prospect"),
   assigneA: z.string().optional().nullable(),
   categorieReseau: z.string().optional().nullable(),
+  // Qualification reseau
+  typeRelation: z.string().optional().nullable(),
+  statutReseau: z.string().optional().nullable(),
+  niveauPotentiel: z.string().optional().nullable(),
+  potentielEstimeAnnuel: z.coerce.number().min(0).optional().nullable(),
+  horizonActivation: z.string().optional().nullable(),
+  prochaineActionReseau: z.string().optional().nullable(),
+  dateRelanceReseau: z.string().optional().nullable(),
+  dateDernierContact: z.string().optional().nullable(),
+  commentaireReseau: z.string().optional().nullable(),
   // Veille concurrentielle
   courtierActuel: z.string().optional().nullable(),
   assureurActuelSante: z.string().optional().nullable(),

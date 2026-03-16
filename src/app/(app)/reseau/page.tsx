@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Network, Users, Target, ArrowRight, TrendingUp } from "lucide-react";
-import { CATEGORIES_RESEAU, STATUTS_CLIENT } from "@/lib/constants";
+import { CATEGORIES_RESEAU, STATUTS_CLIENT, STATUTS_RESEAU } from "@/lib/constants";
 import { ReseauObjectifForm } from "@/components/reseau/ReseauObjectifForm";
 import { AddContactButton } from "@/components/reseau/AddContactButton";
 
@@ -208,6 +208,19 @@ export default async function ReseauPage() {
                             >
                               {statutConfig?.label}
                             </Badge>
+                            {client.statutReseau && (() => {
+                              const sr = STATUTS_RESEAU.find((s) => s.id === client.statutReseau);
+                              return sr ? (
+                                <Badge variant="outline" className="text-[10px]" style={{ borderColor: sr.color, color: sr.color }}>
+                                  {sr.label}
+                                </Badge>
+                              ) : null;
+                            })()}
+                            {client.niveauPotentiel && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {client.niveauPotentiel === "fort" ? "Fort" : client.niveauPotentiel === "moyen" ? "Moyen" : "Faible"}
+                              </Badge>
+                            )}
                             {client._count.deals > 0 && (
                               <Badge variant="secondary" className="text-[10px]">
                                 {client._count.deals} deal{client._count.deals > 1 ? "s" : ""}

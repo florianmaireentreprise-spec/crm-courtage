@@ -56,6 +56,15 @@ model Client {
   noteEmails           String?
   // Reseau personnel
   categorieReseau      String?
+  typeRelation          String?
+  statutReseau          String?
+  niveauPotentiel       String?
+  potentielEstimeAnnuel Float?
+  horizonActivation     String?
+  prochaineActionReseau String?
+  dateRelanceReseau     DateTime?
+  dateDernierContact    DateTime?
+  commentaireReseau     String?
   // Veille concurrentielle
   courtierActuel       String?
   assureurActuelSante  String?
