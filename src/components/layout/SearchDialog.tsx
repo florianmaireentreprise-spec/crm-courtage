@@ -147,7 +147,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Clients">
                 {results.clients.map((c) => (
-                  <CommandItem key={c.id} onSelect={() => navigate(`/clients/${c.id}`)}>
+                  <CommandItem key={c.id} value={`client-${c.id}`} onSelect={() => navigate(`/clients/${c.id}`)}>
                     <Building2 className="h-4 w-4 text-blue-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{c.raisonSociale}</span>
@@ -168,7 +168,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Dirigeants">
                 {results.dirigeants.map((d) => (
-                  <CommandItem key={d.id} onSelect={() => navigate(`/clients/${d.client.id}`)}>
+                  <CommandItem key={d.id} value={`dirigeant-${d.id}`} onSelect={() => navigate(`/clients/${d.client.id}`)}>
                     <UserCheck className="h-4 w-4 text-indigo-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{d.prenom} {d.nom}</span>
@@ -189,7 +189,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Contrats">
                 {results.contrats.map((c) => (
-                  <CommandItem key={c.id} onSelect={() => navigate(`/contrats/${c.id}`)}>
+                  <CommandItem key={c.id} value={`contrat-${c.id}`} onSelect={() => navigate(`/contrats/${c.id}`)}>
                     <FileText className="h-4 w-4 text-purple-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{c.nomProduit || c.typeProduit}</span>
@@ -213,7 +213,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Pipeline">
                 {results.deals.map((d) => (
-                  <CommandItem key={d.id} onSelect={() => navigate(`/clients/${d.clientId}`)}>
+                  <CommandItem key={d.id} value={`deal-${d.id}`} onSelect={() => navigate(`/clients/${d.clientId}`)}>
                     <Target className="h-4 w-4 text-orange-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{d.titre}</span>
@@ -232,7 +232,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Prescripteurs">
                 {results.prescripteurs.map((p) => (
-                  <CommandItem key={p.id} onSelect={() => navigate(`/prescripteurs/${p.id}`)}>
+                  <CommandItem key={p.id} value={`prescripteur-${p.id}`} onSelect={() => navigate(`/prescripteurs/${p.id}`)}>
                     <Users className="h-4 w-4 text-green-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{p.prenom} {p.nom}</span>
@@ -253,7 +253,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Compagnies">
                 {results.compagnies.map((c) => (
-                  <CommandItem key={c.id} onSelect={() => navigate(`/compagnies`)}>
+                  <CommandItem key={c.id} value={`compagnie-${c.id}`} onSelect={() => navigate(`/compagnies/${c.id}`)}>
                     <Briefcase className="h-4 w-4 text-amber-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{c.nom}</span>
@@ -276,7 +276,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Documents">
                 {results.documents.map((d) => (
-                  <CommandItem key={d.id} onSelect={() => navigate(`/clients/${d.clientId}`)}>
+                  <CommandItem key={d.id} value={`document-${d.id}`} onSelect={() => navigate(`/clients/${d.clientId}`)}>
                     <FolderOpen className="h-4 w-4 text-teal-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{d.nomAffiche}</span>
@@ -295,7 +295,7 @@ export function SearchDialog() {
               {groupIndex++ > 0 && <CommandSeparator />}
               <CommandGroup heading="Emails">
                 {results.emails.map((e) => (
-                  <CommandItem key={e.id} onSelect={() => navigate(e.clientId ? `/clients/${e.clientId}` : "/emails")}>
+                  <CommandItem key={e.id} value={`email-${e.id}`} onSelect={() => navigate(e.clientId ? `/clients/${e.clientId}` : "/emails")}>
                     <Mail className="h-4 w-4 text-cyan-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium truncate">{e.sujet}</span>
