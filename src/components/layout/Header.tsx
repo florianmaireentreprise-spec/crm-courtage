@@ -9,9 +9,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { ExternalLink, LogOut, User } from "lucide-react";
 import { MobileNav } from "./MobileNav";
 import { SearchDialog } from "./SearchDialog";
+
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL;
 
 export function Header() {
   const { data: session } = useSession();
@@ -27,6 +29,14 @@ export function Header() {
       <div className="flex-1 flex items-center justify-center px-4">
         <SearchDialog />
       </div>
+      {DEMO_URL && (
+        <Button variant="outline" size="sm" className="gap-1.5 mr-2" asChild>
+          <a href={DEMO_URL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Ouvrir la démo</span>
+          </a>
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="gap-2">

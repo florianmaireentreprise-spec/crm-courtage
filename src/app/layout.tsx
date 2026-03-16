@@ -15,7 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GargarineV1 - Protection sociale & patrimoine des dirigeants",
+  title: process.env.NEXT_PUBLIC_DEMO_MODE === "true"
+    ? "[DEMO] GargarineV1"
+    : "GargarineV1 - Protection sociale & patrimoine des dirigeants",
   description: "Cabinet de conseil en protection sociale et strategie patrimoniale des dirigeants",
 };
 

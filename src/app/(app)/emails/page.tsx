@@ -18,13 +18,18 @@ export default async function EmailsPage() {
 
   let gmailAuthUrl: string | null = null;
   if (userId && !connection) {
-    const oauth2Client = buildOAuth2Client();
-    gmailAuthUrl = oauth2Client.generateAuthUrl({
-      access_type: "offline",
-      scope: GMAIL_SCOPES,
-      prompt: "consent",
-      state: userId,
-    });
+    try {
+      const oauth2Client = buildOAuth2Client();
+      gmailAuthUrl = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: GMAIL_SCOPES,
+        prompt: "consent",
+        state: userId,
+      });
+    } catch {
+      // Gmail not configured (missing GOOGLE_CLIENT_ID) — page still loads
+      gmailAuthUrl = null;
+    }
   }
 
   const emails = connection && userId
