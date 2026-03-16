@@ -64,6 +64,8 @@ export const clientSchema = z.object({
   notes: z.string().optional().nullable(),
   statut: z.string().default("prospect"),
   assigneA: z.string().optional().nullable(),
+  codeNAF: z.string().optional().nullable(),
+  trancheEffectifs: z.string().optional().nullable(),
   categorieReseau: z.string().optional().nullable(),
   // Qualification reseau — strict enum validation
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().nullable().or(z.literal("")),

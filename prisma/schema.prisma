@@ -79,6 +79,9 @@ model Client {
   // Enrichissement email
   derniereInteraction  DateTime?
   noteEmails           String?
+  // Enrichissement entreprise (SIRENE)
+  codeNAF              String?
+  trancheEffectifs     String?
   // Reseau personnel
   categorieReseau      String?
   typeRelation          String?

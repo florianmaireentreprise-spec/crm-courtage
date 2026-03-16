@@ -217,6 +217,43 @@ export const HORIZONS_ACTIVATION = [
   { id: "long", label: "Long terme (> 6 mois)" },
 ] as const;
 
+// ── Enrichissement entreprise (SIRENE) ──
+
+export const TRANCHES_EFFECTIFS: Record<string, { label: string; min: number; max: number }> = {
+  "00": { label: "0 salarie", min: 0, max: 0 },
+  "01": { label: "1 a 2 salaries", min: 1, max: 2 },
+  "02": { label: "3 a 5 salaries", min: 3, max: 5 },
+  "03": { label: "6 a 9 salaries", min: 6, max: 9 },
+  "11": { label: "10 a 19 salaries", min: 10, max: 19 },
+  "12": { label: "20 a 49 salaries", min: 20, max: 49 },
+  "21": { label: "50 a 99 salaries", min: 50, max: 99 },
+  "22": { label: "100 a 199 salaries", min: 100, max: 199 },
+  "31": { label: "200 a 249 salaries", min: 200, max: 249 },
+  "32": { label: "250 a 499 salaries", min: 250, max: 499 },
+  "41": { label: "500 a 999 salaries", min: 500, max: 999 },
+  "42": { label: "1 000 a 1 999 salaries", min: 1000, max: 1999 },
+  "51": { label: "2 000 a 4 999 salaries", min: 2000, max: 4999 },
+  "52": { label: "5 000 a 9 999 salaries", min: 5000, max: 9999 },
+  "53": { label: "10 000 salaries et plus", min: 10000, max: 10000 },
+};
+
+export const NATURES_JURIDIQUES: Record<string, string> = {
+  "1000": "EI",
+  "5410": "SARL",
+  "5422": "EURL",
+  "5498": "SARL",
+  "5505": "SA",
+  "5510": "SA",
+  "5710": "SAS",
+  "5720": "SASU",
+  "6540": "SCI",
+  "5560": "SNC",
+  "9210": "Association",
+  "9220": "Association",
+  "9300": "Fondation",
+  "5202": "SNC",
+};
+
 // Coefficients de ponderation par statut reseau pour le forecasting
 // Represente la probabilite de conversion en CA reel
 export const COEFFICIENTS_STATUT_RESEAU: Record<string, number> = {

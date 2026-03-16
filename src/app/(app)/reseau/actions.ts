@@ -77,6 +77,14 @@ const addContactSchema = z.object({
   categorieReseau: z.string().min(1),
   ville: z.string().optional(),
   secteurActivite: z.string().optional(),
+  // SIRENE enrichment fields
+  siret: z.string().optional(),
+  formeJuridique: z.string().optional(),
+  codeNAF: z.string().optional(),
+  trancheEffectifs: z.string().optional(),
+  nbSalaries: z.coerce.number().min(0).optional().or(z.literal("")),
+  adresse: z.string().optional(),
+  codePostal: z.string().optional(),
   // Qualification reseau — strict enum validation
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().or(z.literal("")),
   statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().or(z.literal("")),
@@ -107,6 +115,15 @@ export async function addContactReseau(formData: FormData) {
       email: data.email || null,
       telephone: data.telephone || null,
       categorieReseau: data.categorieReseau,
+      // SIRENE enrichment
+      siret: data.siret || null,
+      formeJuridique: data.formeJuridique || null,
+      codeNAF: data.codeNAF || null,
+      trancheEffectifs: data.trancheEffectifs || null,
+      nbSalaries: typeof data.nbSalaries === "number" ? data.nbSalaries : null,
+      adresse: data.adresse || null,
+      codePostal: data.codePostal || null,
+      // Qualification reseau
       typeRelation: data.typeRelation || null,
       statutReseau: data.statutReseau || "identifie",
       niveauPotentiel: data.niveauPotentiel || null,
