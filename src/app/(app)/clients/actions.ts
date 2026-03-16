@@ -142,9 +142,49 @@ export async function updateClient(id: string, formData: FormData) {
   redirect(`/clients/${id}`);
 }
 
+export async function archiveClient(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
+  await prisma.client.update({
+    where: { id },
+    data: { archived: true, archivedAt: new Date() },
+  });
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
+}
+
+export async function unarchiveClient(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
+  await prisma.client.update({
+    where: { id },
+    data: { archived: false, archivedAt: null },
+  });
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${id}`);
+}
+
 export async function deleteClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
+
+  // Guard: count linked data that would be CASCADE-deleted
+  const [contrats, deals, documents] = await Promise.all([
+    prisma.contrat.count({ where: { clientId: id } }),
+    prisma.deal.count({ where: { clientId: id } }),
+    prisma.document.count({ where: { clientId: id } }),
+  ]);
+
+  if (contrats > 0 || deals > 0 || documents > 0) {
+    const parts: string[] = [];
+    if (contrats > 0) parts.push(`${contrats} contrat${contrats > 1 ? "s" : ""}`);
+    if (deals > 0) parts.push(`${deals} deal${deals > 1 ? "s" : ""}`);
+    if (documents > 0) parts.push(`${documents} document${documents > 1 ? "s" : ""}`);
+    return {
+      error: `Impossible de supprimer : ce client a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`,
+    };
+  }
+
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clients");
   redirect("/clients");

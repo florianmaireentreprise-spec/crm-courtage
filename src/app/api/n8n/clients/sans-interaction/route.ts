@@ -10,7 +10,7 @@ async function handler(req: Request) {
   dateLimite.setMonth(dateLimite.getMonth() - mois);
 
   const clientsActifs = await prisma.client.findMany({
-    where: { statut: "client_actif" },
+    where: { statut: "client_actif", archived: false },
     select: {
       id: true,
       raisonSociale: true,

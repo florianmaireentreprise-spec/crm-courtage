@@ -8,8 +8,8 @@ import { Mail, Phone, MapPin, Building2, Pencil } from "lucide-react";
 import { TYPES_PRESCRIPTEUR, ETAPES_PIPELINE } from "@/lib/constants";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { DeletePrescripteurButton } from "@/components/prescripteurs/DeletePrescripteurButton";
-import { deletePrescripteur } from "../actions";
+import { PrescripteurArchiveActions } from "@/components/prescripteurs/PrescripteurArchiveActions";
+import { archivePrescripteur, unarchivePrescripteur, deletePrescripteur } from "../actions";
 
 export default async function PrescripteurDetailPage({
   params,
@@ -40,8 +40,6 @@ export default async function PrescripteurDetailPage({
     ? Math.round((prescripteur.clientsSignes / prescripteur.dossiersEnvoyes) * 100)
     : 0;
 
-  const deleteAction = deletePrescripteur.bind(null, prescripteur.id);
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -67,9 +65,21 @@ export default async function PrescripteurDetailPage({
               Modifier
             </Button>
           </Link>
-          <DeletePrescripteurButton action={deleteAction} />
+          <PrescripteurArchiveActions
+            prescripteurId={prescripteur.id}
+            archived={prescripteur.archived}
+            archiveAction={archivePrescripteur}
+            unarchiveAction={unarchivePrescripteur}
+            deleteAction={deletePrescripteur}
+          />
         </div>
       </div>
+
+      {prescripteur.archived && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          Ce prescripteur est archive{prescripteur.archivedAt ? ` depuis le ${format(new Date(prescripteur.archivedAt), "dd/MM/yyyy", { locale: fr })}` : ""}. Il n&apos;apparait plus dans les listes et la recherche.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>

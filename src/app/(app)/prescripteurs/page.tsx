@@ -3,11 +3,19 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Handshake, Mail, Phone, Users, Euro } from "lucide-react";
+import { Plus, Handshake, Mail, Phone, Users, Euro, Archive } from "lucide-react";
 import { TYPES_PRESCRIPTEUR } from "@/lib/constants";
 
-export default async function PrescripteursPage() {
+export default async function PrescripteursPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ archives?: string }>;
+}) {
+  const params = await searchParams;
+  const showArchived = params.archives === "1";
+
   const prescripteurs = await prisma.prescripteur.findMany({
+    where: showArchived ? {} : { archived: false },
     include: {
       _count: {
         select: { clients: true, deals: true },
@@ -25,12 +33,23 @@ export default async function PrescripteursPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Prescripteurs</h1>
-        <Link href="/prescripteurs/nouveau">
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau prescripteur
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={showArchived ? "/prescripteurs" : "/prescripteurs?archives=1"}>
+            <Badge
+              variant={showArchived ? "secondary" : "outline"}
+              className="cursor-pointer gap-1"
+            >
+              <Archive className="h-3 w-3" />
+              {showArchived ? "Archives incluses" : "Voir archives"}
+            </Badge>
+          </Link>
+          <Link href="/prescripteurs/nouveau">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau prescripteur
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -82,7 +101,7 @@ export default async function PrescripteursPage() {
 
             return (
               <Link key={p.id} href={`/prescripteurs/${p.id}`}>
-                <Card className="hover:bg-muted/30 transition-colors">
+                <Card className={`hover:bg-muted/30 transition-colors ${p.archived ? "opacity-50" : ""}`}>
                   <CardContent className="py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
@@ -90,6 +109,11 @@ export default async function PrescripteursPage() {
                           <p className="font-medium text-sm">
                             {p.civilite} {p.prenom} {p.nom}
                           </p>
+                          {p.archived && (
+                            <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-300 bg-yellow-50">
+                              Archive
+                            </Badge>
+                          )}
                           {typeConfig && (
                             <Badge
                               variant="outline"

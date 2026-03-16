@@ -76,9 +76,47 @@ export async function updatePrescripteur(id: string, formData: FormData) {
   redirect("/prescripteurs");
 }
 
+export async function archivePrescripteur(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
+  await prisma.prescripteur.update({
+    where: { id },
+    data: { archived: true, archivedAt: new Date() },
+  });
+  revalidatePath("/prescripteurs");
+  revalidatePath(`/prescripteurs/${id}`);
+}
+
+export async function unarchivePrescripteur(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
+  await prisma.prescripteur.update({
+    where: { id },
+    data: { archived: false, archivedAt: null },
+  });
+  revalidatePath("/prescripteurs");
+  revalidatePath(`/prescripteurs/${id}`);
+}
+
 export async function deletePrescripteur(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
+
+  // Guard: count linked data
+  const [clients, deals] = await Promise.all([
+    prisma.client.count({ where: { prescripteurId: id } }),
+    prisma.deal.count({ where: { prescripteurId: id } }),
+  ]);
+
+  if (clients > 0 || deals > 0) {
+    const parts: string[] = [];
+    if (clients > 0) parts.push(`${clients} client${clients > 1 ? "s" : ""}`);
+    if (deals > 0) parts.push(`${deals} deal${deals > 1 ? "s" : ""}`);
+    return {
+      error: `Impossible de supprimer : ce prescripteur a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`,
+    };
+  }
+
   await prisma.prescripteur.delete({ where: { id } });
   revalidatePath("/prescripteurs");
   redirect("/prescripteurs");

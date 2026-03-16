@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { STATUTS_CLIENT } from "@/lib/constants";
 import { calculerScoreProspect, getScoreColor } from "@/lib/scoring/prospect";
@@ -11,11 +11,12 @@ import { calculerPotentielCA } from "@/lib/scoring/potentiel";
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; statut?: string }>;
+  searchParams: Promise<{ q?: string; statut?: string; archives?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q ?? "";
   const statutFilter = params.statut ?? "";
+  const showArchived = params.archives === "1";
 
   const clients = await prisma.client.findMany({
     where: {
@@ -32,6 +33,7 @@ export default async function ClientsPage({
             }
           : {},
         statutFilter ? { statut: statutFilter } : {},
+        showArchived ? {} : { archived: false },
       ],
     },
     include: {
@@ -74,7 +76,7 @@ export default async function ClientsPage({
             </Badge>
           </Link>
           {STATUTS_CLIENT.map((s) => (
-            <Link key={s.id} href={`/clients?statut=${s.id}`}>
+            <Link key={s.id} href={`/clients?statut=${s.id}${showArchived ? "&archives=1" : ""}`}>
               <Badge
                 variant={statutFilter === s.id ? "default" : "outline"}
                 className="cursor-pointer"
@@ -83,6 +85,15 @@ export default async function ClientsPage({
               </Badge>
             </Link>
           ))}
+          <Link href={showArchived ? "/clients" : "/clients?archives=1"}>
+            <Badge
+              variant={showArchived ? "secondary" : "outline"}
+              className="cursor-pointer gap-1"
+            >
+              <Archive className="h-3 w-3" />
+              {showArchived ? "Archives incluses" : "Voir archives"}
+            </Badge>
+          </Link>
         </div>
       </div>
 
@@ -113,14 +124,21 @@ export default async function ClientsPage({
               const scoreColor = getScoreColor(score);
               const potentiel = calculerPotentielCA(client, client.contrats);
               return (
-                <tr key={client.id} className="border-b hover:bg-muted/30">
+                <tr key={client.id} className={`border-b hover:bg-muted/30 ${client.archived ? "opacity-50" : ""}`}>
                   <td className="p-3">
-                    <Link
-                      href={`/clients/${client.id}`}
-                      className="font-medium hover:underline text-primary"
-                    >
-                      {client.raisonSociale}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/clients/${client.id}`}
+                        className="font-medium hover:underline text-primary"
+                      >
+                        {client.raisonSociale}
+                      </Link>
+                      {client.archived && (
+                        <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-300 bg-yellow-50">
+                          Archive
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                   <td className="p-3 hidden md:table-cell">
                     {client.civilite} {client.prenom} {client.nom}

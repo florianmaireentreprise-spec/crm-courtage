@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const [clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails] = await Promise.all([
     prisma.client.findMany({
       where: {
+        archived: false,
         OR: [
           { raisonSociale: { contains: q, mode: "insensitive" } },
           { nom: { contains: q, mode: "insensitive" } },
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
     }),
     prisma.prescripteur.findMany({
       where: {
+        archived: false,
         OR: [
           { nom: { contains: q, mode: "insensitive" } },
           { prenom: { contains: q, mode: "insensitive" } },

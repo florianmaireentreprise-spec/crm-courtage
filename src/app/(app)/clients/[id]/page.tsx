@@ -20,7 +20,9 @@ import { CommercialMemoryCard } from "@/components/clients/CommercialMemoryCard"
 import { OpportunitesCard } from "@/components/clients/OpportunitesCard";
 import { SequenceCard } from "@/components/clients/SequenceCard";
 import { DocumentsTab } from "@/components/clients/DocumentsTab";
+import { ClientArchiveActions } from "@/components/clients/ClientArchiveActions";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
+import { archiveClient, unarchiveClient, deleteClient } from "../actions";
 
 export default async function ClientDetailPage({
   params,
@@ -250,13 +252,28 @@ export default async function ClientDetailPage({
             {client.formeJuridique && ` \u2014 ${client.formeJuridique}`}
           </p>
         </div>
-        <Link href={`/clients/${id}/modifier`}>
-          <Button variant="outline" size="sm">
-            <Pencil className="h-4 w-4 mr-2" />
-            Modifier
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/clients/${id}/modifier`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+          </Link>
+          <ClientArchiveActions
+            clientId={id}
+            archived={client.archived}
+            archiveAction={archiveClient}
+            unarchiveAction={unarchiveClient}
+            deleteAction={deleteClient}
+          />
+        </div>
       </div>
+
+      {client.archived && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          Ce client est archive{client.archivedAt ? ` depuis le ${format(new Date(client.archivedAt), "dd/MM/yyyy", { locale: fr })}` : ""}. Il n&apos;apparait plus dans les listes et la recherche.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>

@@ -13,6 +13,7 @@ async function handler(req: Request) {
   const prescripteurs = await prisma.prescripteur.findMany({
     where: {
       statut: "actif",
+      archived: false,
       OR: [
         { derniereRecommandation: null },
         { derniereRecommandation: { lt: dateLimite } },

@@ -78,7 +78,7 @@ async function getDashboardDataInternal() {
     commissionsParMois,
     sequencesActives,
   ] = await Promise.all([
-    prisma.client.count({ where: { statut: "client_actif" } }),
+    prisma.client.count({ where: { statut: "client_actif", archived: false } }),
     prisma.contrat.count({ where: { statut: "actif" } }),
     prisma.commission.aggregate({
       _sum: { montant: true },
@@ -128,11 +128,11 @@ async function getDashboardDataInternal() {
       orderBy: [{ priorite: "asc" }, { dateEcheance: "asc" }],
       take: 10,
     }),
-    prisma.prescripteur.count({ where: { statut: "actif" } }),
+    prisma.prescripteur.count({ where: { statut: "actif", archived: false } }),
     prisma.dirigeant.count(),
     // Clients with contrats for scoring + opportunities
     prisma.client.findMany({
-      where: { statut: { in: ["prospect", "client_actif"] } },
+      where: { statut: { in: ["prospect", "client_actif"] }, archived: false },
       select: {
         id: true, raisonSociale: true, statut: true,
         nbSalaries: true, secteurActivite: true, sourceAcquisition: true, ville: true,

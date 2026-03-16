@@ -98,6 +98,9 @@ model Client {
   assureurActuelSante  String?
   dateDerniereRevision DateTime?
   motifChangement      String?   // prix, service, couverture, conseil
+  // Archivage
+  archived             Boolean   @default(false)
+  archivedAt           DateTime?
   // Intelligence Commerciale
   scoreProspect        Int?       // Score 0-100 (persiste)
   potentielCA          Float?     // € potentiel annuel
@@ -180,6 +183,9 @@ model Prescripteur {
   derniereRecommandation DateTime?
   notes               String?
   statut              String    @default("actif")
+  // Archivage
+  archived            Boolean   @default(false)
+  archivedAt          DateTime?
   dateCreation        DateTime  @default(now())
   dateMaj             DateTime  @updatedAt
   // Relations
