@@ -25,6 +25,13 @@ npx prisma db push  # Sync schema (pas de migrations)
 npx prisma studio   # GUI base de donnees
 ```
 
+### Scripts operationnels (workspace)
+```bash
+npx tsx scripts/bootstrap-workspaces.ts   # Cree les workspaces demo+real, migre les donnees existantes vers demo
+npx tsx scripts/check-contamination.ts    # Audit: verifie qu'aucun email/tache/signal ne pointe vers un client demo
+npx tsx scripts/fix-email-demo-links.ts   # Fix: delie les emails qui referençaient des clients demo (set clientId=null)
+```
+
 ---
 
 ## Current Implemented State
@@ -124,6 +131,39 @@ The client detail page (`clients/[id]/page.tsx`) renders three intelligence card
 - Critical fix: `shouldFilter={false}` on cmdk CommandDialog (without this, cmdk's client-side filter hides async-loaded results)
 - **Validation status**: API confirmed returning correct results. UI confirmed displaying results and navigating to client page via browser automation (March 13, 2026). Not yet validated by human manual testing.
 
+### Demo vs Real Separation — Phase 1 (implemented, validated March 2026)
+
+The CRM now operates as the **Real CRM** by default. Old demo data is isolated and invisible in normal usage.
+
+**How it works:**
+- A `Workspace` model exists with two rows: `demo` (slug) and `real` (slug, `isDefault=true`)
+- 10 core models have an optional `workspaceId` field (see Phase 1 scope below)
+- A Prisma Client Extension in `src/lib/prisma.ts` auto-injects workspace filtering on all reads (`findMany`, `findFirst`, `count`, `aggregate`, `groupBy`) and workspace ID on all writes (`create`, `createMany`) for workspace-aware models
+- No code changes were needed in existing pages, actions, or API routes — the extension handles it transparently
+- Email model is NOT workspace-scoped (intentional — email is live plumbing, not demo data)
+
+**Phase 1 workspace-aware models (10):**
+Client, Dirigeant, Contrat, Commission, Deal, Tache, Prescripteur, Compagnie, Document, OpportuniteCommerciale
+
+**NOT workspace-scoped (by design):**
+Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceInscription, Objectif, ReseauObjectif, RapportHebdo, N8nLog, Settings
+
+**What the extension does NOT intercept:**
+- `findUnique` / `update` / `delete` by ID — these are scoped by primary key (globally unique), so workspace filtering is unnecessary
+- Prisma `include` clauses on non-workspace models — relation joins bypass the extension. This is why email→client links were cleaned (see scripts)
+
+**Data state after bootstrap:**
+- All pre-existing records (demo data) → `workspaceId = demo`
+- New records created via CRM UI or n8n → `workspaceId = real` (auto-injected)
+- Live plumbing (Gmail sync, n8n workflows, email analysis) → aligned with Real workspace
+
+**Usage protocol:**
+- Normal data entry = Real workspace (automatic, no action needed)
+- Do NOT use the Real CRM for demo/test data
+- Any new feature touching persisted data on a workspace-aware model must verify it gets workspaceId injected by the extension
+- Any new visible CRM list/search/dashboard flow must use `findMany` or `findFirst` (intercepted), not raw SQL or `findUnique` for listings
+- If adding a new Prisma model that stores business data, consider adding it to `WORKSPACE_MODELS` in `src/lib/prisma.ts`
+
 ---
 
 ## Architectural Decisions
@@ -141,6 +181,7 @@ The client detail page (`clients/[id]/page.tsx`) renders three intelligence card
 7. **No service layer** — Prisma queries direct in server pages, mutations via Server Actions
 8. **Vercel Blob for document storage** — private access mode, server-side streaming for downloads. No signed URLs
 9. **Pre-launch business orientation**: network/reseau as launch engine. Product-selling automation is secondary until real client activity provides data
+10. **Demo/Real isolation via Prisma Client Extension** — not a full multi-tenant architecture. Pragmatic Phase 1: Workspace model with `demo`/`real` slugs, Prisma `$allOperations` hook auto-injects `workspaceId` on reads and writes for 10 models. No workspace switcher UI, no per-user workspace context. Single default workspace (real) for all CRM usage
 
 ### Not yet decided / open
 - Recommendation/preconisation object structure (currently no formal object, just free-text in deal fields)
@@ -258,7 +299,8 @@ src/
 │   └── ui/               # shadcn/ui components
 ├── lib/
 │   ├── auth.ts           # Config NextAuth (credentials)
-│   ├── prisma.ts         # Singleton Prisma client
+│   ├── prisma.ts         # Singleton Prisma client + workspace auto-scoping extension
+│   ├── workspace.ts      # Workspace helpers (wsFilter, wsData, getActiveWorkspaceId)
 │   ├── constants.ts      # Toutes les constantes metier
 │   ├── utils.ts          # cn() helper
 │   ├── objectifs.ts      # Calcul objectifs commerciaux
@@ -283,7 +325,11 @@ src/
 └── middleware.ts         # Auth middleware
 ```
 
-## Modeles Prisma (22 tables)
+## Modeles Prisma (23 tables)
+
+### Workspace
+**Workspace** — `id` `slug` (unique: "demo"/"real") `nom` `isDefault` (bool) `createdAt` `updatedAt`
+Relations: clients[], dirigeants[], contrats[], commissions[], deals[], taches[], prescripteurs[], compagnies[], documents[], opportunites[]
 
 ### Core Business
 **User** — `id` `email` (unique) `password` `prenom` `nom` `role` (defaut: "gerant") `dateCreation`
@@ -448,6 +494,12 @@ N8N_GENERATE_REPLY_URL=  # URL webhook n8n pour WF09 (generate-reply)
 
 ### Commits (chronological, newest first)
 ```
+9067ffe feat: workspace separation Phase 1 — demo/real data isolation
+480103c fix: harden reseau validation — date coercion, enum whitelists, form structure
+27e5f50 fix: compagnie search navigation + harden cmdk value props
+e0278d3 feat: add reseau Phase 3 — launch forecasting layer with weighted potentials
+8f136fe feat: add reseau Phase 2 — operational pipeline with filters, sorting, enriched cards, quick edit
+689b014 feat: enrich reseau with per-contact qualification (Phase 1)
 3f6de8d fix: disable cmdk client-side filter so async search results display
 b55f3b0 feat: expand global search to 8 entity types + fix navigation
 12806b2 feat: add delete action with confirmation on document cards
