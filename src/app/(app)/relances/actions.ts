@@ -65,12 +65,27 @@ export async function updateTache(tacheId: string, formData: FormData) {
   revalidatePath("/");
 }
 
-export async function markTacheDone(tacheId: string) {
+export async function markTacheDone(tacheId: string, raison?: string) {
   await prisma.tache.update({
     where: { id: tacheId },
     data: {
       statut: "terminee",
       dateRealisation: new Date(),
+      raisonFermeture: raison || "Terminée manuellement",
+    },
+  });
+
+  revalidatePath("/relances");
+  revalidatePath("/");
+}
+
+export async function cancelTache(tacheId: string, raison?: string) {
+  await prisma.tache.update({
+    where: { id: tacheId },
+    data: {
+      statut: "annulee",
+      dateRealisation: new Date(),
+      raisonFermeture: raison || "Annulée manuellement",
     },
   });
 

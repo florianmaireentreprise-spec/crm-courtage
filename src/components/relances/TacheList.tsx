@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, Trash2, Plus, Mail, Pencil } from "lucide-react";
+import { Check, Trash2, Plus, Mail, Pencil, X } from "lucide-react";
 import { TYPES_TACHE, PRIORITES } from "@/lib/constants";
-import { markTacheDone, deleteTache } from "@/app/(app)/relances/actions";
+import { markTacheDone, cancelTache, deleteTache } from "@/app/(app)/relances/actions";
 import { TacheForm } from "./TacheForm";
 import type { TacheWithClient } from "@/types";
 import { format, isBefore, isToday, startOfDay } from "date-fns";
@@ -135,6 +135,15 @@ export function TacheList({ taches, clients, users }: Props) {
                     >
                       {prioriteConfig?.label}
                     </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-orange-500"
+                      title="Annuler cette tâche"
+                      onClick={() => cancelTache(tache.id)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
