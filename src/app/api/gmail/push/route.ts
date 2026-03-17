@@ -174,7 +174,12 @@ async function autoCloseReplyTasks(parsed: { destinataires: string; dateEnvoi: D
       if (match && destAddresses.includes(match[1].toLowerCase())) {
         await prisma.tache.update({
           where: { id: task.id },
-          data: { statut: "terminee", dateRealisation: parsed.dateEnvoi },
+          data: {
+            statut: "terminee",
+            dateRealisation: parsed.dateEnvoi,
+            autoFermee: true,
+            raisonFermeture: `Auto-fermée — email sortant détecté (Gmail push)`,
+          },
         });
       }
     }

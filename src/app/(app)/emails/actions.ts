@@ -229,7 +229,12 @@ export async function syncEmails() {
           if (match && destAddresses.includes(match[1].toLowerCase())) {
             await prisma.tache.update({
               where: { id: task.id },
-              data: { statut: "terminee", dateRealisation: parsed.dateEnvoi },
+              data: {
+                statut: "terminee",
+                dateRealisation: parsed.dateEnvoi,
+                autoFermee: true,
+                raisonFermeture: `Auto-fermée — email sortant détecté (sync manuelle)`,
+              },
             });
           }
         }
@@ -517,7 +522,12 @@ export async function sendReply(emailId: string, replyText: string) {
     // Auto-close "Répondre" task linked to this email
     await prisma.tache.updateMany({
       where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
-      data: { statut: "terminee", dateRealisation: new Date() },
+      data: {
+        statut: "terminee",
+        dateRealisation: new Date(),
+        autoFermee: true,
+        raisonFermeture: "Auto-fermée — réponse envoyée depuis le CRM",
+      },
     });
 
     revalidatePath("/emails");
@@ -1084,7 +1094,12 @@ export async function sendDraft(emailId: string) {
     // Auto-close "Répondre" task
     await prisma.tache.updateMany({
       where: { emailId, sourceAuto: "email_reponse_attendue", statut: { in: ["a_faire", "en_cours"] } },
-      data: { statut: "terminee", dateRealisation: new Date() },
+      data: {
+        statut: "terminee",
+        dateRealisation: new Date(),
+        autoFermee: true,
+        raisonFermeture: "Auto-fermée — brouillon envoyé depuis le CRM",
+      },
     });
 
     revalidatePath("/emails");
