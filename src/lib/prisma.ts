@@ -12,6 +12,7 @@ const WORKSPACE_MODELS = new Set([
   "Compagnie",
   "Document",
   "OpportuniteCommerciale",
+  "Preconisation",
 ]);
 
 // Operations that need workspace filtering in WHERE clause

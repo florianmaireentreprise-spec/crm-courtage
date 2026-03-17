@@ -42,6 +42,7 @@ const mockPrismaOpportuniteCommerciale = { count: vi.fn(() => Promise.resolve(0)
 const mockPrismaDirigeant = { count: vi.fn(() => Promise.resolve(0)) };
 const mockPrismaSequenceInscription = { count: vi.fn(() => Promise.resolve(0)) };
 const mockPrismaSignalCommercial = { count: vi.fn(() => Promise.resolve(0)) };
+const mockPrismaPreconisation = { count: vi.fn(() => Promise.resolve(0)) };
 
 const mockPrisma = {
   client: {
@@ -55,6 +56,7 @@ const mockPrisma = {
   dirigeant: mockPrismaDirigeant,
   sequenceInscription: mockPrismaSequenceInscription,
   signalCommercial: mockPrismaSignalCommercial,
+  preconisation: mockPrismaPreconisation,
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -77,6 +79,7 @@ describe("deleteClient guard", () => {
     mockPrismaDirigeant.count.mockResolvedValue(0);
     mockPrismaSequenceInscription.count.mockResolvedValue(0);
     mockPrismaSignalCommercial.count.mockResolvedValue(0);
+    mockPrismaPreconisation.count.mockResolvedValue(0);
   });
 
   it("blocks deletion when client has contrats", async () => {

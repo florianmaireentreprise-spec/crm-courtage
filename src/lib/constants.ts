@@ -152,6 +152,33 @@ export const TYPES_OBJECTIF = [
 
 export type TypeObjectif = (typeof TYPES_OBJECTIF)[number]["id"];
 
+// Preconisations (Structured Recommendations)
+export const THEMES_PRECONISATION = [
+  { id: "mutuelle_collective", label: "Mutuelle collective", color: "#3B82F6" },
+  { id: "prevoyance", label: "Prevoyance", color: "#8B5CF6" },
+  { id: "retraite", label: "Retraite / PER", color: "#10B981" },
+  { id: "epargne", label: "Epargne / Assurance vie", color: "#14B8A6" },
+  { id: "remuneration", label: "Remuneration dirigeant", color: "#F59E0B" },
+  { id: "patrimonial", label: "Patrimonial", color: "#6366F1" },
+  { id: "protection_juridique", label: "Protection juridique", color: "#EF4444" },
+  { id: "autre", label: "Autre", color: "#94A3B8" },
+] as const;
+
+export const STATUTS_PRECONISATION = [
+  { id: "a_preparer", label: "A preparer", color: "#94A3B8" },
+  { id: "presentee", label: "Presentee", color: "#3B82F6" },
+  { id: "en_discussion", label: "En discussion", color: "#F59E0B" },
+  { id: "validee", label: "Validee", color: "#10B981" },
+  { id: "refusee", label: "Refusee", color: "#EF4444" },
+  { id: "reportee", label: "Reportee", color: "#6366F1" },
+] as const;
+
+export const PRIORITES_PRECONISATION = [
+  { id: "haute", label: "Haute", color: "#EF4444" },
+  { id: "moyenne", label: "Moyenne", color: "#F59E0B" },
+  { id: "basse", label: "Basse", color: "#94A3B8" },
+] as const;
+
 export const PERIODES_OBJECTIF = [
   { id: "ANNUEL", label: "Annuel" },
   { id: "TRIMESTRIEL", label: "Trimestriel" },

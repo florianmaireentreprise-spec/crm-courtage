@@ -216,7 +216,7 @@ export async function deleteClient(id: string) {
 
   // Guard: count ALL linked data that would be CASCADE-deleted
   // Tache (SetNull) and Email (SetNull) are safe — they just get unlinked
-  const [contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux] = await Promise.all([
+  const [contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux, preconisations] = await Promise.all([
     prisma.contrat.count({ where: { clientId: id } }),
     prisma.deal.count({ where: { clientId: id } }),
     prisma.document.count({ where: { clientId: id } }),
@@ -224,9 +224,10 @@ export async function deleteClient(id: string) {
     prisma.dirigeant.count({ where: { clientId: id } }),
     prisma.sequenceInscription.count({ where: { clientId: id } }),
     prisma.signalCommercial.count({ where: { clientId: id } }),
+    prisma.preconisation.count({ where: { clientId: id } }),
   ]);
 
-  if (contrats > 0 || deals > 0 || documents > 0 || opportunites > 0 || dirigeant > 0 || inscriptions > 0 || signaux > 0) {
+  if (contrats > 0 || deals > 0 || documents > 0 || opportunites > 0 || dirigeant > 0 || inscriptions > 0 || signaux > 0 || preconisations > 0) {
     const parts: string[] = [];
     if (contrats > 0) parts.push(`${contrats} contrat${contrats > 1 ? "s" : ""}`);
     if (deals > 0) parts.push(`${deals} deal${deals > 1 ? "s" : ""}`);
@@ -235,6 +236,7 @@ export async function deleteClient(id: string) {
     if (dirigeant > 0) parts.push("1 dirigeant");
     if (inscriptions > 0) parts.push(`${inscriptions} inscription${inscriptions > 1 ? "s" : ""} sequence`);
     if (signaux > 0) parts.push(`${signaux} ${signaux > 1 ? "signaux commerciaux" : "signal commercial"}`);
+    if (preconisations > 0) parts.push(`${preconisations} preconisation${preconisations > 1 ? "s" : ""}`);
 
     const blockedMsg = `Impossible de supprimer : ce client a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`;
 
@@ -243,7 +245,7 @@ export async function deleteClient(id: string) {
       entityId: id,
       action: "delete_blocked",
       actorUserId: actorId,
-      metadata: { blockedDependencies: { contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux } },
+      metadata: { blockedDependencies: { contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux, preconisations } },
     });
 
     return { error: blockedMsg };

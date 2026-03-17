@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2, XCircle, Sparkles, ShoppingBag, FolderOpen } from "lucide-react";
+import { Pencil, Mail, Phone, MapPin, Building2, ArrowUpRight, ArrowDownLeft, MessageSquare, Shield, UserCheck, Handshake, Calendar, TrendingUp, Clock, FileText, Target, CheckCircle2, XCircle, Sparkles, ShoppingBag, FolderOpen, ClipboardList } from "lucide-react";
 import { STATUTS_CLIENT, TYPES_PRODUITS, ETAPES_PIPELINE, PRIORITES, STATUTS_DIRIGEANT, CATEGORIES_RESEAU } from "@/lib/constants";
 import { format } from "date-fns";
 import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
@@ -22,6 +22,8 @@ import { SequenceCard } from "@/components/clients/SequenceCard";
 import { DocumentsTab } from "@/components/clients/DocumentsTab";
 import { ClientArchiveActions } from "@/components/clients/ClientArchiveActions";
 import { ClientTaskActions } from "@/components/clients/ClientTaskActions";
+import { PreconisationsTab } from "@/components/clients/PreconisationsTab";
+import { THEMES_PRECONISATION, STATUTS_PRECONISATION, PRIORITES_PRECONISATION } from "@/lib/constants";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 import { archiveClient, unarchiveClient, deleteClient } from "../actions";
 
@@ -90,6 +92,12 @@ export default async function ClientDetailPage({
       sequenceInscriptions: {
         where: { statut: "en_cours" },
         include: { sequence: { select: { id: true, nom: true, etapes: true } } },
+      },
+      preconisations: {
+        orderBy: { updatedAt: "desc" },
+        include: {
+          createdByUser: { select: { prenom: true, nom: true } },
+        },
       },
     },
   });
@@ -196,6 +204,20 @@ export default async function ClientDetailPage({
       title: doc.nomAffiche,
       detail: doc.categorie,
       color: "#8B5CF6",
+    });
+  }
+
+  // Preconisations
+  for (const p of client.preconisations) {
+    const themeConfig = THEMES_PRECONISATION.find((t) => t.id === p.theme);
+    const statutConfig = STATUTS_PRECONISATION.find((s) => s.id === p.statut);
+    timeline.push({
+      date: p.createdAt,
+      type: "preconisation",
+      icon: "ClipboardList",
+      title: `Preconisation : ${p.titre}`,
+      detail: `${themeConfig?.label ?? p.theme} — ${statutConfig?.label ?? p.statut}`,
+      color: themeConfig?.color ?? "#F59E0B",
     });
   }
 
@@ -605,6 +627,10 @@ export default async function ClientDetailPage({
             <TabsList>
               <TabsTrigger value="contrats">Contrats ({client.contrats.length})</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline ({client.deals.length})</TabsTrigger>
+              <TabsTrigger value="preconisations">
+                <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                Preconisations ({client.preconisations.length})
+              </TabsTrigger>
               <TabsTrigger value="taches">Taches ({client.taches.length})</TabsTrigger>
               <TabsTrigger value="emails">Emails ({client.emails.length})</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -693,6 +719,27 @@ export default async function ClientDetailPage({
               )}
             </TabsContent>
 
+            <TabsContent value="preconisations" className="mt-4">
+              <PreconisationsTab
+                preconisations={client.preconisations.map((p) => ({
+                  id: p.id,
+                  theme: p.theme,
+                  titre: p.titre,
+                  justification: p.justification,
+                  priorite: p.priorite,
+                  statut: p.statut,
+                  prochainePas: p.prochainePas,
+                  notes: p.notes,
+                  dealId: p.dealId,
+                  createdByUser: p.createdByUser,
+                  createdAt: p.createdAt.toISOString(),
+                  updatedAt: p.updatedAt.toISOString(),
+                }))}
+                clientId={client.id}
+                deals={client.deals.map((d) => ({ id: d.id, label: d.titre }))}
+              />
+            </TabsContent>
+
             <TabsContent value="taches" className="mt-4">
               {client.taches.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-4">Aucune tache en cours</p>
@@ -735,6 +782,42 @@ export default async function ClientDetailPage({
                   })}
                 </div>
               )}
+              {/* Completed/cancelled tasks */}
+              {tachesTerminees.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Terminees / Annulees ({tachesTerminees.length})</p>
+                  {tachesTerminees.slice(0, 10).map((tache) => {
+                    const isCancelled = tache.statut === "annulee";
+                    return (
+                      <Card key={tache.id} className={isCancelled ? "opacity-60" : ""}>
+                        <CardContent className="py-3 flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {isCancelled ? (
+                                <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                              )}
+                              <p className="font-medium text-sm line-through decoration-muted-foreground/30">{tache.titre}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {tache.dateRealisation
+                                ? format(tache.dateRealisation, "dd MMM yyyy", { locale: fr })
+                                : format(tache.dateCreation, "dd MMM yyyy", { locale: fr })}
+                              {tache.raisonFermeture && (
+                                <span className="ml-2">{tache.raisonFermeture}</span>
+                              )}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {isCancelled ? "Annulee" : tache.autoFermee ? "Auto" : "Terminee"}
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="emails" className="mt-4">
@@ -771,6 +854,7 @@ export default async function ClientDetailPage({
                         : event.icon === "Sparkles" ? Sparkles
                         : event.icon === "ShoppingBag" ? ShoppingBag
                         : event.icon === "FolderOpen" ? FolderOpen
+                        : event.icon === "ClipboardList" ? ClipboardList
                         : Clock;
                       return (
                         <div key={i} className="flex gap-3 relative">

@@ -28,6 +28,7 @@ model Workspace {
   compagnies           Compagnie[]
   documents            Document[]
   opportunites         OpportuniteCommerciale[]
+  preconisations       Preconisation[]
 }
 
 model User {
@@ -40,13 +41,15 @@ model User {
   dateCreation DateTime @default(now())
 
   // Attribution relations
-  clientsCreated      Client[]                 @relation("ClientCreatedBy")
-  clientsUpdated      Client[]                 @relation("ClientUpdatedBy")
-  documentsCreated    Document[]               @relation("DocumentCreatedBy")
-  documentsUpdated    Document[]               @relation("DocumentUpdatedBy")
-  opportunitesCreated OpportuniteCommerciale[] @relation("OpportuniteCreatedBy")
-  opportunitesUpdated OpportuniteCommerciale[] @relation("OpportuniteUpdatedBy")
-  auditLogs           AuditLog[]
+  clientsCreated          Client[]                 @relation("ClientCreatedBy")
+  clientsUpdated          Client[]                 @relation("ClientUpdatedBy")
+  documentsCreated        Document[]               @relation("DocumentCreatedBy")
+  documentsUpdated        Document[]               @relation("DocumentUpdatedBy")
+  opportunitesCreated     OpportuniteCommerciale[] @relation("OpportuniteCreatedBy")
+  opportunitesUpdated     OpportuniteCommerciale[] @relation("OpportuniteUpdatedBy")
+  preconisationsCreated   Preconisation[]          @relation("PreconisationCreatedBy")
+  preconisationsUpdated   Preconisation[]          @relation("PreconisationUpdatedBy")
+  auditLogs               AuditLog[]
 }
 
 model Client {
@@ -139,6 +142,7 @@ model Client {
   signauxCommerciaux   SignalCommercial[]
   opportunites         OpportuniteCommerciale[]
   documents            Document[]
+  preconisations       Preconisation[]
 }
 
 model Dirigeant {
@@ -307,6 +311,8 @@ model Deal {
   motifPerte            String?
   notes                 String?
   assigneA              String?
+  // Relations
+  preconisations        Preconisation[]
 }
 
 model Commission {
@@ -615,6 +621,37 @@ model Document {
   @@index([clientId])
   @@index([clientId, archive])
   @@index([categorie])
+}
+
+// -- Preconisations (Structured Recommendations) --
+
+model Preconisation {
+  id              String    @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id])
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dealId          String?
+  deal            Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  // Contenu
+  theme           String    // mutuelle_collective, prevoyance, retraite, epargne, remuneration, patrimonial, autre
+  titre           String
+  justification   String?
+  priorite        String    @default("moyenne") // basse, moyenne, haute
+  statut          String    @default("a_preparer") // a_preparer, presentee, en_discussion, validee, refusee, reportee
+  prochainePas    String?
+  notes           String?
+  // Attribution
+  createdByUserId String?
+  createdByUser   User?     @relation("PreconisationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId String?
+  updatedByUser   User?     @relation("PreconisationUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([statut])
 }
 
 // -- Audit Trail --
