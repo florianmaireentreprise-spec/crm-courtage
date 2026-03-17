@@ -81,7 +81,7 @@ Built in 9 incremental stages. All code compiles and deploys. Core logic is dete
 - 3-step client resolution: email.clientId → matchClientByEmail → create new
 - Idempotent (multi-click safe via existing guards on signals + opportunities)
 - UI: emerald button in AnalysisPanel, conditional on `hasCommercialIntent`
-- **Validation status**: code implemented and builds, pending end-to-end validation with a real unlinked prospect email
+- **Validation status**: validated end-to-end (March 17, 2026) — prospect creation, email linking, signal extraction, opportunity detection, commercial memory update, UI idempotency all confirmed with live data in browser
 
 **Stage 5** — Opportunity lifecycle
 - Status transitions: detectee → qualifiee → en_cours → gagnee/perdue/rejetee
@@ -204,11 +204,23 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 - Railway still auto-deploys from repo (build fails). Should disconnect from Railway dashboard
 - Junk filter retroactive cleanup on `/emails` page may have Vercel SSR caching issue
 
+### Deployment model (see DEPLOYMENTS.md for runbook)
+- **Real/production**: Vercel project `crm-courtage`, deploys from `main` branch
+- **Demo**: Vercel project `demo-crm-courtage`, deploys from `demo` branch (dedicated)
+- Demo is NOT an automatic mirror of main — changes are promoted explicitly
+- Demo DB is a separate Neon branch with its own seed data
+- Demo incident (March 2026): demo deployment failed because Prisma schema drifted between main and demo DB. Production was not affected. Fixed by syncing demo DB schema
+
 ### Validation gaps
-- Stage 4 (createProspectAndOpportunity): code implemented, builds clean, but not yet validated end-to-end with a real unlinked prospect email in production
 - Global search: validated via browser automation (API returns correct results, UI displays them, click-through navigation works). Pending human manual confirmation
 - Commercial intelligence engine (Stages 1-9): core logic is deterministic and testable, but no automated test suite exists. Behavior validated through manual testing during development
 - n8n workflows: running in production but monitoring is manual (no alerting beyond n8n Cloud built-in)
+
+### Recently validated (March 2026)
+- **Stage 4** (createProspectAndOpportunity): fully validated end-to-end with live data (March 17). Prospect creation, email linking, signal extraction, opportunity detection, commercial memory update, UI idempotency all confirmed in browser
+- **TypeScript build**: `ignoreBuildErrors: true` removed from `next.config.ts`. All 5 underlying TS errors fixed. Build passes cleanly with `strict: true`
+- **deleteClient guard**: hardened to check ALL cascade dependencies before allowing deletion. Browser-verified
+- **User attribution / audit trail V1**: implemented — `createdBy`/`updatedBy` on Client, Document, OpportuniteCommerciale
 
 ---
 
@@ -494,6 +506,15 @@ N8N_GENERATE_REPLY_URL=  # URL webhook n8n pour WF09 (generate-reply)
 
 ### Commits (chronological, newest first)
 ```
+5d323a1 fix: remove ignoreBuildErrors and fix 5 TypeScript build errors
+e85d958 feat: add user attribution and audit trail for Client, Document, OpportuniteCommerciale
+12a2081 fix: harden deleteClient guard to check ALL cascade dependencies
+0699e95 feat: add archive/delete for Client and Prescripteur with safety guards
+dd007a3 feat: surface sequence visibility across CRM — client page, next-actions, dashboard
+9bdb47c feat: improve sequence enrollment UX — step timeline with status indicators
+823b1b9 feat: add demo environment — separate Vercel deployment + Neon branch
+5fbef42 feat: add SIRENE company enrichment V1 + hardening pass
+8f8d776 docs: document workspace separation Phase 1 in CLAUDE.md
 9067ffe feat: workspace separation Phase 1 — demo/real data isolation
 480103c fix: harden reseau validation — date coercion, enum whitelists, form structure
 27e5f50 fix: compagnie search navigation + harden cmdk value props
