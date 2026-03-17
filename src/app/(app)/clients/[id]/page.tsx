@@ -34,6 +34,8 @@ export default async function ClientDetailPage({
   const client = await prisma.client.findUnique({
     where: { id },
     include: {
+      createdByUser: { select: { id: true, prenom: true, nom: true } },
+      updatedByUser: { select: { id: true, prenom: true, nom: true } },
       contrats: {
         include: { compagnie: true },
         orderBy: { dateEffet: "desc" },
@@ -250,6 +252,14 @@ export default async function ClientDetailPage({
           <p className="text-muted-foreground mt-1">
             {client.civilite} {client.prenom} {client.nom}
             {client.formeJuridique && ` \u2014 ${client.formeJuridique}`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {client.createdByUser && (
+              <span>Ajoute par {client.createdByUser.prenom} {client.createdByUser.nom} le {format(new Date(client.dateCreation), "dd/MM/yyyy", { locale: fr })}</span>
+            )}
+            {client.updatedByUser && (
+              <span>{client.createdByUser ? " · " : ""}Modifie par {client.updatedByUser.prenom} {client.updatedByUser.nom} le {format(new Date(client.dateMaj), "dd/MM/yyyy", { locale: fr })}</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">

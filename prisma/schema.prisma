@@ -38,6 +38,15 @@ model User {
   nom          String
   role         String   @default("gerant")
   dateCreation DateTime @default(now())
+
+  // Attribution relations
+  clientsCreated      Client[]                 @relation("ClientCreatedBy")
+  clientsUpdated      Client[]                 @relation("ClientUpdatedBy")
+  documentsCreated    Document[]               @relation("DocumentCreatedBy")
+  documentsUpdated    Document[]               @relation("DocumentUpdatedBy")
+  opportunitesCreated OpportuniteCommerciale[] @relation("OpportuniteCreatedBy")
+  opportunitesUpdated OpportuniteCommerciale[] @relation("OpportuniteUpdatedBy")
+  auditLogs           AuditLog[]
 }
 
 model Client {
@@ -115,6 +124,11 @@ model Client {
   dernierSignalDate       DateTime?  // Date du dernier signal commercial
   dernierSignalResume     String?    // Court texte max 200 chars
   nbSignaux               Int?       // Nombre total de signaux
+  // Attribution
+  createdByUserId      String?
+  createdByUser        User?     @relation("ClientCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId      String?
+  updatedByUser        User?     @relation("ClientUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   // Relations
   contrats             Contrat[]
   deals                Deal[]
@@ -545,6 +559,11 @@ model OpportuniteCommerciale {
   closedAt          DateTime?
   closeReason       String?
   metadata          Json?
+  // Attribution
+  createdByUserId   String?
+  createdByUser     User?    @relation("OpportuniteCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId   String?
+  updatedByUser     User?    @relation("OpportuniteUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -584,6 +603,11 @@ model Document {
   archive         Boolean   @default(false)
   notes           String?
   tags            String?   // JSON array: ["urgent","original"]
+  // Attribution
+  createdByUserId String?
+  createdByUser   User?     @relation("DocumentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId String?
+  updatedByUser   User?     @relation("DocumentUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   // Timestamps
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -591,4 +615,21 @@ model Document {
   @@index([clientId])
   @@index([clientId, archive])
   @@index([categorie])
+}
+
+// -- Audit Trail --
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  entityType    String   // "Client" | "Document" | "OpportuniteCommerciale"
+  entityId      String
+  action        String   // "create" | "update" | "archive" | "unarchive" | "delete" | "delete_blocked"
+  actorUserId   String?
+  actorUser     User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  metadata      Json?    // changedFields, blockedDependencies, etc.
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
 }

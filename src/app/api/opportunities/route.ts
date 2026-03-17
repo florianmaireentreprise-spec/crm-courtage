@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { logAudit, getActorId } from "@/lib/audit";
 
 // -- Lifecycle transition rules --
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -88,8 +89,11 @@ export async function PATCH(req: Request) {
     }
   }
 
+  const actorId = getActorId(session);
+
   const updateData: Record<string, unknown> = {
     derniereActivite: new Date(),
+    updatedByUserId: actorId,
   };
 
   if (statut) {
@@ -116,6 +120,17 @@ export async function PATCH(req: Request) {
   const updated = await prisma.opportuniteCommerciale.update({
     where: { id },
     data: updateData,
+  });
+
+  logAudit({
+    entityType: "OpportuniteCommerciale",
+    entityId: id,
+    action: "update",
+    actorUserId: actorId,
+    metadata: {
+      ...(statut ? { previousStatut: opp.statut, newStatut: statut } : {}),
+      ...(closeReason || motifRejet ? { closeReason: closeReason || motifRejet } : {}),
+    },
   });
 
   // Track lifecycle transition as feedback (fire-and-forget)

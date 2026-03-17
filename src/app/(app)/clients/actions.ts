@@ -6,8 +6,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { emitN8nEvent } from "@/lib/n8n";
+import { logAudit, getActorId } from "@/lib/audit";
 
 export async function createClient(formData: FormData) {
+  const session = await auth();
+  const actorId = getActorId(session);
+
   const raw = Object.fromEntries(formData.entries());
   const parsed = clientSchema.safeParse(raw);
 
@@ -59,7 +63,17 @@ export async function createClient(formData: FormData) {
       assureurActuelSante: data.assureurActuelSante || null,
       dateDerniereRevision: data.dateDerniereRevision,
       motifChangement: data.motifChangement || null,
+      createdByUserId: actorId,
+      updatedByUserId: actorId,
     },
+  });
+
+  logAudit({
+    entityType: "Client",
+    entityId: client.id,
+    action: "create",
+    actorUserId: actorId,
+    metadata: { raisonSociale: client.raisonSociale },
   });
 
   void emitN8nEvent({
@@ -82,6 +96,9 @@ export async function createClient(formData: FormData) {
 }
 
 export async function updateClient(id: string, formData: FormData) {
+  const session = await auth();
+  const actorId = getActorId(session);
+
   const raw = Object.fromEntries(formData.entries());
   const parsed = clientSchema.safeParse(raw);
 
@@ -134,7 +151,15 @@ export async function updateClient(id: string, formData: FormData) {
       assureurActuelSante: data.assureurActuelSante || null,
       dateDerniereRevision: data.dateDerniereRevision,
       motifChangement: data.motifChangement || null,
+      updatedByUserId: actorId,
     },
+  });
+
+  logAudit({
+    entityType: "Client",
+    entityId: id,
+    action: "update",
+    actorUserId: actorId,
   });
 
   revalidatePath("/clients");
@@ -145,10 +170,20 @@ export async function updateClient(id: string, formData: FormData) {
 export async function archiveClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
+  const actorId = session.user.id;
+
   await prisma.client.update({
     where: { id },
-    data: { archived: true, archivedAt: new Date() },
+    data: { archived: true, archivedAt: new Date(), updatedByUserId: actorId },
   });
+
+  logAudit({
+    entityType: "Client",
+    entityId: id,
+    action: "archive",
+    actorUserId: actorId,
+  });
+
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
 }
@@ -156,10 +191,20 @@ export async function archiveClient(id: string) {
 export async function unarchiveClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
+  const actorId = session.user.id;
+
   await prisma.client.update({
     where: { id },
-    data: { archived: false, archivedAt: null },
+    data: { archived: false, archivedAt: null, updatedByUserId: actorId },
   });
+
+  logAudit({
+    entityType: "Client",
+    entityId: id,
+    action: "unarchive",
+    actorUserId: actorId,
+  });
+
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
 }
@@ -167,6 +212,7 @@ export async function unarchiveClient(id: string) {
 export async function deleteClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
+  const actorId = session.user.id;
 
   // Guard: count ALL linked data that would be CASCADE-deleted
   // Tache (SetNull) and Email (SetNull) are safe — they just get unlinked
@@ -189,10 +235,26 @@ export async function deleteClient(id: string) {
     if (dirigeant > 0) parts.push("1 dirigeant");
     if (inscriptions > 0) parts.push(`${inscriptions} inscription${inscriptions > 1 ? "s" : ""} sequence`);
     if (signaux > 0) parts.push(`${signaux} ${signaux > 1 ? "signaux commerciaux" : "signal commercial"}`);
-    return {
-      error: `Impossible de supprimer : ce client a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`,
-    };
+
+    const blockedMsg = `Impossible de supprimer : ce client a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`;
+
+    logAudit({
+      entityType: "Client",
+      entityId: id,
+      action: "delete_blocked",
+      actorUserId: actorId,
+      metadata: { blockedDependencies: { contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux } },
+    });
+
+    return { error: blockedMsg };
   }
+
+  logAudit({
+    entityType: "Client",
+    entityId: id,
+    action: "delete",
+    actorUserId: actorId,
+  });
 
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clients");

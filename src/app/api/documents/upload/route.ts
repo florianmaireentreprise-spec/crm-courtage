@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { logAudit, getActorId } from "@/lib/audit";
 
 // Max file size: 10 MB
 const MAX_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    const actorId = getActorId(session);
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const clientId = formData.get("clientId") as string | null;
@@ -64,7 +69,17 @@ export async function POST(request: NextRequest) {
         dateDocument: dateDocument ? new Date(dateDocument) : undefined,
         dateExpiration: dateExpiration ? new Date(dateExpiration) : undefined,
         notes: notes || undefined,
+        createdByUserId: actorId,
+        updatedByUserId: actorId,
       },
+    });
+
+    logAudit({
+      entityType: "Document",
+      entityId: document.id,
+      action: "create",
+      actorUserId: actorId,
+      metadata: { nomFichier: file.name, categorie, typeDocument, clientId },
     });
 
     return NextResponse.json({ document }, { status: 201 });
