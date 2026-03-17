@@ -168,18 +168,27 @@ export async function deleteClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };
 
-  // Guard: count linked data that would be CASCADE-deleted
-  const [contrats, deals, documents] = await Promise.all([
+  // Guard: count ALL linked data that would be CASCADE-deleted
+  // Tache (SetNull) and Email (SetNull) are safe — they just get unlinked
+  const [contrats, deals, documents, opportunites, dirigeant, inscriptions, signaux] = await Promise.all([
     prisma.contrat.count({ where: { clientId: id } }),
     prisma.deal.count({ where: { clientId: id } }),
     prisma.document.count({ where: { clientId: id } }),
+    prisma.opportuniteCommerciale.count({ where: { clientId: id } }),
+    prisma.dirigeant.count({ where: { clientId: id } }),
+    prisma.sequenceInscription.count({ where: { clientId: id } }),
+    prisma.signalCommercial.count({ where: { clientId: id } }),
   ]);
 
-  if (contrats > 0 || deals > 0 || documents > 0) {
+  if (contrats > 0 || deals > 0 || documents > 0 || opportunites > 0 || dirigeant > 0 || inscriptions > 0 || signaux > 0) {
     const parts: string[] = [];
     if (contrats > 0) parts.push(`${contrats} contrat${contrats > 1 ? "s" : ""}`);
     if (deals > 0) parts.push(`${deals} deal${deals > 1 ? "s" : ""}`);
     if (documents > 0) parts.push(`${documents} document${documents > 1 ? "s" : ""}`);
+    if (opportunites > 0) parts.push(`${opportunites} opportunite${opportunites > 1 ? "s" : ""}`);
+    if (dirigeant > 0) parts.push("1 dirigeant");
+    if (inscriptions > 0) parts.push(`${inscriptions} inscription${inscriptions > 1 ? "s" : ""} sequence`);
+    if (signaux > 0) parts.push(`${signaux} ${signaux > 1 ? "signaux commerciaux" : "signal commercial"}`);
     return {
       error: `Impossible de supprimer : ce client a ${parts.join(", ")}. Archivez-le ou supprimez d'abord ses donnees liees.`,
     };
