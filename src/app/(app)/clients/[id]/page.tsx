@@ -355,6 +355,7 @@ export default async function ClientDetailPage({
               ...o,
               detecteeLe: o.detecteeLe.toISOString(),
               derniereActivite: o.derniereActivite.toISOString(),
+              closedAt: o.closedAt?.toISOString() ?? null,
             }))}
             clientId={client.id}
           />

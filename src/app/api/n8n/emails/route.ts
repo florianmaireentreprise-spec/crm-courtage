@@ -100,7 +100,7 @@ async function handler(req: Request) {
         });
         const toAddress = extractEmailAddress(email.expediteur);
         const draftId = await createGmailDraft(
-          oauth2Client, toAddress, email.sujet, draftReply, email.threadId,
+          oauth2Client, toAddress, email.sujet ?? "(sans objet)", resolvedReply, email.threadId,
         );
         updateData.gmailDraftId = draftId;
         updateData.draftStatut = "brouillon";

@@ -40,7 +40,7 @@ export function CAEvolutionChart({ data }: { data: CAEvolutionData }) {
                 }
               />
               <Tooltip
-                formatter={(value: number | string) =>
+                formatter={(value: number | string | undefined) =>
                   typeof value === "number"
                     ? new Intl.NumberFormat("fr-FR", {
                         style: "currency",

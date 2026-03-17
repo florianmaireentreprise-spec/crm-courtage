@@ -359,7 +359,7 @@ export function AnalysisPanel({ email }: Props) {
                 {expediteurEntreprise && <> ({expediteurEntreprise})</>}
               </span>
             </div>
-            {hasCommercialIntent && !prospectOppResult && (
+            {hasCommercialIntent && (
               <Button
                 size="sm"
                 className="w-full h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -369,20 +369,6 @@ export function AnalysisPanel({ email }: Props) {
                 {creatingProspectOpp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                 {CTA_LABEL}
               </Button>
-            )}
-            {prospectOppResult && (
-              <div className="flex items-center gap-2 text-xs">
-                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="text-emerald-600 font-medium">
-                  {prospectOppResult.clientName}
-                  {prospectOppResult.opportunitesCount > 0 && (
-                    <> — {prospectOppResult.opportunitesCount} opportunité{prospectOppResult.opportunitesCount > 1 ? "s" : ""} détectée{prospectOppResult.opportunitesCount > 1 ? "s" : ""}</>
-                  )}
-                </span>
-                <a href={`/clients/${prospectOppResult.clientId}`} className="text-emerald-600 hover:underline ml-1">
-                  Voir la fiche →
-                </a>
-              </div>
             )}
             <div className="flex items-center gap-2">
               <Button

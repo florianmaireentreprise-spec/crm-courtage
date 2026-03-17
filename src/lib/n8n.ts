@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 // ── Types ──
 
@@ -111,7 +112,7 @@ async function logN8nCall(data: {
       data: {
         direction: data.direction,
         eventType: data.eventType,
-        payload: data.payload,
+        payload: data.payload as Prisma.InputJsonValue,
         statut: data.statut,
         erreur: data.erreur,
         dureeMs: data.dureeMs,

@@ -203,7 +203,7 @@ function parseClientMatch(raw: unknown, legacyClientId: string | null): AIClient
       clientId: typeof cm.clientId === "string" && cm.clientId !== "null" ? cm.clientId : legacyClientId,
       clientEmail: typeof cm.clientEmail === "string" && cm.clientEmail !== "null" ? cm.clientEmail : null,
       clientName: typeof cm.clientName === "string" && cm.clientName !== "null" ? cm.clientName : null,
-      confidence: VALID_CONFIDENCES.includes(cm.confidence as string) ? cm.confidence as AIClientMatch["confidence"] : "basse",
+      confidence: (VALID_CONFIDENCES as ReadonlyArray<string>).includes(cm.confidence as string) ? cm.confidence as AIClientMatch["confidence"] : "basse",
     };
   }
   // Fallback from legacy clientId field

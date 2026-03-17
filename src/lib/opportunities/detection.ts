@@ -260,7 +260,7 @@ export async function persistOpportunites(
           temperature: candidate.temperature,
           origineSignal: candidate.origineSignal,
           dedupeKey: candidate.dedupeKey,
-          ...(candidate.metadata ? { metadata: candidate.metadata } : {}),
+          ...(candidate.metadata ? { metadata: candidate.metadata as object } : {}),
         },
       });
     }
