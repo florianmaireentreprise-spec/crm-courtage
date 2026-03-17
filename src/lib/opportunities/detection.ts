@@ -164,7 +164,7 @@ export async function detecterOpportunitesDepuisEmail(
 
 const CONFIANCE_ORDER: Record<string, number> = { haute: 3, moyenne: 2, basse: 1 };
 
-function deduplicateCandidates(candidates: OpportuniteCandidate[]): OpportuniteCandidate[] {
+export function deduplicateCandidates(candidates: OpportuniteCandidate[]): OpportuniteCandidate[] {
   const map = new Map<string, OpportuniteCandidate>();
   for (const c of candidates) {
     const existing = map.get(c.dedupeKey);
