@@ -41,10 +41,11 @@ async function main() {
   await prisma.commission.deleteMany();
   console.log("  [2/11] Commission");
 
-  // Layer 3 — Document, OpportuniteCommerciale (children of Client + optional FKs)
+  // Layer 3 — Document, OpportuniteCommerciale, Preconisation (children of Client + optional FKs)
   await prisma.document.deleteMany();
   await prisma.opportuniteCommerciale.deleteMany();
-  console.log("  [3/11] Document, OpportuniteCommerciale");
+  await prisma.preconisation.deleteMany();
+  console.log("  [3/11] Document, OpportuniteCommerciale, Preconisation");
 
   // Layer 4 — Tache, SequenceInscription (children of Client/Email/Sequence)
   await prisma.tache.deleteMany();
@@ -1182,6 +1183,64 @@ async function main() {
   }
 
   // ═══════════════════════════════════════════════════════
+
+  // ── 16. Preconisations (4) ──
+
+  console.log('  Preconisations...');
+  const allClientsForPreco = await prisma.client.findMany({ take: 3, orderBy: { dateCreation: 'asc' }, select: { id: true } });
+  if (allClientsForPreco.length >= 2) {
+    await Promise.all([
+      prisma.preconisation.create({
+        data: {
+          clientId: allClientsForPreco[0].id,
+          theme: 'mutuelle_collective',
+          titre: 'Mise en place mutuelle collective obligatoire',
+          justification: 'Obligation legale ANI. Le client n'a pas de mutuelle collective.',
+          priorite: 'haute', statut: 'presentee',
+          prochainePas: 'Envoyer comparatif 3 compagnies',
+          datePresentation: addDays(today, -10),
+          workspaceId: wsId,
+        },
+      }),
+      prisma.preconisation.create({
+        data: {
+          clientId: allClientsForPreco[0].id,
+          theme: 'prevoyance',
+          titre: 'Prevoyance dirigeant TNS — couverture deces/invalidite',
+          justification: 'Le dirigeant TNS n'a aucune prevoyance personnelle.',
+          priorite: 'haute', statut: 'en_discussion',
+          prochainePas: 'Attente retour dirigeant sur budget mensuel',
+          datePresentation: addDays(today, -5),
+          workspaceId: wsId,
+        },
+      }),
+      prisma.preconisation.create({
+        data: {
+          clientId: allClientsForPreco[1].id,
+          theme: 'retraite',
+          titre: 'Optimisation retraite via PER individuel',
+          justification: 'Dirigeant sans complement retraite. Fort potentiel defiscalisation.',
+          priorite: 'moyenne', statut: 'a_preparer',
+          workspaceId: wsId,
+        },
+      }),
+      prisma.preconisation.create({
+        data: {
+          clientId: allClientsForPreco[1].id,
+          theme: 'epargne',
+          titre: 'Assurance vie pour constitution de tresorerie',
+          justification: 'Tresorerie excedentaire non placee.',
+          priorite: 'moyenne', statut: 'validee',
+          datePresentation: addDays(today, -20),
+          dateDecision: addDays(today, -7),
+          prochainePas: 'Preparer bulletin de souscription SwissLife',
+          workspaceId: wsId,
+        },
+      }),
+    ]);
+  }
+  console.log('  [16] Preconisations: 4');
+
   // SUMMARY
   // ═══════════════════════════════════════════════════════
 
