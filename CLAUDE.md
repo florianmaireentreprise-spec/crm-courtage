@@ -30,6 +30,7 @@ npx prisma studio   # GUI base de donnees
 npx tsx scripts/bootstrap-workspaces.ts   # Cree les workspaces demo+real, migre les donnees existantes vers demo
 npx tsx scripts/check-contamination.ts    # Audit: verifie qu'aucun email/tache/signal ne pointe vers un client demo
 npx tsx scripts/fix-email-demo-links.ts   # Fix: delie les emails qui referençaient des clients demo (set clientId=null)
+npx tsx scripts/migrate-reseau-taxonomy.ts # One-off: migre les anciennes valeurs typeRelation/statutReseau vers la nouvelle taxonomie
 ```
 
 ---
@@ -184,25 +185,25 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 10. **Demo/Real isolation via Prisma Client Extension** — not a full multi-tenant architecture. Pragmatic Phase 1: Workspace model with `demo`/`real` slugs, Prisma `$allOperations` hook auto-injects `workspaceId` on reads and writes for 10 models. No workspace switcher UI, no per-user workspace context. Single default workspace (real) for all CRM usage
 
 ### Not yet decided / open
-- Recommendation/preconisation object structure (currently no formal object, just free-text in deal fields)
-- How reseau/network model evolves into a launch cockpit (current model is category + objective counts)
 - Whether scoring models need calibration once real data exists (currently using reasonable defaults)
+- How far to push the Preconisation model (V1 is implemented — single theme per record, CRUD + status transitions)
+- Whether to add formal compliance/DDA checkpoints as CRM features vs keeping them in insurer tools
 
 ---
 
 ## Known Limitations
 
 ### Intentionally not implemented
-- **No recommendation/preconisation object**: deal fields (propositionCommerciale, comparatifAssureurs, simulationCotisations) serve as free-text placeholders. No structured recommendation workflow
+- **Preconisation V1 implemented** (March 2026): structured recommendations per client with theme, status, priority, justification. Full CRUD + status transitions. Not yet a full product catalog or quoting engine
 - **No compliance workflow in CRM**: DDA compliance, regulatory checks, suitability assessments are handled in insurer tools. CRM has no compliance layer
 - **No insurer-integrated signature workflow**: e-signature, document collection, insurer API integrations are out of scope. CRM tracks deal stages only
 - **No client portal**: all interactions are through the cabinet's internal CRM interface
 - **No multi-user permissions**: single gerant user, no role-based access beyond basic auth
 
 ### Technical debt / open issues
-- `parseAIResponse()` in `src/lib/email/ai.ts` is dead code (never imported)
 - Railway still auto-deploys from repo (build fails). Should disconnect from Railway dashboard
 - Junk filter retroactive cleanup on `/emails` page may have Vercel SSR caching issue
+- Duplicated enum whitelists (TYPES_RELATION_IDS, STATUTS_RESEAU_IDS) in validators/client.ts and reseau/actions.ts — intentional for server action isolation but requires manual sync on taxonomy changes
 
 ### Deployment model (see DEPLOYMENTS.md for runbook)
 - **Real/production**: Vercel project `crm-courtage`, deploys from `main` branch
@@ -221,6 +222,10 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 - **TypeScript build**: `ignoreBuildErrors: true` removed from `next.config.ts`. All 5 underlying TS errors fixed. Build passes cleanly with `strict: true`
 - **deleteClient guard**: hardened to check ALL cascade dependencies before allowing deletion. Browser-verified
 - **User attribution / audit trail V1**: implemented — `createdBy`/`updatedBy` on Client, Document, OpportuniteCommerciale
+- **Auth/session identity fix** (March 18): session user ID now reliably resolves to User table. FK errors on attribution eliminated
+- **Preconisation V1** (March 18): full CRUD + status transitions, browser-verified
+- **Reseau taxonomy cleanup** (March 18): typeRelation 6→4 values, statutReseau 9→7 values, data migrated, browser-verified
+- **Email pre-filter expansion** (March 18): added FR newsletter/promotional patterns, social/SaaS domains. Reduces unnecessary n8n AI analysis
 
 ---
 
@@ -228,11 +233,11 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 
 Based on actual business direction (pre-launch cabinet tool, network-driven launch):
 
-1. **Reseau/network as launch cockpit** — current model (category + objective counts) needs to evolve into an actionable prospection pipeline: contact tracking per category, conversion funnel, activity logging, forecasting from network potential
+1. **Real-world usage validation** — start using the CRM with real prospects and verify all flows work in practice. Monitor email analysis quality, opportunity detection accuracy, and scoring calibration
 2. **Stronger prospect/client dossier structure** — currently prospect → client transition is a status field change. Needs structured qualification data, meeting notes, needs assessment before the recommendation phase
-3. **Pre-launch business forecasting** — estimate pipeline from network objectives: categories × conversion rates × average deal size. Dashboard widget for launch readiness
-4. **Search stabilization** — confirm human manual validation of global search, fix any edge cases found
-5. **Recommendation/compliance layers** — postponed until real activity/product reality is clearer. Will need: structured recommendation object, DDA compliance checkpoints, document checklist per product type
+3. **Search stabilization** — confirm human manual validation of global search, fix any edge cases found
+4. **Compliance/DDA layers** — postponed until real activity/product reality is clearer. Will need DDA compliance checkpoints, document checklist per product type
+5. **Reseau further refinements** — taxonomy is now clean (4 typeRelation, 7 statutReseau), forecasting works. Next: conversion funnel analytics, activity logging per contact
 
 ---
 
@@ -337,7 +342,7 @@ src/
 └── middleware.ts         # Auth middleware
 ```
 
-## Modeles Prisma (23 tables)
+## Modeles Prisma (24 tables)
 
 ### Workspace
 **Workspace** — `id` `slug` (unique: "demo"/"real") `nom` `isDefault` (bool) `createdAt` `updatedAt`
@@ -403,6 +408,10 @@ Relations: inscriptions[]
 **N8nLog** — `id` `direction` (crm_to_n8n | n8n_to_crm) `eventType` `payload?` (JSON) `statut` `erreur?` `dureeMs?` `createdAt`
 
 **Settings** — `id` (defaut: "default") `raisonSociale?` `formeJuridique?` `gerants?` `zone?` `cible?` `tauxCommission?` (JSON) `dateMaj`
+
+### Conseil & Preconisation
+**Preconisation** — `id` `clientId` → Client `dealId?` → Deal `theme` (mutuelle_collective/prevoyance/retraite/epargne/remuneration/patrimonial/autre) `titre` `justification?` `priorite` (defaut: "moyenne") `statut` (defaut: "a_preparer", values: a_preparer/presentee/en_discussion/validee/refusee/reportee) `prochainePas?` `notes?` `datePresentation?` `dateDecision?` `createdAt` `updatedAt`
+Relations: client → Client, deal → Deal?
 
 ## Constantes Metier (src/lib/constants.ts)
 
@@ -506,6 +515,12 @@ N8N_GENERATE_REPLY_URL=  # URL webhook n8n pour WF09 (generate-reply)
 
 ### Commits (chronological, newest first)
 ```
+dd1616b feat: email pre-filter expansion + reseau taxonomy cleanup (typeRelation 6→4, statutReseau 9→7)
+c9d0e6c fix: resolve session/User ID mismatch causing FK errors on attribution
+31f6da9 feat: add structured recommendations (Preconisation V1) and client detail improvements
+c09878d feat: add task cancel action and enrich client timeline with opportunities and documents
+8919124 fix: harmonize auto-close metadata across all outbound email paths
+ab2e7e0 test: add first critical regression tests (Vitest, 44 tests)
 5d323a1 fix: remove ignoreBuildErrors and fix 5 TypeScript build errors
 e85d958 feat: add user attribution and audit trail for Client, Document, OpportuniteCommerciale
 12a2081 fix: harden deleteClient guard to check ALL cascade dependencies
