@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Trash2, Calendar } from "lucide-react";
@@ -14,6 +15,7 @@ type Props = {
   index: number;
   onClick?: () => void;
   isSelected?: boolean;
+  onDeleted?: () => void;
 };
 
 const TEMPERATURES: Record<string, { label: string; color: string }> = {
@@ -38,12 +40,22 @@ function parseProduits(raw?: string | null): string[] {
   }
 }
 
-export function DealCard({ deal, index, onClick, isSelected }: Props) {
+export function DealCard({ deal, index, onClick, isSelected, onDeleted }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const temp = deal.client?.temperatureCommerciale
     ? TEMPERATURES[deal.client.temperatureCommerciale]
     : null;
   const produits = parseProduits(deal.produitsCibles);
   const score = deal.client?.scoreProspect;
+
+  async function handleDelete() {
+    setDeleting(true);
+    await deleteDeal(deal.id);
+    onDeleted?.();
+    setDeleting(false);
+    setConfirmDelete(false);
+  }
 
   return (
     <Draggable draggableId={deal.id} index={index}>
@@ -53,14 +65,13 @@ export function DealCard({ deal, index, onClick, isSelected }: Props) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={(e) => {
-            // Don't open panel if user is dragging
-            if (!snapshot.isDragging && onClick) {
+            if (!snapshot.isDragging && !confirmDelete && onClick) {
               onClick();
             }
           }}
         >
           <div
-            className={`rounded-lg border p-2 cursor-pointer transition-all ${
+            className={`group rounded-lg border p-2 cursor-pointer transition-all ${
               snapshot.isDragging
                 ? "shadow-lg ring-2 ring-primary/20 bg-card"
                 : isSelected
@@ -69,6 +80,28 @@ export function DealCard({ deal, index, onClick, isSelected }: Props) {
             }`}
             style={{ opacity: snapshot.isDragging ? 0.9 : 1 }}
           >
+            {/* Inline delete confirmation */}
+            {confirmDelete && (
+              <div className="flex items-center justify-between gap-2 mb-1.5 p-1.5 bg-red-50 dark:bg-red-950/30 rounded border border-red-200 dark:border-red-800">
+                <span className="text-[10px] font-medium text-red-700 dark:text-red-300">Supprimer ?</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-foreground"
+                  >
+                    Non
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                    disabled={deleting}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                  >
+                    {deleting ? "..." : "Oui"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Row 1: Company name + temperature + delete */}
             <div className="flex items-start justify-between gap-1">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -87,9 +120,9 @@ export function DealCard({ deal, index, onClick, isSelected }: Props) {
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 -mr-0.5 -mt-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  await deleteDeal(deal.id);
+                  setConfirmDelete(true);
                 }}
               >
                 <Trash2 className="h-3 w-3" />

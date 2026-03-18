@@ -8,6 +8,7 @@ type Props = {
   column: PipelineColumn;
   onDealClick?: (deal: DealWithClient) => void;
   selectedDealId?: string;
+  onDealDeleted?: (dealId: string) => void;
 };
 
 const fmt = (v: number) =>
@@ -17,7 +18,7 @@ const fmt = (v: number) =>
     maximumFractionDigits: 0,
   }).format(v);
 
-export function KanbanColumn({ column, onDealClick, selectedDealId }: Props) {
+export function KanbanColumn({ column, onDealClick, selectedDealId, onDealDeleted }: Props) {
   const colTotal = column.deals.reduce((s, d) => s + (d.montantEstime ?? 0), 0);
 
   return (
@@ -62,6 +63,7 @@ export function KanbanColumn({ column, onDealClick, selectedDealId }: Props) {
                 index={index}
                 onClick={() => onDealClick?.(deal)}
                 isSelected={selectedDealId === deal.id}
+                onDeleted={() => onDealDeleted?.(deal.id)}
               />
             ))}
             {provided.placeholder}

@@ -148,6 +148,9 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
               column={col}
               onDealClick={(deal) => setSelectedDeal(deal)}
               selectedDealId={selectedDeal?.id}
+              onDealDeleted={(dealId) => {
+                if (selectedDeal?.id === dealId) setSelectedDeal(null);
+              }}
             />
           ))}
         </div>
@@ -158,6 +161,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
         <DealPanel
           deal={selectedDeal}
           onClose={() => setSelectedDeal(null)}
+          onDeleted={() => setSelectedDeal(null)}
         />
       )}
 

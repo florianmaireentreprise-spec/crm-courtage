@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { X, Building2, User, Briefcase, Save, ExternalLink } from "lucide-react";
-import { updateDealDetails } from "@/app/(app)/pipeline/actions";
+import { X, Building2, User, Briefcase, Save, ExternalLink, Trash2 } from "lucide-react";
+import { updateDealDetails, deleteDeal } from "@/app/(app)/pipeline/actions";
 import { ETAPES_PIPELINE, TYPES_PRODUITS, SOURCES_PROSPECT } from "@/lib/constants";
 import type { DealWithClient } from "@/types";
 import { format } from "date-fns";
@@ -16,6 +16,7 @@ import Link from "next/link";
 type Props = {
   deal: DealWithClient;
   onClose: () => void;
+  onDeleted?: () => void;
 };
 
 type TabId = "deal" | "client" | "dirigeant";
@@ -40,9 +41,11 @@ function parseProduits(raw?: string | null): string[] {
   try { return JSON.parse(raw); } catch { return raw.split(",").map((s) => s.trim()).filter(Boolean); }
 }
 
-export function DealPanel({ deal, onClose }: Props) {
+export function DealPanel({ deal, onClose, onDeleted }: Props) {
   const [tab, setTab] = useState<TabId>("deal");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editData, setEditData] = useState({
     qualificationNotes: deal.qualificationNotes || "",
     problematiqueDirigeant: deal.problematiqueDirigeant || "",
@@ -75,6 +78,13 @@ export function DealPanel({ deal, onClose }: Props) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    await deleteDeal(deal.id);
+    onDeleted?.();
+    onClose();
   }
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -513,20 +523,54 @@ export function DealPanel({ deal, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer — Save button (only on Deal tab) */}
-        {tab === "deal" && (
-          <div className="px-5 py-3 border-t border-border flex gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1"
-              size="sm"
-            >
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              {saving ? "Enregistrement..." : "Enregistrer les details"}
-            </Button>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-border flex gap-2">
+          {/* Delete with 2-step confirmation */}
+          {confirmDelete ? (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium">Supprimer ce deal ?</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setConfirmDelete(false)}
+              >
+                Non
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "..." : "Oui, supprimer"}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+              {tab === "deal" && (
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1"
+                  size="sm"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  {saving ? "Enregistrement..." : "Enregistrer les details"}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </>
   );
