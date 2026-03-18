@@ -1202,6 +1202,7 @@ Summary:
   - 8 signaux commerciaux
   - 5 opportunites commerciales
   - 4 reseau objectifs
+  - 4 preconisations
   - 1 settings
 
 Login: demo@gargarine.fr / demo123
