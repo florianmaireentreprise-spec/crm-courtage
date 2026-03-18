@@ -5,10 +5,14 @@ const EXCLUDED_PATTERNS = [
   /noreply@/i, /no-reply@/i, /ne-pas-repondre@/i,
   /newsletter@/i, /notifications?@/i, /mailer-daemon@/i,
   /postmaster@/i, /unsubscribe/i, /marketing@/i, /promo@/i,
+  // Generic commercial senders
+  /^info@/i, /^contact@/i, /^pub@/i, /^commercial@/i,
+  /^communication@/i, /^offres@/i, /^news@/i,
 ];
 
 // ── Technical/junk domains that should NEVER go to AI analysis ──
 const JUNK_DOMAINS = [
+  // Dev/infra platforms
   "railway.app", "notify.railway.app",
   "github.com", "noreply.github.com",
   "vercel.com",
@@ -23,22 +27,44 @@ const JUNK_DOMAINS = [
   "slack.com",
   "google.com", "accounts.google.com",
   "amazonses.com",
+  // Bulk email platforms
   "mailchimp.com", "mandrillapp.com",
   "sendgrid.net",
   "postmarkapp.com",
+  "mailjet.com",
+  "sendinblue.com", "brevo.com",
+  "hubspot.com",
+  "constantcontact.com",
+  // Social/professional networks
+  "linkedin.com", "facebookmail.com", "twitter.com",
+  // SaaS notifications
+  "atlassian.com", "jira.com",
+  "dropbox.com", "docusign.net",
+  "zoom.us", "calendly.com",
 ];
 
-// ── Subject patterns indicating technical/automated emails ──
+// ── Subject patterns indicating technical/automated/promotional emails ──
 const JUNK_SUBJECT_PATTERNS = [
+  // Tech notifications
   /build (failed|succeeded|passed)/i,
   /deploy(ment)?\s+(failed|succeeded|completed|started)/i,
   /\[alert\]/i,
   /\[monitoring\]/i,
+  // Account/security
   /your (invoice|receipt|payment)/i,
   /password reset/i,
   /verify your email/i,
   /security alert/i,
   /sign.?in (from|attempt)/i,
+  // Newsletters & promotional (FR + EN)
+  /newsletter/i,
+  /se\s+d[ée]sinscrire/i,
+  /d[ée]sabonnement/i,
+  /unsubscribe/i,
+  /lettre\s+d['']information/i,
+  /offre\s+(sp[ée]ciale|exclusive|promotionnelle)/i,
+  /code\s+promo/i,
+  /votre\s+facture\s+(est\s+disponible|du\s+\d)/i,
 ];
 
 const INSURANCE_KEYWORDS = [

@@ -161,7 +161,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   }, [clients, filterCategorie, filterType, filterStatut, filterPotentiel, filterHorizon, sortKey]);
 
   // Operational highlights
-  const aContacter = useMemo(() => clients.filter((c) => c.statutReseau === "a_contacter" || c.statutReseau === "identifie"), [clients]);
+  const aContacter = useMemo(() => clients.filter((c) => c.statutReseau === "a_contacter" || c.statutReseau === "aucune_demarche"), [clients]);
   const relancesEchues = useMemo(() => clients.filter((c) => isOverdue(c.dateRelanceReseau)), [clients]);
   const relancesBientot = useMemo(() => clients.filter((c) => isDueSoon(c.dateRelanceReseau, 7) && !isOverdue(c.dateRelanceReseau)), [clients]);
   const fortPotentiel = useMemo(() => clients.filter((c) => c.niveauPotentiel === "fort"), [clients]);
@@ -234,7 +234,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                   <Phone className="h-4 w-4 text-blue-500" />
                   <span className="text-lg font-bold text-blue-600">{aContacter.length}</span>
                 </div>
-                <p className="text-[11px] text-blue-600/80 mt-0.5">A contacter / identifier</p>
+                <p className="text-[11px] text-blue-600/80 mt-0.5">A contacter / sans demarche</p>
               </CardContent>
             </Card>
           </button>

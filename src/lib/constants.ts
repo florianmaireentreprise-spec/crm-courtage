@@ -212,23 +212,19 @@ export const CATEGORIES_RESEAU = [
 
 // Qualification reseau
 export const TYPES_RELATION_RESEAU = [
-  { id: "prescripteur_potentiel", label: "Prescripteur potentiel" },
-  { id: "partenaire", label: "Partenaire" },
   { id: "client_potentiel_direct", label: "Client potentiel direct" },
-  { id: "influenceur", label: "Influenceur / relais" },
+  { id: "prescripteur", label: "Prescripteur" },
+  { id: "partenaire", label: "Partenaire" },
   { id: "ancien_client", label: "Ancien client" },
-  { id: "autre", label: "Autre" },
 ] as const;
 
 export const STATUTS_RESEAU = [
-  { id: "identifie", label: "Identifie", color: "#94a3b8" },
+  { id: "aucune_demarche", label: "Aucune demarche", color: "#94a3b8" },
   { id: "a_qualifier", label: "A qualifier", color: "#60a5fa" },
   { id: "a_contacter", label: "A contacter", color: "#818cf8" },
-  { id: "contacte", label: "Contacte", color: "#a78bfa" },
-  { id: "echange_fait", label: "Echange fait", color: "#f59e0b" },
+  { id: "premier_echange", label: "Premier echange", color: "#f59e0b" },
   { id: "suivi_en_cours", label: "Suivi en cours", color: "#f97316" },
-  { id: "client", label: "Client", color: "#22c55e" },
-  { id: "prescripteur_actif", label: "Prescripteur actif", color: "#14b8a6" },
+  { id: "actif", label: "Actif", color: "#22c55e" },
   { id: "sans_suite", label: "Sans suite", color: "#6b7280" },
 ] as const;
 
@@ -284,14 +280,12 @@ export const NATURES_JURIDIQUES: Record<string, string> = {
 // Coefficients de ponderation par statut reseau pour le forecasting
 // Represente la probabilite de conversion en CA reel
 export const COEFFICIENTS_STATUT_RESEAU: Record<string, number> = {
-  identifie: 0.10,
+  aucune_demarche: 0.05,
   a_qualifier: 0.15,
   a_contacter: 0.25,
-  contacte: 0.35,
-  echange_fait: 0.50,
+  premier_echange: 0.45,
   suivi_en_cours: 0.65,
-  client: 1.00,
-  prescripteur_actif: 0, // potentiel indirect via referrals, pas de CA direct
+  actif: 1.00,
   sans_suite: 0,
 } as const;
 

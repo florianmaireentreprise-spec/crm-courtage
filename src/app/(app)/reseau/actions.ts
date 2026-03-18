@@ -7,13 +7,12 @@ import { z } from "zod";
 
 // ── Enum whitelists (mirrored from constants, kept inline for server action isolation) ──
 const TYPES_RELATION_IDS = [
-  "prescripteur_potentiel", "partenaire", "client_potentiel_direct",
-  "influenceur", "ancien_client", "autre",
+  "client_potentiel_direct", "prescripteur", "partenaire", "ancien_client",
 ] as const;
 
 const STATUTS_RESEAU_IDS = [
-  "identifie", "a_qualifier", "a_contacter", "contacte",
-  "echange_fait", "suivi_en_cours", "client", "prescripteur_actif", "sans_suite",
+  "aucune_demarche", "a_qualifier", "a_contacter", "premier_echange",
+  "suivi_en_cours", "actif", "sans_suite",
 ] as const;
 
 const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
@@ -125,7 +124,7 @@ export async function addContactReseau(formData: FormData) {
       codePostal: data.codePostal || null,
       // Qualification reseau
       typeRelation: data.typeRelation || null,
-      statutReseau: data.statutReseau || "identifie",
+      statutReseau: data.statutReseau || "aucune_demarche",
       niveauPotentiel: data.niveauPotentiel || null,
       potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
       horizonActivation: data.horizonActivation || null,

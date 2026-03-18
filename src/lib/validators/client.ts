@@ -2,23 +2,19 @@ import { z } from "zod";
 
 // ── Enum whitelists for reseau qualification fields ──
 const TYPES_RELATION_IDS = [
-  "prescripteur_potentiel",
-  "partenaire",
   "client_potentiel_direct",
-  "influenceur",
+  "prescripteur",
+  "partenaire",
   "ancien_client",
-  "autre",
 ] as const;
 
 const STATUTS_RESEAU_IDS = [
-  "identifie",
+  "aucune_demarche",
   "a_qualifier",
   "a_contacter",
-  "contacte",
-  "echange_fait",
+  "premier_echange",
   "suivi_en_cours",
-  "client",
-  "prescripteur_actif",
+  "actif",
   "sans_suite",
 ] as const;
 

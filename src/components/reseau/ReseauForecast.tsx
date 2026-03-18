@@ -54,7 +54,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     }, 0);
 
   // Activables = contacts in actionable statuts
-  const statutsActivables = ["a_contacter", "contacte", "echange_fait", "suivi_en_cours"];
+  const statutsActivables = ["a_contacter", "premier_echange", "suivi_en_cours"];
   const nbActivables = contacts.filter((c) => statutsActivables.includes(c.statutReseau ?? "")).length;
 
   // Fort potentiel
@@ -97,7 +97,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
   const insights: string[] = [];
 
   // 1. Fort potentiel not yet activated (early stages)
-  const earlyStatuts = ["identifie", "a_qualifier", "a_contacter"];
+  const earlyStatuts = ["aucune_demarche", "a_qualifier", "a_contacter"];
   const fortNonActives = contacts.filter(
     (c) => c.niveauPotentiel === "fort" && earlyStatuts.includes(c.statutReseau ?? "")
   );
@@ -131,7 +131,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
 
   // 4. Contacts without potentiel estimate
   const sansPotentiel = contacts.filter((c) => c.potentielEstimeAnnuel == null || c.potentielEstimeAnnuel === 0);
-  const sansPotentielActifs = sansPotentiel.filter((c) => !["sans_suite", "client", "prescripteur_actif"].includes(c.statutReseau ?? ""));
+  const sansPotentielActifs = sansPotentiel.filter((c) => !["sans_suite", "actif"].includes(c.statutReseau ?? ""));
   if (sansPotentielActifs.length > 0) {
     insights.push(
       `${sansPotentielActifs.length} contact${sansPotentielActifs.length > 1 ? "s" : ""} actif${sansPotentielActifs.length > 1 ? "s" : ""} sans estimation de potentiel — a qualifier pour affiner le forecast.`
@@ -139,10 +139,10 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
   }
 
   // 5. Prescripteurs actifs (indirect value)
-  const prescripteursActifs = contacts.filter((c) => c.statutReseau === "prescripteur_actif");
+  const prescripteursActifs = contacts.filter((c) => c.typeRelation === "prescripteur" && c.statutReseau === "actif");
   if (prescripteursActifs.length > 0) {
     insights.push(
-      `${prescripteursActifs.length} prescripteur${prescripteursActifs.length > 1 ? "s" : ""} actif${prescripteursActifs.length > 1 ? "s" : ""} — potentiel indirect via referrals (non inclus dans le forecast direct).`
+      `${prescripteursActifs.length} prescripteur${prescripteursActifs.length > 1 ? "s" : ""} actif${prescripteursActifs.length > 1 ? "s" : ""} — potentiel indirect via referrals.`
     );
   }
 

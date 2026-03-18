@@ -201,9 +201,9 @@ export function AddContactButton() {
               </div>
               <div className="space-y-2">
                 <Label>Statut reseau</Label>
-                <Select name="statutReseau" defaultValue="identifie">
+                <Select name="statutReseau" defaultValue="aucune_demarche">
                   <SelectTrigger>
-                    <SelectValue placeholder="Identifie" />
+                    <SelectValue placeholder="Aucune demarche" />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUTS_RESEAU.map((s) => (
