@@ -35,7 +35,7 @@ export type ContratWithRelations = Contrat & {
 
 // Deal with client
 export type DealWithClient = Deal & {
-  client: Client;
+  client: Client & { dirigeant?: Dirigeant | null };
   prescripteur?: Prescripteur | null;
 };
 

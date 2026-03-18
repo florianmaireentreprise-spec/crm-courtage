@@ -4,19 +4,13 @@ import { useState } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { KanbanColumn } from "./KanbanColumn";
 import { DealForm } from "./DealForm";
+import { DealPanel } from "./DealPanel";
 import { moveDeal, createContractsFromDeal } from "@/app/(app)/pipeline/actions";
-import type { PipelineColumn } from "@/types";
+import type { PipelineColumn, DealWithClient } from "@/types";
 import { TYPES_PRODUITS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, TrendingUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +29,13 @@ type Props = {
   prescripteurs: { id: string; prenom: string; nom: string; entreprise: string | null }[];
 };
 
+const fmt = (v: number) =>
+  new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(v);
+
 export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [lossDialog, setLossDialog] = useState<{ dealId: string; targetEtape: string } | null>(null);
@@ -42,6 +43,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [signatureDialog, setSignatureDialog] = useState<{ dealId: string; products: string[] } | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [creatingContracts, setCreatingContracts] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
 
   function getDealProducts(dealId: string): string[] {
     for (const col of columns) {
@@ -97,17 +99,39 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const totalMontant = columns
     .filter((c) => !["PERDU"].includes(c.id))
     .reduce((sum, c) => sum + c.deals.reduce((s, d) => s + (d.montantEstime ?? 0), 0), 0);
+  const totalPondere = columns
+    .filter((c) => !["PERDU", "SIGNATURE", "ONBOARDING", "DEVELOPPEMENT"].includes(c.id))
+    .reduce(
+      (sum, c) => sum + c.deals.reduce((s, d) => s + ((d.montantEstime ?? 0) * (d.probabilite ?? 0)) / 100, 0),
+      0,
+    );
+  const totalGagne = columns
+    .filter((c) => ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT"].includes(c.id))
+    .reduce((sum, c) => sum + c.deals.reduce((s, d) => s + (d.montantEstime ?? 0), 0), 0);
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            {totalDeals} opportunites
-          </p>
-          <p className="text-sm font-medium">
-            Pipeline : {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalMontant)}
-          </p>
+          <p className="text-sm text-muted-foreground">{totalDeals} opportunites</p>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="bg-muted/60 px-3 py-1 rounded-lg">
+              <span className="text-muted-foreground">Pipeline </span>
+              <span className="font-bold">{fmt(totalMontant)}</span>
+            </div>
+            <div className="bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-lg">
+              <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-muted-foreground">Pondere </span>
+              <span className="font-bold text-indigo-600 dark:text-indigo-400">{fmt(totalPondere)}</span>
+            </div>
+            {totalGagne > 0 && (
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-lg">
+                <span className="text-muted-foreground">Gagne </span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(totalGagne)}</span>
+              </div>
+            )}
+          </div>
         </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -115,14 +139,29 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
         </Button>
       </div>
 
+      {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
+        <div className="flex gap-2 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
           {columns.map((col) => (
-            <KanbanColumn key={col.id} column={col} />
+            <KanbanColumn
+              key={col.id}
+              column={col}
+              onDealClick={(deal) => setSelectedDeal(deal)}
+              selectedDealId={selectedDeal?.id}
+            />
           ))}
         </div>
       </DragDropContext>
 
+      {/* Deal side panel */}
+      {selectedDeal && (
+        <DealPanel
+          deal={selectedDeal}
+          onClose={() => setSelectedDeal(null)}
+        />
+      )}
+
+      {/* Deal creation form */}
       {showForm && (
         <DealForm
           open={showForm}
@@ -133,6 +172,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
         />
       )}
 
+      {/* Loss dialog */}
       <Dialog open={!!lossDialog} onOpenChange={() => { setLossDialog(null); setMotifPerte(""); }}>
         <DialogContent>
           <DialogHeader>
@@ -161,6 +201,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Signature → contract creation dialog */}
       <Dialog open={!!signatureDialog} onOpenChange={() => { setSignatureDialog(null); setSelectedProducts([]); }}>
         <DialogContent>
           <DialogHeader>

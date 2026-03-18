@@ -5,7 +5,12 @@ import type { PipelineColumn } from "@/types";
 
 export default async function PipelinePage() {
   const deals = await prisma.deal.findMany({
-    include: { client: true },
+    include: {
+      client: {
+        include: { dirigeant: true },
+      },
+      prescripteur: true,
+    },
     orderBy: { dateMaj: "desc" },
   });
 
