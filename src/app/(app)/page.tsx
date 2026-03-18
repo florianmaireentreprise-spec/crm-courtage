@@ -22,6 +22,8 @@ import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget"
 import { EmailsWidget } from "@/components/dashboard/EmailsWidget";
 import { UrgentEmailsWidget } from "@/components/dashboard/UrgentEmailsWidget";
 import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
+import { SignauxCommerciaux } from "@/components/dashboard/SignauxCommerciaux";
+import { CalendrierEcheances } from "@/components/dashboard/CalendrierEcheances";
 import { auth } from "@/lib/auth";
 
 async function getDashboardData() {
@@ -55,6 +57,11 @@ function getEmptyDashboard() {
     emailsPendingCount: 0,
     urgentEmails: [] as never[],
     recentActivity: [] as { type: "email" | "contrat" | "deal" | "tache"; date: Date; title: string; detail?: string; clientId?: string; clientNom?: string }[],
+    recentSignaux: [] as never[],
+    intelligenceOpportunites: [] as never[],
+    upcomingDeals: [] as never[],
+    upcomingTaches: [] as never[],
+    upcomingRelances: [] as never[],
   };
 }
 
@@ -184,7 +191,7 @@ async function getDashboardDataInternal() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [urgentEmails, recentEmails, recentDeals, recentTaches] = await Promise.all([
+  const [urgentEmails, recentEmails, recentDeals, recentTaches, recentSignaux, intelligenceOpportunites, upcomingDeals, upcomingTaches, upcomingRelances] = await Promise.all([
     // Urgent emails: inbound + (haute urgence OR action required OR linked client)
     userId
       ? prisma.email.findMany({
@@ -243,6 +250,59 @@ async function getDashboardDataInternal() {
       },
       orderBy: { dateRealisation: "desc" },
       take: 5,
+    }),
+    // Recent commercial signals (last 30 days)
+    prisma.signalCommercial.findMany({
+      where: { dateSignal: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+      include: { client: { select: { id: true, raisonSociale: true } } },
+      orderBy: { dateSignal: "desc" },
+      take: 10,
+    }),
+    // Active intelligence opportunities
+    prisma.opportuniteCommerciale.findMany({
+      where: { statut: { in: ["detectee", "qualifiee", "en_cours"] } },
+      include: { client: { select: { id: true, raisonSociale: true } } },
+      orderBy: { derniereActivite: "desc" },
+      take: 8,
+    }),
+    // Upcoming deal closings (next 60 days)
+    prisma.deal.findMany({
+      where: {
+        etape: { notIn: ["SIGNATURE", "ONBOARDING", "DEVELOPPEMENT", "PERDU"] },
+        dateClosingPrev: { gte: new Date(), lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
+      },
+      select: {
+        id: true, titre: true, etape: true, dateClosingPrev: true,
+        client: { select: { id: true, raisonSociale: true } },
+      },
+      orderBy: { dateClosingPrev: "asc" },
+      take: 10,
+    }),
+    // Upcoming tasks (next 14 days)
+    prisma.tache.findMany({
+      where: {
+        statut: { in: ["a_faire", "en_cours"] },
+        dateEcheance: { gte: new Date(), lte: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+      },
+      select: {
+        id: true, titre: true, type: true, dateEcheance: true, priorite: true,
+        client: { select: { id: true, raisonSociale: true } },
+      },
+      orderBy: { dateEcheance: "asc" },
+      take: 10,
+    }),
+    // Network relances (next 30 days)
+    prisma.client.findMany({
+      where: {
+        archived: false,
+        categorieReseau: { not: null },
+        dateRelanceReseau: { gte: new Date(), lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      },
+      select: {
+        id: true, raisonSociale: true, categorieReseau: true, dateRelanceReseau: true,
+      },
+      orderBy: { dateRelanceReseau: "asc" },
+      take: 10,
     }),
   ]);
 
@@ -373,6 +433,11 @@ async function getDashboardDataInternal() {
     emailsPendingCount,
     urgentEmails,
     recentActivity: topActivity,
+    recentSignaux,
+    intelligenceOpportunites,
+    upcomingDeals,
+    upcomingTaches,
+    upcomingRelances,
   };
 }
 
@@ -401,6 +466,12 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UrgentEmailsWidget emails={data.urgentEmails} />
         <RecentActivityWidget activities={data.recentActivity} />
+      </div>
+
+      {/* Intelligence commerciale & Echeances */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SignauxCommerciaux signaux={data.recentSignaux} opportunites={data.intelligenceOpportunites} />
+        <CalendrierEcheances contrats={data.renewals} deals={data.upcomingDeals} taches={data.upcomingTaches} relances={data.upcomingRelances} />
       </div>
 
       {/* Campagnes & Prescripteurs */}
