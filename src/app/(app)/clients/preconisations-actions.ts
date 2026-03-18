@@ -22,13 +22,6 @@ export async function createPreconisation(formData: FormData) {
   const session = await auth();
   const actorId = getActorId(session);
 
-  // Verify actorId exists in User table before using as FK
-  let validActorId: string | undefined = undefined;
-  if (actorId) {
-    const user = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } });
-    if (user) validActorId = actorId;
-  }
-
   const raw = Object.fromEntries(formData.entries());
   const parsed = preconisationSchema.safeParse(raw);
 
@@ -48,8 +41,8 @@ export async function createPreconisation(formData: FormData) {
       statut: data.statut,
       prochainePas: data.prochainePas || null,
       notes: data.notes || null,
-      createdByUserId: validActorId,
-      updatedByUserId: validActorId,
+      createdByUserId: actorId,
+      updatedByUserId: actorId,
     },
   });
 
@@ -60,12 +53,6 @@ export async function createPreconisation(formData: FormData) {
 export async function updatePreconisation(precoId: string, formData: FormData) {
   const session = await auth();
   const actorId = getActorId(session);
-
-  let validActorId: string | undefined = undefined;
-  if (actorId) {
-    const user = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } });
-    if (user) validActorId = actorId;
-  }
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = preconisationSchema.safeParse(raw);
@@ -86,7 +73,7 @@ export async function updatePreconisation(precoId: string, formData: FormData) {
       statut: data.statut,
       prochainePas: data.prochainePas || null,
       notes: data.notes || null,
-      updatedByUserId: validActorId,
+      updatedByUserId: actorId,
     },
   });
 
@@ -98,17 +85,11 @@ export async function updatePreconisationStatut(precoId: string, clientId: strin
   const session = await auth();
   const actorId = getActorId(session);
 
-  let validActorId: string | undefined = undefined;
-  if (actorId) {
-    const user = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } });
-    if (user) validActorId = actorId;
-  }
-
   await prisma.preconisation.update({
     where: { id: precoId },
     data: {
       statut,
-      updatedByUserId: validActorId,
+      updatedByUserId: actorId,
     },
   });
 
