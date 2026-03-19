@@ -62,7 +62,7 @@ export function SignauxCommerciaux({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Intelligence commerciale
+            Signaux IA recents
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -79,7 +79,7 @@ export function SignauxCommerciaux({
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Zap className="h-4 w-4" />
-          Intelligence commerciale
+          Signaux IA recents
           <Badge variant="secondary" className="ml-auto text-[10px]">
             {signaux.length} signal{signaux.length !== 1 ? "x" : ""}
           </Badge>
@@ -128,7 +128,7 @@ export function SignauxCommerciaux({
         {opportunites.length > 0 && (
           <div className="pt-2 border-t border-border">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Opportunites actives ({opportunites.length})
+              Opportunites en cours ({opportunites.length})
             </p>
             <div className="space-y-1.5">
               {opportunites.slice(0, 5).map((o) => {

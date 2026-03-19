@@ -468,7 +468,7 @@ export default async function DashboardPage() {
         <RecentActivityWidget activities={data.recentActivity} />
       </div>
 
-      {/* Intelligence commerciale & Echeances */}
+      {/* Signaux IA & Echeances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SignauxCommerciaux signaux={data.recentSignaux} opportunites={data.intelligenceOpportunites} />
         <CalendrierEcheances contrats={data.renewals} deals={data.upcomingDeals} taches={data.upcomingTaches} relances={data.upcomingRelances} />
@@ -513,14 +513,15 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        {/* Opportunites detectees */}
+        {/* Suggestions cross-sell */}
         {data.opportunites.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Opportunites detectees</CardTitle>
+                <CardTitle className="text-base">Suggestions cross-sell</CardTitle>
                 <Badge>{data.opportunites.length}</Badge>
               </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Couvertures manquantes detectees dans le portefeuille</p>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.opportunites.map((opp) => (
