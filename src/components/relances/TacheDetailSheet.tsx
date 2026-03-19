@@ -67,8 +67,8 @@ export function TacheDetailSheet({
   const [dateEcheance, setDateEcheance] = useState(
     format(new Date(tache.dateEcheance), "yyyy-MM-dd")
   );
-  const [clientId, setClientId] = useState(tache.clientId || "");
-  const [assigneA, setAssigneA] = useState(tache.assigneA || "");
+  const [clientId, setClientId] = useState(tache.clientId || "__none__");
+  const [assigneA, setAssigneA] = useState(tache.assigneA || "__none__");
 
   const prioriteConfig = PRIORITES.find((p) => p.id === tache.priorite);
   const typeConfig = TYPES_TACHE.find((t) => t.id === tache.type);
@@ -85,8 +85,8 @@ export function TacheDetailSheet({
       formData.set("type", type);
       formData.set("priorite", priorite);
       formData.set("dateEcheance", dateEcheance);
-      formData.set("clientId", clientId);
-      formData.set("assigneA", assigneA);
+      formData.set("clientId", clientId === "__none__" ? "" : clientId);
+      formData.set("assigneA", assigneA === "__none__" ? "" : assigneA);
       await updateTache(tache.id, formData);
       onOpenChange(false);
     } finally {
@@ -268,7 +268,7 @@ export function TacheDetailSheet({
                     <SelectValue placeholder="Aucun client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="__none__">Aucun</SelectItem>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.raisonSociale}
@@ -289,7 +289,7 @@ export function TacheDetailSheet({
                     <SelectValue placeholder="Non assigne" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Non assigne</SelectItem>
+                    <SelectItem value="__none__">Non assigne</SelectItem>
                     {users.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.prenom} {u.nom}
