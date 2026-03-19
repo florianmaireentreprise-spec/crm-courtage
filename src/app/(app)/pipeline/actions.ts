@@ -31,7 +31,7 @@ export async function createDeal(formData: FormData) {
   }
 
   const data = parsed.data;
-  await prisma.deal.create({
+  const deal = await prisma.deal.create({
     data: {
       clientId: data.clientId,
       titre: data.titre,
@@ -50,6 +50,7 @@ export async function createDeal(formData: FormData) {
   });
 
   revalidatePath("/pipeline");
+  return { id: deal.id };
 }
 
 export async function moveDeal(dealId: string, newEtape: string, motifPerte?: string) {

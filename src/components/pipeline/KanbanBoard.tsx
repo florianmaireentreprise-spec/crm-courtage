@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { KanbanColumn } from "./KanbanColumn";
-import { DealForm } from "./DealForm";
+import { DealCreateFlow } from "./DealCreateFlow";
 import { DealPanel } from "./DealPanel";
 import { moveDeal, createContractsFromDeal } from "@/app/(app)/pipeline/actions";
 import type { PipelineColumn, DealWithClient } from "@/types";
@@ -166,15 +166,10 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
       )}
 
       {/* Deal creation form */}
-      {showForm && (
-        <DealForm
-          open={showForm}
-          onClose={() => setShowForm(false)}
-          clients={clients}
-          users={users}
-          prescripteurs={prescripteurs}
-        />
-      )}
+      <DealCreateFlow
+        open={showForm}
+        onOpenChange={setShowForm}
+      />
 
       {/* Loss dialog */}
       <Dialog open={!!lossDialog} onOpenChange={() => { setLossDialog(null); setMotifPerte(""); }}>
