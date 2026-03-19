@@ -25,7 +25,7 @@ import { ClientTaskActions } from "@/components/clients/ClientTaskActions";
 import { PreconisationsTab } from "@/components/clients/PreconisationsTab";
 import { THEMES_PRECONISATION, STATUTS_PRECONISATION, PRIORITES_PRECONISATION } from "@/lib/constants";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
-import { archiveClient, unarchiveClient, deleteClient } from "../actions";
+import { archiveClient, unarchiveClient, deleteClient, forceDeleteClient } from "../actions";
 
 export default async function ClientDetailPage({
   params,
@@ -332,10 +332,12 @@ export default async function ClientDetailPage({
           </Link>
           <ClientArchiveActions
             clientId={id}
+            clientName={client.raisonSociale}
             archived={client.archived}
             archiveAction={archiveClient}
             unarchiveAction={unarchiveClient}
             deleteAction={deleteClient}
+            forceDeleteAction={forceDeleteClient}
           />
         </div>
       </div>

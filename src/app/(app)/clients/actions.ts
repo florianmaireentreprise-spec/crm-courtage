@@ -262,3 +262,45 @@ export async function deleteClient(id: string) {
   revalidatePath("/clients");
   redirect("/clients");
 }
+
+export async function forceDeleteClient(id: string): Promise<{ error?: string } | void> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Non authentifie" };
+  const actorId = session.user.id;
+
+  // Verify client exists
+  const client = await prisma.client.findUnique({
+    where: { id },
+    select: { id: true, raisonSociale: true },
+  });
+  if (!client) return { error: "Client introuvable" };
+
+  // Clean up Vercel Blob storage for documents (cascade only removes DB rows)
+  const documents = await prisma.document.findMany({
+    where: { clientId: id },
+    select: { storageUrl: true },
+  });
+  if (documents.length > 0) {
+    const { del } = await import("@vercel/blob");
+    await Promise.allSettled(
+      documents.map((d) => del(d.storageUrl))
+    );
+  }
+
+  logAudit({
+    entityType: "Client",
+    entityId: id,
+    action: "force_delete",
+    actorUserId: actorId,
+    metadata: { raisonSociale: client.raisonSociale },
+  });
+
+  // Prisma cascade handles: Contrat, Deal, Document, OpportuniteCommerciale,
+  // Dirigeant, SequenceInscription, SignalCommercial, Preconisation
+  // SetNull handles: Tache, Email
+  await prisma.client.delete({ where: { id } });
+
+  revalidatePath("/clients");
+  revalidatePath("/reseau");
+  redirect("/clients");
+}

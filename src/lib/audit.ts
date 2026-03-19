@@ -6,7 +6,8 @@ type AuditAction =
   | "archive"
   | "unarchive"
   | "delete"
-  | "delete_blocked";
+  | "delete_blocked"
+  | "force_delete";
 
 type AuditEntry = {
   entityType: string; // "Client" | "Document" | "OpportuniteCommerciale"

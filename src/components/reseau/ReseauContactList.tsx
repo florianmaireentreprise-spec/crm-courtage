@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Phone,
@@ -32,6 +33,7 @@ import {
   X,
   Pencil,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import {
   CATEGORIES_RESEAU,
@@ -42,6 +44,7 @@ import {
   STATUTS_CLIENT,
 } from "@/lib/constants";
 import { quickUpdateReseau } from "@/app/(app)/reseau/actions";
+import { forceDeleteClient } from "@/app/(app)/clients/actions";
 
 type ReseauClient = {
   id: string;
@@ -112,6 +115,12 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const [editAction, setEditAction] = useState("");
   const [editRelance, setEditRelance] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Force delete
+  const [deleteClient, setDeleteClient] = useState<ReseauClient | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const hasActiveFilters = filterCategorie !== "all" || filterType !== "all" || filterStatut !== "all" || filterPotentiel !== "all" || filterHorizon !== "all";
 
@@ -185,6 +194,18 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
     });
     setSaving(false);
     setEditClient(null);
+  }
+
+  async function handleForceDelete() {
+    if (!deleteClient) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await forceDeleteClient(deleteClient.id);
+    if (result && "error" in result && result.error) {
+      setDeleteError(typeof result.error === "string" ? result.error : "Erreur inconnue");
+      setDeleting(false);
+    }
+    // If success, server-side redirect to /clients happens
   }
 
   return (
@@ -503,6 +524,15 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                       </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-red-600"
+                        onClick={() => { setDeleteClient(client); setDeleteConfirmText(""); setDeleteError(null); }}
+                        title="Supprimer definitivement"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -560,6 +590,47 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Force delete confirmation dialog */}
+      <Dialog open={!!deleteClient} onOpenChange={(open) => { if (!open) { setDeleteClient(null); setDeleteConfirmText(""); setDeleteError(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-4 w-4" />
+              Suppression definitive
+            </DialogTitle>
+            <DialogDescription>
+              Toutes les donnees liees seront supprimees : contrats, deals, documents, opportunites, dirigeant, signaux, preconisations.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-red-700">
+              Tapez <span className="font-bold">{deleteClient?.raisonSociale}</span> pour confirmer :
+            </p>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={deleteClient?.raisonSociale ?? ""}
+              className="text-sm border-red-300 focus-visible:ring-red-400"
+              autoFocus
+            />
+            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setDeleteClient(null); setDeleteConfirmText(""); setDeleteError(null); }}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleForceDelete}
+              disabled={deleteConfirmText.trim().toLowerCase() !== (deleteClient?.raisonSociale ?? "").trim().toLowerCase() || deleting}
+            >
+              {deleting ? "Suppression..." : "Supprimer definitivement"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
