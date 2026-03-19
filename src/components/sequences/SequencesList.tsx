@@ -97,16 +97,18 @@ function getStepStatus(
 export function SequencesList({ sequences, clients }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedInscId, setExpandedInscId] = useState<string | null>(null);
-  const [selectedClient, setSelectedClient] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  const [selectedClients, setSelectedClients] = useState<Record<string, string>>({});
+  const [loadingSeq, setLoadingSeq] = useState<string | null>(null);
 
   async function handleInscrire(sequenceId: string) {
-    if (!selectedClient) return;
-    setLoading(true);
-    await inscrireClient(selectedClient, sequenceId);
-    setSelectedClient("");
-    setLoading(false);
+    const clientId = selectedClients[sequenceId];
+    if (!clientId) return;
+    setLoadingSeq(sequenceId);
+    await inscrireClient(clientId, sequenceId);
+    setSelectedClients((prev) => { const next = { ...prev }; delete next[sequenceId]; return next; });
+    setLoadingSeq(null);
   }
+
 
   async function handleAnnuler(inscriptionId: string) {
     await annulerInscription(inscriptionId);
@@ -186,7 +188,7 @@ export function SequencesList({ sequences, clients }: Props) {
 
               {/* Inscrire un client */}
               <div className="flex items-center gap-2 mb-3">
-                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <Select value={selectedClients[seq.id] || ""} onValueChange={(v) => setSelectedClients((prev) => ({ ...prev, [seq.id]: v }))}>
                   <SelectTrigger className="flex-1 h-8 text-xs">
                     <SelectValue placeholder="Selectionner un client..." />
                   </SelectTrigger>
@@ -205,7 +207,7 @@ export function SequencesList({ sequences, clients }: Props) {
                   size="sm"
                   className="h-8 text-xs gap-1"
                   onClick={() => handleInscrire(seq.id)}
-                  disabled={!selectedClient || loading}
+                  disabled={!selectedClients[seq.id] || loadingSeq === seq.id}
                 >
                   <Users className="h-3.5 w-3.5" />
                   Inscrire
