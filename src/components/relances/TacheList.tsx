@@ -8,6 +8,7 @@ import { Check, Trash2, Plus, Mail, Pencil, X } from "lucide-react";
 import { TYPES_TACHE, PRIORITES } from "@/lib/constants";
 import { markTacheDone, cancelTache, deleteTache } from "@/app/(app)/relances/actions";
 import { TacheForm } from "./TacheForm";
+import { TacheDetailSheet } from "./TacheDetailSheet";
 import type { TacheWithClient } from "@/types";
 import { format, isBefore, isToday, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -28,6 +29,7 @@ type Props = {
 export function TacheList({ taches, clients, users }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingTache, setEditingTache] = useState<TacheWithClient | null>(null);
+  const [selectedTache, setSelectedTache] = useState<TacheWithClient | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterPriorite, setFilterPriorite] = useState<string>("all");
 
@@ -86,14 +88,18 @@ export function TacheList({ taches, clients, users }: Props) {
             const isOverdue = isBefore(tache.dateEcheance, now) && !isToday(tache.dateEcheance);
 
             return (
-              <Card key={tache.id} className={isOverdue ? "border-red-300" : ""}>
+              <Card
+                key={tache.id}
+                className={`cursor-pointer transition-all hover:shadow-sm ${isOverdue ? "border-red-300" : ""} ${selectedTache?.id === tache.id ? "border-primary/40 bg-primary/[0.02]" : ""}`}
+                onClick={() => setSelectedTache(tache)}
+              >
                 <CardContent className="py-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-green-600"
-                      onClick={() => markTacheDone(tache.id)}
+                      onClick={(e) => { e.stopPropagation(); markTacheDone(tache.id); }}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -125,6 +131,11 @@ export function TacheList({ taches, clients, users }: Props) {
                             : format(tache.dateEcheance, "dd MMM yyyy", { locale: fr })}
                         </span>
                       </p>
+                      {tache.description && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5 line-clamp-1 italic">
+                          {tache.description}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -140,7 +151,7 @@ export function TacheList({ taches, clients, users }: Props) {
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-orange-500"
                       title="Annuler cette tâche"
-                      onClick={() => cancelTache(tache.id)}
+                      onClick={(e) => { e.stopPropagation(); cancelTache(tache.id); }}
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
@@ -148,7 +159,7 @@ export function TacheList({ taches, clients, users }: Props) {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-blue-600"
-                      onClick={() => setEditingTache(tache)}
+                      onClick={(e) => { e.stopPropagation(); setEditingTache(tache); }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -156,7 +167,7 @@ export function TacheList({ taches, clients, users }: Props) {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteTache(tache.id)}
+                      onClick={(e) => { e.stopPropagation(); deleteTache(tache.id); }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -186,6 +197,17 @@ export function TacheList({ taches, clients, users }: Props) {
           clients={clients}
           users={users}
           tache={editingTache}
+        />
+      )}
+
+      {/* Detail sheet */}
+      {selectedTache && (
+        <TacheDetailSheet
+          tache={selectedTache}
+          open={!!selectedTache}
+          onOpenChange={(open) => { if (!open) setSelectedTache(null); }}
+          clients={clients}
+          users={users}
         />
       )}
     </div>

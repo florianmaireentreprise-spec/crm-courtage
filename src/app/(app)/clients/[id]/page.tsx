@@ -766,6 +766,11 @@ export default async function ClientDetailPage({
                             <p className="text-xs text-muted-foreground mt-1">
                               Echeance : {format(tache.dateEcheance, "dd MMM yyyy", { locale: fr })}
                             </p>
+                            {tache.description && (
+                              <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">
+                                {tache.description}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge
