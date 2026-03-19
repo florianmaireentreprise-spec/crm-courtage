@@ -88,10 +88,16 @@ export function TacheList({ taches, clients, users }: Props) {
             const isOverdue = isBefore(tache.dateEcheance, now) && !isToday(tache.dateEcheance);
 
             return (
-              <Card
+              <div
                 key={tache.id}
-                className={`cursor-pointer transition-all hover:shadow-sm ${isOverdue ? "border-red-300" : ""} ${selectedTache?.id === tache.id ? "border-primary/40 bg-primary/[0.02]" : ""}`}
+                role="button"
+                tabIndex={0}
+                className="cursor-pointer"
                 onClick={() => setSelectedTache(tache)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedTache(tache); }}
+              >
+              <Card
+                className={`transition-all hover:shadow-sm ${isOverdue ? "border-red-300" : ""} ${selectedTache?.id === tache.id ? "border-primary/40 bg-primary/[0.02]" : ""}`}
               >
                 <CardContent className="py-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -174,6 +180,7 @@ export function TacheList({ taches, clients, users }: Props) {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             );
           })}
         </div>
