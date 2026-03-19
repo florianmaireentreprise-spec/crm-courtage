@@ -58,13 +58,8 @@ export function UrgentEmailsWidget({ emails }: { emails: UrgentEmail[] }) {
       </CardHeader>
       <CardContent className="space-y-2">
         {emails.map((email) => {
-          // Row links to client page if linked, otherwise to /emails/urgent
-          const rowHref = email.client
-            ? `/clients/${email.client.id}`
-            : "/emails?tab=actions";
-
           return (
-            <Link key={email.id} href={rowHref} className="block">
+            <Link key={email.id} href="/emails?tab=actions" className="block">
               <div className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/50">
                 <div className="mt-0.5">
                   {email.direction === "sortant" ? (
