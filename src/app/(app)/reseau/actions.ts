@@ -16,6 +16,7 @@ const STATUTS_RESEAU_IDS = [
 ] as const;
 
 const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
+const POTENTIELS_AFFAIRES_IDS = ["faible", "moyen", "fort", "strategique"] as const;
 const HORIZONS_ACTIVATION_IDS = ["court", "moyen", "long"] as const;
 
 // ── Date coercion helper ──
@@ -67,7 +68,7 @@ export async function upsertReseauObjectif(formData: FormData) {
 // ── Add contact schema — lightweight, no commentaireReseau, no dateRelanceReseau ──
 
 const addContactSchema = z.object({
-  raisonSociale: z.string().min(1),
+  raisonSociale: z.string().optional().or(z.literal("")),
   civilite: z.string().optional(),
   prenom: z.string().min(1),
   nom: z.string().min(1),
@@ -88,6 +89,7 @@ const addContactSchema = z.object({
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().or(z.literal("")),
   statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().or(z.literal("")),
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().or(z.literal("")),
+  potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().or(z.literal("")),
   potentielEstimeAnnuel: z.coerce.number().min(0).optional(),
   horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().or(z.literal("")),
   prochaineActionReseau: z.string().optional(),
@@ -107,7 +109,7 @@ export async function addContactReseau(formData: FormData) {
 
   await prisma.client.create({
     data: {
-      raisonSociale: data.raisonSociale,
+      raisonSociale: data.raisonSociale || "",
       civilite: data.civilite || null,
       prenom: data.prenom,
       nom: data.nom,
@@ -126,6 +128,7 @@ export async function addContactReseau(formData: FormData) {
       typeRelation: data.typeRelation || null,
       statutReseau: data.statutReseau || "aucune_demarche",
       niveauPotentiel: data.niveauPotentiel || null,
+      potentielAffaires: data.potentielAffaires || null,
       potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
       horizonActivation: data.horizonActivation || null,
       prochaineActionReseau: data.prochaineActionReseau || null,

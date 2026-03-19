@@ -16,6 +16,7 @@ type ForecastContact = {
   typeRelation: string | null;
   statutReseau: string | null;
   niveauPotentiel: string | null;
+  potentielAffaires: string | null;
   potentielEstimeAnnuel: number | null;
   horizonActivation: string | null;
 };
@@ -26,6 +27,7 @@ type ForecastData = {
   potentielCourtTerme: number;
   nbActivables: number;
   nbFortPotentiel: number;
+  nbFortPotentielAffaires: number;
   byCategorie: { id: string; label: string; color: string; brut: number; pondere: number; count: number }[];
   byType: { id: string; label: string; brut: number; pondere: number; count: number }[];
   byHorizon: { id: string; label: string; brut: number; pondere: number; count: number }[];
@@ -57,8 +59,11 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
   const statutsActivables = ["a_contacter", "premier_echange", "suivi_en_cours"];
   const nbActivables = contacts.filter((c) => statutsActivables.includes(c.statutReseau ?? "")).length;
 
-  // Fort potentiel
+  // Forte probabilite conversion
   const nbFortPotentiel = contacts.filter((c) => c.niveauPotentiel === "fort").length;
+
+  // Fort potentiel affaires (fort ou strategique)
+  const nbFortPotentielAffaires = contacts.filter((c) => c.potentielAffaires === "fort" || c.potentielAffaires === "strategique").length;
 
   // Breakdown by categorie
   const byCategorie = CATEGORIES_RESEAU.map((cat) => {
@@ -96,7 +101,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
   // Operational insights
   const insights: string[] = [];
 
-  // 1. Fort potentiel not yet activated (early stages)
+  // 1. Forte probabilite not yet activated (early stages)
   const earlyStatuts = ["aucune_demarche", "a_qualifier", "a_contacter"];
   const fortNonActives = contacts.filter(
     (c) => c.niveauPotentiel === "fort" && earlyStatuts.includes(c.statutReseau ?? "")
@@ -104,17 +109,17 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
   if (fortNonActives.length > 0) {
     const totalPotentiel = fortNonActives.reduce((s, c) => s + (c.potentielEstimeAnnuel ?? 0), 0);
     insights.push(
-      `${fortNonActives.length} contact${fortNonActives.length > 1 ? "s" : ""} a fort potentiel ${totalPotentiel > 0 ? `(${formatCurrency(totalPotentiel)})` : ""} encore en phase initiale — priorite d'activation.`
+      `${fortNonActives.length} contact${fortNonActives.length > 1 ? "s" : ""} a forte probabilite de conversion ${totalPotentiel > 0 ? `(${formatCurrency(totalPotentiel)})` : ""} encore en phase initiale — priorite d'activation.`
     );
   }
 
-  // 2. Court terme + high potential
+  // 2. Court terme + high probability or high value
   const courtTermeFort = contacts.filter(
     (c) => c.horizonActivation === "court" && (c.niveauPotentiel === "fort" || (c.potentielEstimeAnnuel ?? 0) >= 5000)
   );
   if (courtTermeFort.length > 0) {
     insights.push(
-      `${courtTermeFort.length} contact${courtTermeFort.length > 1 ? "s" : ""} court terme a fort potentiel — activables rapidement pour le lancement.`
+      `${courtTermeFort.length} contact${courtTermeFort.length > 1 ? "s" : ""} court terme a forte probabilite — activables rapidement pour le lancement.`
     );
   }
 
@@ -152,6 +157,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     potentielCourtTerme,
     nbActivables,
     nbFortPotentiel,
+    nbFortPotentielAffaires,
     byCategorie,
     byType,
     byHorizon,
@@ -167,7 +173,7 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
   const forecast = computeForecast(contacts);
 
   // Don't render if no contacts have potentiel data and no activables
-  if (forecast.potentielBrut === 0 && forecast.nbActivables === 0 && forecast.nbFortPotentiel === 0) {
+  if (forecast.potentielBrut === 0 && forecast.nbActivables === 0 && forecast.nbFortPotentiel === 0 && forecast.nbFortPotentielAffaires === 0) {
     return null;
   }
 
@@ -184,7 +190,7 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="rounded-lg border p-3">
             <p className="text-lg font-bold">{formatCurrency(forecast.potentielBrut)}</p>
             <p className="text-[11px] text-muted-foreground">Potentiel brut</p>
@@ -203,7 +209,11 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-lg font-bold text-emerald-600">{forecast.nbFortPotentiel}</p>
-            <p className="text-[11px] text-muted-foreground">Fort potentiel</p>
+            <p className="text-[11px] text-muted-foreground">Forte probabilite</p>
+          </div>
+          <div className="rounded-lg border p-3 border-orange-200 bg-orange-50/30 dark:bg-orange-950/10">
+            <p className="text-lg font-bold text-orange-600">{forecast.nbFortPotentielAffaires}</p>
+            <p className="text-[11px] text-muted-foreground">Fort pot. affaires</p>
           </div>
         </div>
 

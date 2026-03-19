@@ -34,12 +34,14 @@ import {
   Pencil,
   ExternalLink,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 import {
   CATEGORIES_RESEAU,
   TYPES_RELATION_RESEAU,
   STATUTS_RESEAU,
   NIVEAUX_POTENTIEL,
+  POTENTIELS_AFFAIRES,
   HORIZONS_ACTIVATION,
   STATUTS_CLIENT,
 } from "@/lib/constants";
@@ -59,6 +61,7 @@ type ReseauClient = {
   typeRelation: string | null;
   statutReseau: string | null;
   niveauPotentiel: string | null;
+  potentielAffaires: string | null;
   potentielEstimeAnnuel: number | null;
   horizonActivation: string | null;
   prochaineActionReseau: string | null;
@@ -99,12 +102,17 @@ function isDueSoon(d: string | null, days: number): boolean {
   return target >= now && target <= limit;
 }
 
+function clientDisplayName(c: { raisonSociale: string; prenom: string; nom: string }): string {
+  return c.raisonSociale || `${c.prenom} ${c.nom}`;
+}
+
 export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   // Filters
   const [filterCategorie, setFilterCategorie] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [filterPotentiel, setFilterPotentiel] = useState<string>("all");
+  const [filterPotentielAffaires, setFilterPotentielAffaires] = useState<string>("all");
   const [filterHorizon, setFilterHorizon] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("alpha");
   const [showFilters, setShowFilters] = useState(false);
@@ -122,13 +130,14 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const hasActiveFilters = filterCategorie !== "all" || filterType !== "all" || filterStatut !== "all" || filterPotentiel !== "all" || filterHorizon !== "all";
+  const hasActiveFilters = filterCategorie !== "all" || filterType !== "all" || filterStatut !== "all" || filterPotentiel !== "all" || filterPotentielAffaires !== "all" || filterHorizon !== "all";
 
   function clearFilters() {
     setFilterCategorie("all");
     setFilterType("all");
     setFilterStatut("all");
     setFilterPotentiel("all");
+    setFilterPotentielAffaires("all");
     setFilterHorizon("all");
   }
 
@@ -140,6 +149,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
     if (filterType !== "all") result = result.filter((c) => c.typeRelation === filterType);
     if (filterStatut !== "all") result = result.filter((c) => c.statutReseau === filterStatut);
     if (filterPotentiel !== "all") result = result.filter((c) => c.niveauPotentiel === filterPotentiel);
+    if (filterPotentielAffaires !== "all") result = result.filter((c) => c.potentielAffaires === filterPotentielAffaires);
     if (filterHorizon !== "all") result = result.filter((c) => c.horizonActivation === filterHorizon);
 
     const sorted = [...result];
@@ -164,16 +174,17 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
         });
         break;
       default:
-        sorted.sort((a, b) => a.raisonSociale.localeCompare(b.raisonSociale, "fr"));
+        sorted.sort((a, b) => clientDisplayName(a).localeCompare(clientDisplayName(b), "fr"));
     }
     return sorted;
-  }, [clients, filterCategorie, filterType, filterStatut, filterPotentiel, filterHorizon, sortKey]);
+  }, [clients, filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon, sortKey]);
 
   // Operational highlights
   const aContacter = useMemo(() => clients.filter((c) => c.statutReseau === "a_contacter" || c.statutReseau === "aucune_demarche"), [clients]);
   const relancesEchues = useMemo(() => clients.filter((c) => isOverdue(c.dateRelanceReseau)), [clients]);
   const relancesBientot = useMemo(() => clients.filter((c) => isDueSoon(c.dateRelanceReseau, 7) && !isOverdue(c.dateRelanceReseau)), [clients]);
   const fortPotentiel = useMemo(() => clients.filter((c) => c.niveauPotentiel === "fort"), [clients]);
+  const fortPotentielAffaires = useMemo(() => clients.filter((c) => c.potentielAffaires === "fort" || c.potentielAffaires === "strategique"), [clients]);
   const courtTerme = useMemo(() => clients.filter((c) => c.horizonActivation === "court"), [clients]);
 
   function openQuickEdit(client: ReseauClient) {
@@ -211,8 +222,8 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   return (
     <div className="space-y-4">
       {/* Operational highlights */}
-      {(relancesEchues.length > 0 || relancesBientot.length > 0 || aContacter.length > 0 || fortPotentiel.length > 0 || courtTerme.length > 0) && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {(relancesEchues.length > 0 || relancesBientot.length > 0 || aContacter.length > 0 || fortPotentiel.length > 0 || fortPotentielAffaires.length > 0 || courtTerme.length > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {relancesEchues.length > 0 && (
             <button
               onClick={() => { clearFilters(); setSortKey("relance_asc"); }}
@@ -269,10 +280,26 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                   <Zap className="h-4 w-4 text-emerald-500" />
                   <span className="text-lg font-bold text-emerald-600">{fortPotentiel.length}</span>
                 </div>
-                <p className="text-[11px] text-emerald-600/80 mt-0.5">Fort potentiel</p>
+                <p className="text-[11px] text-emerald-600/80 mt-0.5">Forte probabilite</p>
               </CardContent>
             </Card>
           </button>
+          {fortPotentielAffaires.length > 0 && (
+            <button
+              onClick={() => { clearFilters(); setFilterPotentielAffaires("strategique"); }}
+              className="text-left"
+            >
+              <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 hover:shadow-sm transition-shadow cursor-pointer">
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-orange-500" />
+                    <span className="text-lg font-bold text-orange-600">{fortPotentielAffaires.length}</span>
+                  </div>
+                  <p className="text-[11px] text-orange-600/80 mt-0.5">Fort potentiel affaires</p>
+                </CardContent>
+              </Card>
+            </button>
+          )}
           <button
             onClick={() => { clearFilters(); setFilterHorizon("court"); }}
             className="text-left"
@@ -298,7 +325,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
             Filtres
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                {[filterCategorie, filterType, filterStatut, filterPotentiel, filterHorizon].filter((f) => f !== "all").length}
+                {[filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon].filter((f) => f !== "all").length}
               </Badge>
             )}
           </Button>
@@ -329,7 +356,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
       {showFilters && (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Categorie</Label>
                 <Select value={filterCategorie} onValueChange={setFilterCategorie}>
@@ -373,7 +400,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Potentiel</Label>
+                <Label className="text-xs text-muted-foreground">Probabilite</Label>
                 <Select value={filterPotentiel} onValueChange={setFilterPotentiel}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
@@ -382,6 +409,20 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                     <SelectItem value="all">Tous</SelectItem>
                     {NIVEAUX_POTENTIEL.map((n) => (
                       <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Pot. affaires</Label>
+                <Select value={filterPotentielAffaires} onValueChange={setFilterPotentielAffaires}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous</SelectItem>
+                    {POTENTIELS_AFFAIRES.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -434,7 +475,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link href={`/clients/${client.id}`} className="font-medium text-sm hover:underline truncate">
-                          {client.raisonSociale}
+                          {clientDisplayName(client)}
                         </Link>
                         {catConfig && (
                           <div className="flex items-center gap-1">
@@ -444,8 +485,8 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {client.prenom} {client.nom}
-                        {client.ville && <> — {client.ville}</>}
+                        {client.raisonSociale ? `${client.prenom} ${client.nom}` : null}
+                        {client.ville && <>{client.raisonSociale ? " — " : ""}{client.ville}</>}
                       </p>
 
                       {/* Badges row */}
@@ -472,6 +513,20 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                             }`}
                           >
                             {NIVEAUX_POTENTIEL.find((n) => n.id === client.niveauPotentiel)!.label}
+                          </Badge>
+                        )}
+                        {client.potentielAffaires && POTENTIELS_AFFAIRES.find((p) => p.id === client.potentielAffaires) && (
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] px-1.5 ${
+                              client.potentielAffaires === "strategique"
+                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                : client.potentielAffaires === "fort"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : ""
+                            }`}
+                          >
+                            Pot. {POTENTIELS_AFFAIRES.find((p) => p.id === client.potentielAffaires)!.label}
                           </Badge>
                         )}
                         {client.potentielEstimeAnnuel != null && client.potentielEstimeAnnuel > 0 && (
@@ -548,7 +603,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
           <DialogHeader>
             <DialogTitle className="text-base">Mise a jour rapide</DialogTitle>
             <DialogDescription>
-              {editClient?.raisonSociale} — {editClient?.prenom} {editClient?.nom}
+              {editClient ? clientDisplayName(editClient) : ""}{editClient?.raisonSociale ? ` — ${editClient.prenom} ${editClient.nom}` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -607,12 +662,12 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-red-700">
-              Tapez <span className="font-bold">{deleteClient?.raisonSociale}</span> pour confirmer :
+              Tapez <span className="font-bold">{deleteClient ? clientDisplayName(deleteClient) : ""}</span> pour confirmer :
             </p>
             <Input
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder={deleteClient?.raisonSociale ?? ""}
+              placeholder={deleteClient ? clientDisplayName(deleteClient) : ""}
               className="text-sm border-red-300 focus-visible:ring-red-400"
               autoFocus
             />
@@ -626,7 +681,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
               variant="destructive"
               size="sm"
               onClick={handleForceDelete}
-              disabled={deleteConfirmText.trim().toLowerCase() !== (deleteClient?.raisonSociale ?? "").trim().toLowerCase() || deleting}
+              disabled={deleteConfirmText.trim().toLowerCase() !== (deleteClient ? clientDisplayName(deleteClient) : "").trim().toLowerCase() || deleting}
             >
               {deleting ? "Suppression..." : "Supprimer definitivement"}
             </Button>

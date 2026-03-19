@@ -26,7 +26,7 @@ export default async function ModifierClientPage({
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-bold">Modifier : {client.raisonSociale}</h1>
+      <h1 className="text-2xl font-bold">Modifier : {client.raisonSociale || `${client.prenom} ${client.nom}`}</h1>
       <ClientForm client={client} users={users} prescripteurs={prescripteurs} action={action} />
     </div>
   );

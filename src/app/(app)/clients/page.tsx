@@ -131,7 +131,7 @@ export default async function ClientsPage({
                         href={`/clients/${client.id}`}
                         className="font-medium hover:underline text-primary"
                       >
-                        {client.raisonSociale}
+                        {client.raisonSociale || `${client.prenom} ${client.nom}`}
                       </Link>
                       {client.archived && (
                         <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-300 bg-yellow-50">

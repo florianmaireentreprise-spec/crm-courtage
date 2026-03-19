@@ -19,6 +19,7 @@ const STATUTS_RESEAU_IDS = [
 ] as const;
 
 const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
+const POTENTIELS_AFFAIRES_IDS = ["faible", "moyen", "fort", "strategique"] as const;
 
 const HORIZONS_ACTIVATION_IDS = ["court", "moyen", "long"] as const;
 
@@ -32,7 +33,7 @@ const optionalDate = z
   .transform((v) => (v instanceof Date && !isNaN(v.getTime()) ? v : null));
 
 export const clientSchema = z.object({
-  raisonSociale: z.string().min(1, "La raison sociale est requise"),
+  raisonSociale: z.string().default(""),
   siret: z.string().optional().nullable(),
   formeJuridique: z.string().optional().nullable(),
   secteurActivite: z.string().optional().nullable(),
@@ -67,6 +68,7 @@ export const clientSchema = z.object({
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().nullable().or(z.literal("")),
   statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().nullable().or(z.literal("")),
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().nullable().or(z.literal("")),
+  potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().nullable().or(z.literal("")),
   potentielEstimeAnnuel: z.coerce.number().min(0).optional().nullable(),
   horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().nullable().or(z.literal("")),
   prochaineActionReseau: z.string().optional().nullable(),

@@ -21,6 +21,7 @@ import {
   TYPES_RELATION_RESEAU,
   STATUTS_RESEAU,
   NIVEAUX_POTENTIEL,
+  POTENTIELS_AFFAIRES,
   HORIZONS_ACTIVATION,
 } from "@/lib/constants";
 import { CompanySearchButton } from "./CompanySearchButton";
@@ -125,12 +126,12 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="raisonSociale">Raison sociale *</Label>
+              <Label htmlFor="raisonSociale">Raison sociale</Label>
               <Input
                 id="raisonSociale"
                 name="raisonSociale"
                 defaultValue={v("raisonSociale")}
-                required
+                placeholder="Optionnel pour les contacts reseau"
               />
             </div>
             <div className="space-y-2">
@@ -432,7 +433,7 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Niveau potentiel</Label>
+                    <Label>Probabilite de signature</Label>
                     <Select name="niveauPotentiel" defaultValue={client?.niveauPotentiel ?? ""}>
                       <SelectTrigger>
                         <SelectValue placeholder="-" />
@@ -441,6 +442,21 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
                         {NIVEAUX_POTENTIEL.map((n) => (
                           <SelectItem key={n.id} value={n.id}>
                             {n.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Potentiel affaires</Label>
+                    <Select name="potentielAffaires" defaultValue={client?.potentielAffaires ?? ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="-" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {POTENTIELS_AFFAIRES.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

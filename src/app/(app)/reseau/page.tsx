@@ -61,6 +61,7 @@ export default async function ReseauPage() {
     typeRelation: c.typeRelation,
     statutReseau: c.statutReseau,
     niveauPotentiel: c.niveauPotentiel,
+    potentielAffaires: c.potentielAffaires,
     potentielEstimeAnnuel: c.potentielEstimeAnnuel,
     horizonActivation: c.horizonActivation,
   }));
@@ -79,6 +80,7 @@ export default async function ReseauPage() {
     typeRelation: c.typeRelation,
     statutReseau: c.statutReseau,
     niveauPotentiel: c.niveauPotentiel,
+    potentielAffaires: c.potentielAffaires,
     potentielEstimeAnnuel: c.potentielEstimeAnnuel,
     horizonActivation: c.horizonActivation,
     prochaineActionReseau: c.prochaineActionReseau,

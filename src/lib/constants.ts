@@ -203,6 +203,7 @@ export const STATUTS_DIRIGEANT = [
 export const CATEGORIES_RESEAU = [
   { id: "dirigeant_tpe", label: "Dirigeants TPE", color: "#3B82F6" },
   { id: "dirigeant_pme", label: "Dirigeants PME", color: "#8B5CF6" },
+  { id: "dirigeant_eti", label: "Dirigeants ETI", color: "#7C3AED" },
   { id: "medecin", label: "Medecins", color: "#10B981" },
   { id: "avocat", label: "Avocats", color: "#F59E0B" },
   { id: "profession_liberale", label: "Professions liberales", color: "#F97316" },
@@ -230,8 +231,15 @@ export const STATUTS_RESEAU = [
 
 export const NIVEAUX_POTENTIEL = [
   { id: "faible", label: "Faible" },
+  { id: "moyen", label: "Moyenne" },
+  { id: "fort", label: "Forte" },
+] as const;
+
+export const POTENTIELS_AFFAIRES = [
+  { id: "faible", label: "Faible" },
   { id: "moyen", label: "Moyen" },
   { id: "fort", label: "Fort" },
+  { id: "strategique", label: "Strategique" },
 ] as const;
 
 export const HORIZONS_ACTIVATION = [

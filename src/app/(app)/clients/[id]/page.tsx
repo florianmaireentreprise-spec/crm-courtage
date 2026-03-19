@@ -291,7 +291,7 @@ export default async function ClientDetailPage({
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{client.raisonSociale}</h1>
+            <h1 className="text-2xl font-bold">{client.raisonSociale || `${client.prenom} ${client.nom}`}</h1>
             <Badge
               variant="outline"
               style={{ borderColor: statutConfig?.color, color: statutConfig?.color }}
@@ -332,7 +332,7 @@ export default async function ClientDetailPage({
           </Link>
           <ClientArchiveActions
             clientId={id}
-            clientName={client.raisonSociale}
+            clientName={client.raisonSociale || `${client.prenom} ${client.nom}`}
             archived={client.archived}
             archiveAction={archiveClient}
             unarchiveAction={unarchiveClient}

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { CATEGORIES_RESEAU, TYPES_RELATION_RESEAU, STATUTS_RESEAU, NIVEAUX_POTENTIEL, HORIZONS_ACTIVATION } from "@/lib/constants";
+import { CATEGORIES_RESEAU, TYPES_RELATION_RESEAU, STATUTS_RESEAU, NIVEAUX_POTENTIEL, POTENTIELS_AFFAIRES, HORIZONS_ACTIVATION } from "@/lib/constants";
 import { addContactReseau } from "@/app/(app)/reseau/actions";
 import { CompanySearchButton } from "@/components/clients/CompanySearchButton";
 
@@ -115,8 +115,8 @@ export function AddContactButton() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Entreprise / Structure *</Label>
-                <Input name="raisonSociale" required placeholder="Ex: Cabinet Dr. Martin" defaultValue={sirene.raisonSociale ?? ""} />
+                <Label>Entreprise / Structure</Label>
+                <Input name="raisonSociale" placeholder="Ex: Cabinet Dr. Martin (optionnel)" defaultValue={sirene.raisonSociale ?? ""} />
               </div>
               <div className="space-y-2">
                 <Label>Categorie reseau *</Label>
@@ -216,9 +216,9 @@ export function AddContactButton() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Niveau potentiel</Label>
+                <Label>Probabilite de signature</Label>
                 <Select name="niveauPotentiel">
                   <SelectTrigger>
                     <SelectValue placeholder="-" />
@@ -232,6 +232,24 @@ export function AddContactButton() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Potentiel affaires</Label>
+                <Select name="potentielAffaires">
+                  <SelectTrigger>
+                    <SelectValue placeholder="-" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {POTENTIELS_AFFAIRES.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Potentiel estime annuel</Label>
                 <Input name="potentielEstimeAnnuel" type="number" min={0} step={100} placeholder="€/an" />

@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Workspace (Phase 1 — Demo/Real separation) ──
@@ -99,6 +100,7 @@ model Client {
   typeRelation          String?
   statutReseau          String?
   niveauPotentiel       String?
+  potentielAffaires     String?
   potentielEstimeAnnuel Float?
   horizonActivation     String?
   prochaineActionReseau String?
