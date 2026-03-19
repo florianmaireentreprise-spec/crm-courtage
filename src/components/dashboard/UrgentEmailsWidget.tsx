@@ -43,13 +43,13 @@ export function UrgentEmailsWidget({ emails }: { emails: UrgentEmail[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <Link href="/emails/urgent" className="hover:opacity-80 transition-opacity">
+          <Link href="/emails?tab=actions" className="hover:opacity-80 transition-opacity">
             <CardTitle className="text-base flex items-center gap-2 cursor-pointer">
               <AlertTriangle className="h-4 w-4 text-red-500" />
               Emails urgents a traiter
             </CardTitle>
           </Link>
-          <Link href="/emails/urgent">
+          <Link href="/emails?tab=actions">
             <Badge variant="destructive" className="text-[10px] cursor-pointer">
               {emails.length}
             </Badge>
@@ -61,7 +61,7 @@ export function UrgentEmailsWidget({ emails }: { emails: UrgentEmail[] }) {
           // Row links to client page if linked, otherwise to /emails/urgent
           const rowHref = email.client
             ? `/clients/${email.client.id}`
-            : "/emails/urgent";
+            : "/emails?tab=actions";
 
           return (
             <Link key={email.id} href={rowHref} className="block">

@@ -40,9 +40,10 @@ type Props = {
   pendingCount: number;
   unknownCount: number;
   opportunityMap: Record<string, { count: number; statuts: string[] }>;
+  initialTab?: string;
 };
 
-export function EmailPageTabs({ emails, pendingCount, unknownCount, opportunityMap }: Props) {
+export function EmailPageTabs({ emails, pendingCount, unknownCount, opportunityMap, initialTab }: Props) {
   const [selectedEmail, setSelectedEmail] = useState<EmailWithClient | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -190,7 +191,7 @@ export function EmailPageTabs({ emails, pendingCount, unknownCount, opportunityM
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="inbox" className="space-y-4">
+      <Tabs defaultValue={initialTab || "inbox"} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="inbox" className="gap-1.5">
             <Mail className="h-3.5 w-3.5" />

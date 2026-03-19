@@ -8,7 +8,12 @@ import { isJunkEmail } from "@/lib/email/sync";
 
 export const metadata = { title: "Emails — CRM Courtage" };
 
-export default async function EmailsPage() {
+export default async function EmailsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const params = await searchParams;
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -127,6 +132,7 @@ export default async function EmailsPage() {
           pendingCount={pendingCount}
           unknownCount={unknownCount}
           opportunityMap={opportunityMap}
+          initialTab={params.tab}
         />
       )}
     </div>
