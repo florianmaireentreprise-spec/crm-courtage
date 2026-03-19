@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { KanbanColumn } from "./KanbanColumn";
 import { DealCreateFlow } from "./DealCreateFlow";
@@ -44,6 +44,20 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [creatingContracts, setCreatingContracts] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
+  const pendingDealIdRef = useRef<string | null>(null);
+
+  // Auto-open DealPanel after creation when the deal appears in columns
+  useEffect(() => {
+    if (!pendingDealIdRef.current) return;
+    for (const col of columns) {
+      const deal = col.deals.find((d) => d.id === pendingDealIdRef.current);
+      if (deal) {
+        setSelectedDeal(deal);
+        pendingDealIdRef.current = null;
+        return;
+      }
+    }
+  }, [columns]);
 
   function getDealProducts(dealId: string): string[] {
     for (const col of columns) {
@@ -169,6 +183,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
       <DealCreateFlow
         open={showForm}
         onOpenChange={setShowForm}
+        onDealCreated={(dealId) => { pendingDealIdRef.current = dealId; }}
       />
 
       {/* Loss dialog */}
