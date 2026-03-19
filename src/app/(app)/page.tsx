@@ -1,29 +1,14 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { KPICards } from "@/components/dashboard/KPICards";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { CAEvolutionChart } from "@/components/dashboard/CAEvolutionChart";
-import { PipelineChart } from "@/components/dashboard/PipelineChart";
-import { ProductPieChart } from "@/components/dashboard/ProductPieChart";
-import { RenewalsWidget } from "@/components/dashboard/RenewalsWidget";
-import { TasksWidget } from "@/components/dashboard/TasksWidget";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { detecterOpportunites } from "@/lib/scoring/opportunities";
-import { calculerScoreProspect, getScoreColor } from "@/lib/scoring/prospect";
+import { calculerScoreProspect } from "@/lib/scoring/prospect";
 import { calculerPotentielCA } from "@/lib/scoring/potentiel";
-import { TYPES_PRODUITS, ETAPES_PIPELINE } from "@/lib/constants";
+import { ETAPES_PIPELINE } from "@/lib/constants";
 import { getCampagnesActives } from "@/lib/constants";
 import { detecterPrescripteursARelancer } from "@/lib/prescripteurs";
-import { CampagnesWidget } from "@/components/dashboard/CampagnesWidget";
-import { PrescripteursWidget } from "@/components/dashboard/PrescripteursWidget";
-import { EmailsWidget } from "@/components/dashboard/EmailsWidget";
-import { UrgentEmailsWidget } from "@/components/dashboard/UrgentEmailsWidget";
-import { RecentActivityWidget } from "@/components/dashboard/RecentActivityWidget";
-import { SignauxCommerciaux } from "@/components/dashboard/SignauxCommerciaux";
-import { CalendrierEcheances } from "@/components/dashboard/CalendrierEcheances";
+import { computeMetrics } from "@/lib/objectifs";
 import { auth } from "@/lib/auth";
 
 async function getDashboardData() {
@@ -44,6 +29,7 @@ function getEmptyDashboard() {
       tauxMultiEquipement: "0", contratsARenouveler30j: 0, totalPotentiel: 0,
       sequencesActives: 0,
     },
+    objectifs: [] as { type: string; valeurCible: number; valeurActuelle: number; label: string; format: "currency" | "number" }[],
     caEvolution: [] as { mois: string; reel: number; theorique: number }[],
     contratsByType: [] as { typeProduit: string; _sum: { commissionAnnuelle: number | null }; _count: number }[],
     dealsByEtape: [] as { etape: string; _count: number; _sum: { montantEstime: number | null } }[],
@@ -404,6 +390,32 @@ async function getDashboardDataInternal() {
     console.error("Erreur detection prescripteurs:", err);
   }
 
+  // Objectifs annuels — fetch targets + compute actuals
+  const annee = new Date().getFullYear();
+  const [objectifsRows, metrics] = await Promise.all([
+    prisma.objectif.findMany({ where: { annee, periode: "annuel" } }),
+    computeMetrics(annee),
+  ]);
+
+  const OBJECTIF_LABELS: Record<string, { label: string; format: "currency" | "number" }> = {
+    CA_ANNUEL: { label: "Primes nouvelles", format: "currency" },
+    NB_CONTRATS: { label: "Deals signes", format: "number" },
+    NB_CLIENTS: { label: "Clients actifs", format: "number" },
+    PIPELINE: { label: "Commissions", format: "currency" },
+  };
+
+  const objectifs = objectifsRows.map((obj) => {
+    const m = metrics[obj.type as keyof typeof metrics];
+    const cfg = OBJECTIF_LABELS[obj.type] ?? { label: obj.type, format: "number" as const };
+    return {
+      type: obj.type,
+      valeurCible: obj.valeurCible,
+      valeurActuelle: m ? Math.round(m.valeur) : 0,
+      label: cfg.label,
+      format: cfg.format,
+    };
+  });
+
   return {
     kpis: {
       caRecurrentMensuel: Math.round(caGestion / 12),
@@ -420,6 +432,7 @@ async function getDashboardDataInternal() {
       totalPotentiel,
       sequencesActives,
     },
+    objectifs,
     caEvolution,
     contratsByType,
     dealsByEtape,
@@ -444,109 +457,5 @@ async function getDashboardDataInternal() {
 export default async function DashboardPage() {
   const data = await getDashboardData();
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Cabinet de conseil en protection sociale et strategie patrimoniale des dirigeants</h1>
-        <p className="text-muted-foreground text-sm mt-1">Tableau de bord - GargarineV1</p>
-      </div>
-      <KPICards kpis={data.kpis} />
-      <CAEvolutionChart data={data.caEvolution} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={data.contratsByType} />
-        <PipelineChart data={data.dealsByEtape} />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ProductPieChart data={data.contratsByType} />
-        <TasksWidget taches={data.tachesAujourdhui} />
-      </div>
-      <RenewalsWidget contrats={data.renewals} />
-
-      {/* Urgent Emails & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UrgentEmailsWidget emails={data.urgentEmails} />
-        <RecentActivityWidget activities={data.recentActivity} />
-      </div>
-
-      {/* Intelligence commerciale & Echeances */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SignauxCommerciaux signaux={data.recentSignaux} opportunites={data.intelligenceOpportunites} />
-        <CalendrierEcheances contrats={data.renewals} deals={data.upcomingDeals} taches={data.upcomingTaches} relances={data.upcomingRelances} />
-      </div>
-
-      {/* Campagnes & Prescripteurs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CampagnesWidget campagnes={data.campagnesActives} />
-        <PrescripteursWidget alertes={data.prescripteursAlertes} />
-      </div>
-
-      {/* Emails pending */}
-      <EmailsWidget emails={data.emailsPending} totalPending={data.emailsPendingCount} />
-
-      {/* Phase 2 widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top 5 prospects */}
-        {data.topProspects.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Top prospects a traiter</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {data.topProspects.map((p) => (
-                <Link key={p.id} href={`/clients/${p.id}`} className="block">
-                  <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-2 -mx-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] w-8 justify-center" style={{ borderColor: getScoreColor(p.score), color: getScoreColor(p.score) }}>
-                        {p.score}
-                      </Badge>
-                      <span className="text-sm font-medium">{p.raisonSociale}</span>
-                    </div>
-                    {p.potentiel > 0 && (
-                      <span className="text-xs text-emerald-600 font-medium">
-                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(p.potentiel)}/an
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Opportunites detectees */}
-        {data.opportunites.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Opportunites detectees</CardTitle>
-                <Badge>{data.opportunites.length}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {data.opportunites.map((opp) => (
-                <Link key={opp.id} href={`/clients/${opp.clientId}`} className="block">
-                  <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-2 -mx-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={opp.priorite === "haute" ? "destructive" : "secondary"} className="text-[10px]">
-                          {opp.priorite}
-                        </Badge>
-                        <span className="text-sm font-medium truncate">{opp.clientNom}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{opp.titre}</p>
-                    </div>
-                    {opp.produitCible && (
-                      <Badge variant="outline" className="text-[10px] ml-2 flex-shrink-0">
-                        {TYPES_PRODUITS[opp.produitCible as keyof typeof TYPES_PRODUITS]?.label ?? opp.produitCible}
-                      </Badge>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
-  );
+  return <DashboardTabs data={data} />;
 }
