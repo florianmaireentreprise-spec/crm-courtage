@@ -5,7 +5,10 @@ import { updateCompagnie } from "@/app/(app)/compagnies/actions";
 
 export default async function ModifierCompagniePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const compagnie = await prisma.compagnie.findUnique({ where: { id } });
+  const compagnie = await prisma.compagnie.findUnique({
+    where: { id },
+    include: { produits: true },
+  });
   if (!compagnie) notFound();
 
   const boundAction = updateCompagnie.bind(null, id);

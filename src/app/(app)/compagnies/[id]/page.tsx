@@ -26,6 +26,7 @@ export default async function CompagnieDetailPage({ params }: { params: Promise<
         include: { client: true, commissions: true },
         orderBy: { dateCreation: "desc" },
       },
+      produits: true,
     },
   });
 
@@ -117,6 +118,46 @@ export default async function CompagnieDetailPage({ params }: { params: Promise<
             )}
           </CardContent>
         </Card>
+
+        {compagnie.produits.length > 0 && (
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle className="text-base">Produits distribues ({compagnie.produits.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produit</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
+                    <TableHead className="text-right">Seuil surcomm.</TableHead>
+                    <TableHead className="text-right">Taux surcomm.</TableHead>
+                    <TableHead className="text-right">Upfront</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {compagnie.produits.map((p) => {
+                    const prodConfig = TYPES_PRODUITS[p.typeProduit as keyof typeof TYPES_PRODUITS];
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: prodConfig?.color }} />
+                            <span className="text-sm font-medium">{prodConfig?.label ?? p.typeProduit}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-sm">{(p.tauxCommission * 100).toFixed(1)}%</TableCell>
+                        <TableCell className="text-right text-sm">{p.seuilSurcommission ?? "—"}</TableCell>
+                        <TableCell className="text-right text-sm">{p.tauxSurcommission ? `${(p.tauxSurcommission * 100).toFixed(1)}%` : "—"}</TableCell>
+                        <TableCell className="text-right text-sm">{p.upfront ? fmt(p.upfront) : "—"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="lg:col-span-2">
           <Card>

@@ -267,6 +267,20 @@ model Compagnie {
   notes              String?
   // Relations
   contrats           Contrat[]
+  produits           CompagnieProduit[]
+}
+
+model CompagnieProduit {
+  id                 String    @id @default(cuid())
+  compagnieId        String
+  compagnie          Compagnie @relation(fields: [compagnieId], references: [id], onDelete: Cascade)
+  typeProduit        String
+  tauxCommission     Float     // Stored as decimal (0.07 = 7%)
+  seuilSurcommission Int?
+  tauxSurcommission  Float?    // Stored as decimal
+  upfront            Float?    // Ticket at signature in EUR
+
+  @@unique([compagnieId, typeProduit])
 }
 
 model Deal {
