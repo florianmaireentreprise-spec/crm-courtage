@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BarChart3 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { TYPES_PRODUITS } from "@/lib/constants";
 
@@ -11,6 +13,19 @@ type ContratsByType = {
 }[];
 
 export function ProductPieChart({ data }: { data: ContratsByType }) {
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Répartition CA par produit</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState icon={BarChart3} title="Pas encore de donnees" description="Ce graphique se remplira avec vos premiers contrats." compact />
+        </CardContent>
+      </Card>
+    );
+  }
+
   const chartData = data.map((item) => {
     const config = TYPES_PRODUITS[item.typeProduit as keyof typeof TYPES_PRODUITS];
     return {

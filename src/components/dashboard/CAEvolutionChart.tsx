@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BarChart3 } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -19,6 +21,19 @@ type CAEvolutionData = {
 }[];
 
 export function CAEvolutionChart({ data }: { data: CAEvolutionData }) {
+  if (!data || data.length === 0 || data.every(d => d.reel === 0 && d.theorique === 0)) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">CA Recurrent Evolution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState icon={BarChart3} title="Pas encore de donnees" description="Ce graphique se remplira avec vos premiers contrats." compact />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -28,10 +43,10 @@ export function CAEvolutionChart({ data }: { data: CAEvolutionData }) {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mois" fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+              <XAxis dataKey="mois" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
               <YAxis
-                fontSize={12}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                 tickFormatter={(v) =>
                   new Intl.NumberFormat("fr-FR", {
                     notation: "compact",

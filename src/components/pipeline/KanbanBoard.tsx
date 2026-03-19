@@ -141,7 +141,7 @@ export function KanbanBoard({ columns, clients, users, prescripteurs }: Props) {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-2 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
+        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-thin" style={{ minHeight: 500 }}>
           {columns.map((col) => (
             <KanbanColumn
               key={col.id}

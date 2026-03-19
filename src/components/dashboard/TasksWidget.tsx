@@ -7,6 +7,7 @@ import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Tache, Client } from "@prisma/client";
 import { PRIORITES, TYPES_TACHE } from "@/lib/constants";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type TacheWithClient = Tache & { client: Client | null };
 
@@ -21,9 +22,13 @@ export function TasksWidget({ taches }: { taches: TacheWithClient[] }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Aucune tâche pour aujourd&apos;hui
-          </p>
+          <EmptyState
+            icon={Clock}
+            title="Aucune tache pour aujourd'hui"
+            description="Les taches apparaitront avec vos deals et relances."
+            action={{ label: "Voir toutes les taches", href: "/relances" }}
+            compact
+          />
         </CardContent>
       </Card>
     );

@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BarChart3 } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -32,6 +34,19 @@ export function PipelineChart({ data }: { data: DealsByEtape }) {
       };
     });
 
+  if (chartData.every(d => d.deals === 0 && d.montant === 0)) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pipeline par étape</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState icon={BarChart3} title="Pas encore de donnees" description="Ce graphique se remplira avec vos premiers contrats." compact />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -41,9 +56,9 @@ export function PipelineChart({ data }: { data: DealsByEtape }) {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis fontSize={12} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+              <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
               <Tooltip
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: any, name: any) => [

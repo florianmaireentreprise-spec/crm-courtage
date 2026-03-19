@@ -128,3 +128,35 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Utilitaires design GargarineV1 */
+@layer utilities {
+  .shadow-card {
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.03);
+  }
+  .shadow-card-hover {
+    box-shadow: 0 2px 4px oklch(0 0 0 / 0.06), 0 4px 16px oklch(0 0 0 / 0.05);
+  }
+  .transition-card {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.85 0 0) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 5px; height: 5px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: oklch(0.85 0 0); border-radius: 10px; }

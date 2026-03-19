@@ -106,7 +106,7 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
   const { kpis, objectifs } = data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -124,7 +124,7 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
               onClick={() => setTab(id)}
               className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${
                 tab === id
-                  ? "bg-indigo-600 text-white shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -156,7 +156,7 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
             objectifs.find(o => o.type === "CA_ANNUEL") &&
             kpis.caRecurrentAnnuel < (objectifs.find(o => o.type === "CA_ANNUEL")!.valeurCible * 0.5)
               ? "text-amber-600"
-              : "text-emerald-600"
+              : "text-success"
           }
         />
         <HeroCard
@@ -185,9 +185,9 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
             {objectifs.map((obj) => {
               const pct = obj.valeurCible > 0 ? Math.min(100, Math.round((obj.valeurActuelle / obj.valeurCible) * 100)) : 0;
               const barColor =
-                pct >= 80 ? "bg-emerald-500" :
+                pct >= 80 ? "bg-success" :
                 pct >= 50 ? "bg-amber-500" :
-                "bg-red-500";
+                "bg-destructive";
               return (
                 <div key={obj.type} className="flex items-center gap-4">
                   <span className="text-sm font-medium w-40 shrink-0">{obj.label}</span>
@@ -251,7 +251,7 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
                           <span className="text-sm font-medium">{p.raisonSociale}</span>
                         </div>
                         {p.potentiel > 0 && (
-                          <span className="text-xs text-emerald-600 font-medium">
+                          <span className="text-xs text-success font-medium">
                             {fmt(p.potentiel)}/an
                           </span>
                         )}
@@ -324,11 +324,11 @@ export function DashboardTabs({ data }: { data: DashboardTabsProps }) {
 }
 
 // ── Hero KPI Card ──
-const COLOR_MAP: Record<string, { bg: string; text: string; icon: string }> = {
-  emerald: { bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-700 dark:text-emerald-400", icon: "text-emerald-600" },
-  blue: { bg: "bg-blue-50 dark:bg-blue-950/30", text: "text-blue-700 dark:text-blue-400", icon: "text-blue-600" },
-  violet: { bg: "bg-violet-50 dark:bg-violet-950/30", text: "text-violet-700 dark:text-violet-400", icon: "text-violet-600" },
-  red: { bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-700 dark:text-red-400", icon: "text-red-600" },
+const COLOR_MAP: Record<string, { bg: string; text: string; icon: string; border: string }> = {
+  emerald: { bg: "bg-success/5", text: "text-success", icon: "text-success", border: "var(--success)" },
+  blue: { bg: "bg-primary/5", text: "text-primary", icon: "text-primary", border: "var(--primary)" },
+  violet: { bg: "bg-muted", text: "text-foreground", icon: "text-muted-foreground", border: "var(--chart-3)" },
+  red: { bg: "bg-destructive/5", text: "text-destructive", icon: "text-destructive", border: "var(--destructive)" },
 };
 
 function HeroCard({
@@ -343,7 +343,7 @@ function HeroCard({
 }) {
   const c = COLOR_MAP[color] ?? COLOR_MAP.emerald;
   return (
-    <Card className="border-l-4" style={{ borderLeftColor: color === "emerald" ? "#10b981" : color === "blue" ? "#3b82f6" : color === "violet" ? "#8b5cf6" : "#ef4444" }}>
+    <Card className="border-l-4" style={{ borderLeftColor: c.border }}>
       <CardContent className="pt-4 pb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-muted-foreground font-medium">{label}</span>

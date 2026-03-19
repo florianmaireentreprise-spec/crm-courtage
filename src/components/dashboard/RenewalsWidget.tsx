@@ -4,6 +4,8 @@ import { TYPES_PRODUITS } from "@/lib/constants";
 import { format, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Contrat, Client, Compagnie } from "@prisma/client";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RefreshCw } from "lucide-react";
 
 type ContratWithRelations = Contrat & {
   client: Client;
@@ -24,7 +26,13 @@ export function RenewalsWidget({ contrats }: { contrats: ContratWithRelations[] 
           <CardTitle className="text-base">Renouvellements à venir (90 jours)</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Aucun renouvellement à venir</p>
+          <EmptyState
+            icon={RefreshCw}
+            title="Aucun renouvellement a venir"
+            description="Les echeances contrats apparaitront ici 90 jours avant leur date."
+            action={{ label: "Voir les contrats", href: "/contrats" }}
+            compact
+          />
         </CardContent>
       </Card>
     );
