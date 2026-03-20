@@ -97,7 +97,8 @@ model Client {
   trancheEffectifs     String?
   // Reseau personnel
   categorieReseau      String?
-  typeRelation          String?
+  typeRelation          String?   // deprecated — use rolesReseau instead
+  rolesReseau           String[]  @default([])
   statutReseau          String?
   niveauPotentiel       String?
   potentielAffaires     String?

@@ -8,6 +8,13 @@ const TYPES_RELATION_IDS = [
   "ancien_client",
 ] as const;
 
+const ROLES_RESEAU_IDS = [
+  "prospect_direct",
+  "prescripteur_potentiel",
+  "partenaire",
+  "ancien_client",
+] as const;
+
 const STATUTS_RESEAU_IDS = [
   "aucune_demarche",
   "a_qualifier",
@@ -66,6 +73,7 @@ export const clientSchema = z.object({
   categorieReseau: z.string().optional().nullable(),
   // Qualification reseau — strict enum validation
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().nullable().or(z.literal("")),
+  rolesReseau: z.array(z.enum(ROLES_RESEAU_IDS)).default([]),
   statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().nullable().or(z.literal("")),
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().nullable().or(z.literal("")),
   potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().nullable().or(z.literal("")),

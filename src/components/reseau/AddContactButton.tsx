@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +21,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { CATEGORIES_RESEAU, TYPES_RELATION_RESEAU, STATUTS_RESEAU, NIVEAUX_POTENTIEL, POTENTIELS_AFFAIRES, HORIZONS_ACTIVATION } from "@/lib/constants";
+import {
+  CATEGORIES_RESEAU,
+  STATUTS_RESEAU,
+  NIVEAUX_POTENTIEL,
+  POTENTIELS_AFFAIRES,
+  HORIZONS_ACTIVATION,
+  ROLES_RESEAU,
+  computePrioriteReseau,
+  PRIORITES_RESEAU_CONFIG,
+} from "@/lib/constants";
 import { addContactReseau } from "@/app/(app)/reseau/actions";
 import { CompanySearchButton } from "@/components/clients/CompanySearchButton";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { toast } from "sonner";
 
 type SireneOverrides = {
   raisonSociale?: string;
@@ -42,8 +54,25 @@ export function AddContactButton() {
   const [sirene, setSirene] = useState<SireneOverrides>({});
   const [formKey, setFormKey] = useState(0);
 
+  // Live preview state for priority
+  const [liveProba, setLiveProba] = useState<string>("");
+  const [livePotentiel, setLivePotentiel] = useState<string>("");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+  const livePriorite = useMemo(
+    () => computePrioriteReseau(liveProba || null, livePotentiel || null),
+    [liveProba, livePotentiel]
+  );
+
   async function handleSubmit(formData: FormData) {
-    await addContactReseau(formData);
+    const result = await addContactReseau(formData);
+    if (result && "error" in result) {
+      toast.error("Erreur de validation", {
+        description: "Verifiez les champs obligatoires.",
+      });
+      return;
+    }
+    toast.success("Contact ajoute au reseau");
     setOpen(false);
   }
 
@@ -76,6 +105,15 @@ export function AddContactButton() {
     setOpen(true);
     setSirene({});
     setFormKey(0);
+    setLiveProba("");
+    setLivePotentiel("");
+    setSelectedRoles([]);
+  }
+
+  function toggleRole(roleId: string) {
+    setSelectedRoles((prev) =>
+      prev.includes(roleId) ? prev.filter((r) => r !== roleId) : [...prev, roleId]
+    );
   }
 
   return (
@@ -182,92 +220,119 @@ export function AddContactButton() {
               </div>
             </div>
 
-            {/* Qualification reseau — lightweight: no commentaireReseau, no dateRelanceReseau */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Type de relation</Label>
-                <Select name="typeRelation">
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPES_RELATION_RESEAU.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* ── Qualification reseau ── */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Qualification
+                </h4>
+                {livePriorite && (
+                  <Badge className={`text-[10px] ${PRIORITES_RESEAU_CONFIG[livePriorite].bgClass}`}>
+                    {PRIORITES_RESEAU_CONFIG[livePriorite].label}
+                  </Badge>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label>Statut reseau</Label>
-                <Select name="statutReseau" defaultValue="aucune_demarche">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Aucune demarche" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUTS_RESEAU.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
+              {/* Multi-role selection */}
               <div className="space-y-2">
-                <Label>Probabilite de signature</Label>
-                <Select name="niveauPotentiel">
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NIVEAUX_POTENTIEL.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Roles (multi-selection)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {ROLES_RESEAU.map((role) => {
+                    const isSelected = selectedRoles.includes(role.id);
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => toggleRole(role.id)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                          isSelected
+                            ? "border-transparent text-white shadow-sm"
+                            : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                        }`}
+                        style={isSelected ? { backgroundColor: role.color } : undefined}
+                      >
+                        {role.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Hidden inputs for FormData */}
+                {selectedRoles.map((roleId) => (
+                  <input key={roleId} type="hidden" name="rolesReseau" value={roleId} />
+                ))}
               </div>
-              <div className="space-y-2">
-                <Label>Potentiel affaires</Label>
-                <Select name="potentielAffaires">
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {POTENTIELS_AFFAIRES.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Potentiel estime annuel</Label>
-                <Input name="potentielEstimeAnnuel" type="number" min={0} step={100} placeholder="€/an" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Statut reseau</Label>
+                  <Select name="statutReseau" defaultValue="aucune_demarche">
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Aucune demarche" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUTS_RESEAU.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Horizon activation</Label>
+                  <Select name="horizonActivation">
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HORIZONS_ACTIVATION.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Horizon activation</Label>
-                <Select name="horizonActivation">
-                  <SelectTrigger>
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HORIZONS_ACTIVATION.map((h) => (
-                      <SelectItem key={h.id} value={h.id}>
-                        {h.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Probabilite de signature</Label>
+                  <Select name="niveauPotentiel" onValueChange={setLiveProba}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NIVEAUX_POTENTIEL.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Potentiel affaires</Label>
+                  <Select name="potentielAffaires" onValueChange={setLivePotentiel}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POTENTIELS_AFFAIRES.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Potentiel estime annuel</Label>
+                  <Input name="potentielEstimeAnnuel" type="number" min={0} step={100} placeholder="EUR/an" className="h-9" />
+                </div>
               </div>
             </div>
 
@@ -291,7 +356,9 @@ export function AddContactButton() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit">Ajouter au reseau</Button>
+              <SubmitButton pendingText="Ajout en cours...">
+                Ajouter au reseau
+              </SubmitButton>
             </div>
           </form>
         </DialogContent>

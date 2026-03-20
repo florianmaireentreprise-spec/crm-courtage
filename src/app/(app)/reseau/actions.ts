@@ -10,6 +10,10 @@ const TYPES_RELATION_IDS = [
   "client_potentiel_direct", "prescripteur", "partenaire", "ancien_client",
 ] as const;
 
+const ROLES_RESEAU_IDS = [
+  "prospect_direct", "prescripteur_potentiel", "partenaire", "ancien_client",
+] as const;
+
 const STATUTS_RESEAU_IDS = [
   "aucune_demarche", "a_qualifier", "a_contacter", "premier_echange",
   "suivi_en_cours", "actif", "sans_suite",
@@ -87,6 +91,7 @@ const addContactSchema = z.object({
   codePostal: z.string().optional(),
   // Qualification reseau — strict enum validation
   typeRelation: z.enum(TYPES_RELATION_IDS).optional().or(z.literal("")),
+  rolesReseau: z.array(z.enum(ROLES_RESEAU_IDS)).default([]),
   statutReseau: z.enum(STATUTS_RESEAU_IDS).optional().or(z.literal("")),
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().or(z.literal("")),
   potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().or(z.literal("")),
@@ -98,7 +103,9 @@ const addContactSchema = z.object({
 });
 
 export async function addContactReseau(formData: FormData) {
-  const raw = Object.fromEntries(formData.entries());
+  // Extract rolesReseau separately (FormData.getAll for multi-value)
+  const rolesReseau = formData.getAll("rolesReseau") as string[];
+  const raw = { ...Object.fromEntries(formData.entries()), rolesReseau };
   const parsed = addContactSchema.safeParse(raw);
 
   if (!parsed.success) {
@@ -126,6 +133,7 @@ export async function addContactReseau(formData: FormData) {
       codePostal: data.codePostal || null,
       // Qualification reseau
       typeRelation: data.typeRelation || null,
+      rolesReseau: data.rolesReseau,
       statutReseau: data.statutReseau || "aucune_demarche",
       niveauPotentiel: data.niveauPotentiel || null,
       potentielAffaires: data.potentielAffaires || null,

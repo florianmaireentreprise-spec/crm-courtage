@@ -219,6 +219,14 @@ export const TYPES_RELATION_RESEAU = [
   { id: "ancien_client", label: "Ancien client" },
 ] as const;
 
+// Multi-role reseau (V3 — a contact can have multiple roles)
+export const ROLES_RESEAU = [
+  { id: "prospect_direct", label: "Prospect direct", color: "#3B82F6" },
+  { id: "prescripteur_potentiel", label: "Prescripteur potentiel", color: "#8B5CF6" },
+  { id: "partenaire", label: "Partenaire", color: "#F59E0B" },
+  { id: "ancien_client", label: "Ancien client", color: "#94A3B8" },
+] as const;
+
 export const STATUTS_RESEAU = [
   { id: "aucune_demarche", label: "Aucune demarche", color: "#94a3b8" },
   { id: "a_qualifier", label: "A qualifier", color: "#60a5fa" },
@@ -345,6 +353,33 @@ export const CAMPAGNES: CampagneSaisonniere[] = [
     action: "Proposer versement complementaire avant cloture",
   },
 ];
+
+// Priorite reseau derivee (A/B/C) — simple, explainable matrix
+// Based on: niveauPotentiel (probability) × potentielAffaires (business potential)
+export function computePrioriteReseau(
+  niveauPotentiel: string | null | undefined,
+  potentielAffaires: string | null | undefined
+): "A" | "B" | "C" | null {
+  if (!niveauPotentiel && !potentielAffaires) return null;
+  const prob = niveauPotentiel ?? "faible";
+  const pot = potentielAffaires ?? "faible";
+  // A: forte probabilite + moyen+ potential, OR moyen probabilite + fort+ potential
+  if (prob === "fort" && (pot === "moyen" || pot === "fort" || pot === "strategique")) return "A";
+  if (prob === "moyen" && (pot === "fort" || pot === "strategique")) return "A";
+  if (prob === "fort" && pot === "strategique") return "A";
+  // B: forte prob + faible pot, moyen prob + moyen pot, faible prob + fort+ pot, any × strategique
+  if (prob === "fort" && pot === "faible") return "B";
+  if (prob === "moyen" && pot === "moyen") return "B";
+  if (prob === "faible" && (pot === "fort" || pot === "strategique")) return "B";
+  // C: everything else
+  return "C";
+}
+
+export const PRIORITES_RESEAU_CONFIG: Record<string, { label: string; color: string; bgClass: string }> = {
+  A: { label: "Priorite A", color: "#DC2626", bgClass: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  B: { label: "Priorite B", color: "#F59E0B", bgClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  C: { label: "Priorite C", color: "#94A3B8", bgClass: "bg-slate-100 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400" },
+};
 
 export function getCampagnesActives(): CampagneSaisonniere[] {
   const moisActuel = new Date().getMonth() + 1;

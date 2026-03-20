@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,13 +19,16 @@ import {
   FORMES_JURIDIQUES,
   STATUTS_CLIENT,
   CATEGORIES_RESEAU,
-  TYPES_RELATION_RESEAU,
   STATUTS_RESEAU,
   NIVEAUX_POTENTIEL,
   POTENTIELS_AFFAIRES,
   HORIZONS_ACTIVATION,
+  ROLES_RESEAU,
+  computePrioriteReseau,
+  PRIORITES_RESEAU_CONFIG,
 } from "@/lib/constants";
 import { CompanySearchButton } from "./CompanySearchButton";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { Client, User } from "@prisma/client";
 
 type Props = {
@@ -56,6 +60,15 @@ function fmtDate(d: Date | string | null | undefined): string {
 export function ClientForm({ client, users, prescripteurs, action }: Props) {
   const [sirene, setSirene] = useState<SireneData>({});
   const [formKey, setFormKey] = useState(0);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(
+    (client as Client & { rolesReseau?: string[] })?.rolesReseau ?? []
+  );
+
+  function toggleRole(roleId: string) {
+    setSelectedRoles((prev) =>
+      prev.includes(roleId) ? prev.filter((r) => r !== roleId) : [...prev, roleId]
+    );
+  }
 
   const handleSireneSelect = useCallback((company: {
     siren: string;
@@ -398,24 +411,46 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
             </div>
             {client?.categorieReseau && (
               <div className="md:col-span-2 border rounded-lg p-4 space-y-4 bg-muted/30">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Qualification reseau
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Qualification reseau
+                  </h4>
+                  {(() => {
+                    const prio = computePrioriteReseau(client?.niveauPotentiel, client?.potentielAffaires);
+                    return prio ? (
+                      <Badge className={`text-[10px] ${PRIORITES_RESEAU_CONFIG[prio].bgClass}`}>
+                        {PRIORITES_RESEAU_CONFIG[prio].label}
+                      </Badge>
+                    ) : null;
+                  })()}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Type de relation</Label>
-                    <Select name="typeRelation" defaultValue={client?.typeRelation ?? ""}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="-" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TYPES_RELATION_RESEAU.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Multi-role selection */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Roles (multi-selection)</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {ROLES_RESEAU.map((role) => {
+                        const isSelected = selectedRoles.includes(role.id);
+                        return (
+                          <button
+                            key={role.id}
+                            type="button"
+                            onClick={() => toggleRole(role.id)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                              isSelected
+                                ? "border-transparent text-white shadow-sm"
+                                : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                            }`}
+                            style={isSelected ? { backgroundColor: role.color } : undefined}
+                          >
+                            {role.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedRoles.map((roleId) => (
+                      <input key={roleId} type="hidden" name="rolesReseau" value={roleId} />
+                    ))}
                   </div>
                   <div className="space-y-2">
                     <Label>Statut reseau</Label>
@@ -601,9 +636,9 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
         </Card>
 
         <div className="flex gap-3">
-          <Button type="submit">
+          <SubmitButton pendingText={client ? "Mise a jour..." : "Creation..."}>
             {client ? "Mettre a jour" : "Creer le client"}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </div>

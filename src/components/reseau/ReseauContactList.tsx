@@ -35,6 +35,8 @@ import {
   ExternalLink,
   Trash2,
   TrendingUp,
+  Star,
+  Loader2,
 } from "lucide-react";
 import {
   CATEGORIES_RESEAU,
@@ -44,9 +46,13 @@ import {
   POTENTIELS_AFFAIRES,
   HORIZONS_ACTIVATION,
   STATUTS_CLIENT,
+  ROLES_RESEAU,
+  computePrioriteReseau,
+  PRIORITES_RESEAU_CONFIG,
 } from "@/lib/constants";
 import { quickUpdateReseau } from "@/app/(app)/reseau/actions";
 import { forceDeleteClient } from "@/app/(app)/clients/actions";
+import { toast } from "sonner";
 
 type ReseauClient = {
   id: string;
@@ -59,6 +65,7 @@ type ReseauClient = {
   statut: string;
   categorieReseau: string | null;
   typeRelation: string | null;
+  rolesReseau: string[];
   statutReseau: string | null;
   niveauPotentiel: string | null;
   potentielAffaires: string | null;
@@ -70,14 +77,17 @@ type ReseauClient = {
   _count: { contrats: number; deals: number };
 };
 
-type SortKey = "alpha" | "potentiel_desc" | "relance_asc" | "dernier_contact_asc";
+type SortKey = "alpha" | "potentiel_desc" | "relance_asc" | "dernier_contact_asc" | "priorite_desc";
 
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
+  { id: "priorite_desc", label: "Priorite (A > B > C)" },
   { id: "alpha", label: "Alphabetique" },
   { id: "potentiel_desc", label: "Potentiel (decroissant)" },
   { id: "relance_asc", label: "Relance (plus proche)" },
   { id: "dernier_contact_asc", label: "Dernier contact (plus ancien)" },
 ];
+
+const PRIORITE_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 };
 
 function formatDate(d: string | null): string {
   if (!d) return "";
@@ -106,6 +116,23 @@ function clientDisplayName(c: { raisonSociale: string; prenom: string; nom: stri
   return c.raisonSociale || `${c.prenom} ${c.nom}`;
 }
 
+// Get effective roles: prefer rolesReseau, fallback to typeRelation mapping
+function getEffectiveRoles(client: ReseauClient): string[] {
+  if (client.rolesReseau && client.rolesReseau.length > 0) return client.rolesReseau;
+  // Backward compat: map old typeRelation to new role ids
+  if (client.typeRelation) {
+    const map: Record<string, string> = {
+      client_potentiel_direct: "prospect_direct",
+      prescripteur: "prescripteur_potentiel",
+      partenaire: "partenaire",
+      ancien_client: "ancien_client",
+    };
+    const mapped = map[client.typeRelation];
+    return mapped ? [mapped] : [];
+  }
+  return [];
+}
+
 export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   // Filters
   const [filterCategorie, setFilterCategorie] = useState<string>("all");
@@ -114,7 +141,8 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const [filterPotentiel, setFilterPotentiel] = useState<string>("all");
   const [filterPotentielAffaires, setFilterPotentielAffaires] = useState<string>("all");
   const [filterHorizon, setFilterHorizon] = useState<string>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("alpha");
+  const [filterPriorite, setFilterPriorite] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("priorite_desc");
   const [showFilters, setShowFilters] = useState(false);
 
   // Quick edit
@@ -130,7 +158,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const hasActiveFilters = filterCategorie !== "all" || filterType !== "all" || filterStatut !== "all" || filterPotentiel !== "all" || filterPotentielAffaires !== "all" || filterHorizon !== "all";
+  const hasActiveFilters = filterCategorie !== "all" || filterType !== "all" || filterStatut !== "all" || filterPotentiel !== "all" || filterPotentielAffaires !== "all" || filterHorizon !== "all" || filterPriorite !== "all";
 
   function clearFilters() {
     setFilterCategorie("all");
@@ -139,6 +167,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
     setFilterPotentiel("all");
     setFilterPotentielAffaires("all");
     setFilterHorizon("all");
+    setFilterPriorite("all");
   }
 
   // Filtered + sorted
@@ -146,14 +175,28 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
     let result = clients;
 
     if (filterCategorie !== "all") result = result.filter((c) => c.categorieReseau === filterCategorie);
-    if (filterType !== "all") result = result.filter((c) => c.typeRelation === filterType);
+    if (filterType !== "all") result = result.filter((c) => {
+      const roles = getEffectiveRoles(c);
+      return roles.includes(filterType);
+    });
     if (filterStatut !== "all") result = result.filter((c) => c.statutReseau === filterStatut);
     if (filterPotentiel !== "all") result = result.filter((c) => c.niveauPotentiel === filterPotentiel);
     if (filterPotentielAffaires !== "all") result = result.filter((c) => c.potentielAffaires === filterPotentielAffaires);
     if (filterHorizon !== "all") result = result.filter((c) => c.horizonActivation === filterHorizon);
+    if (filterPriorite !== "all") result = result.filter((c) => computePrioriteReseau(c.niveauPotentiel, c.potentielAffaires) === filterPriorite);
 
     const sorted = [...result];
     switch (sortKey) {
+      case "priorite_desc":
+        sorted.sort((a, b) => {
+          const pa = computePrioriteReseau(a.niveauPotentiel, a.potentielAffaires);
+          const pb = computePrioriteReseau(b.niveauPotentiel, b.potentielAffaires);
+          const oa = pa ? PRIORITE_ORDER[pa] : 3;
+          const ob = pb ? PRIORITE_ORDER[pb] : 3;
+          if (oa !== ob) return oa - ob;
+          return clientDisplayName(a).localeCompare(clientDisplayName(b), "fr");
+        });
+        break;
       case "potentiel_desc":
         sorted.sort((a, b) => (b.potentielEstimeAnnuel ?? 0) - (a.potentielEstimeAnnuel ?? 0));
         break;
@@ -177,7 +220,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
         sorted.sort((a, b) => clientDisplayName(a).localeCompare(clientDisplayName(b), "fr"));
     }
     return sorted;
-  }, [clients, filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon, sortKey]);
+  }, [clients, filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon, filterPriorite, sortKey]);
 
   // Operational highlights
   const aContacter = useMemo(() => clients.filter((c) => c.statutReseau === "a_contacter" || c.statutReseau === "aucune_demarche"), [clients]);
@@ -186,6 +229,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const fortPotentiel = useMemo(() => clients.filter((c) => c.niveauPotentiel === "fort"), [clients]);
   const fortPotentielAffaires = useMemo(() => clients.filter((c) => c.potentielAffaires === "fort" || c.potentielAffaires === "strategique"), [clients]);
   const courtTerme = useMemo(() => clients.filter((c) => c.horizonActivation === "court"), [clients]);
+  const prioriteA = useMemo(() => clients.filter((c) => computePrioriteReseau(c.niveauPotentiel, c.potentielAffaires) === "A"), [clients]);
 
   function openQuickEdit(client: ReseauClient) {
     setEditClient(client);
@@ -197,13 +241,18 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   async function handleQuickSave() {
     if (!editClient) return;
     setSaving(true);
-    await quickUpdateReseau({
+    const result = await quickUpdateReseau({
       clientId: editClient.id,
       statutReseau: editStatut,
       prochaineActionReseau: editAction,
       dateRelanceReseau: editRelance,
     });
     setSaving(false);
+    if (result && "error" in result) {
+      toast.error("Erreur", { description: typeof result.error === "string" ? result.error : "Erreur inconnue" });
+    } else {
+      toast.success("Mise a jour enregistree");
+    }
     setEditClient(null);
   }
 
@@ -215,6 +264,8 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
     if (result && "error" in result && result.error) {
       setDeleteError(typeof result.error === "string" ? result.error : "Erreur inconnue");
       setDeleting(false);
+    } else {
+      toast.success("Contact supprime");
     }
     // If success, server-side redirect to /clients happens
   }
@@ -222,100 +273,114 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   return (
     <div className="space-y-4">
       {/* Operational highlights */}
-      {(relancesEchues.length > 0 || relancesBientot.length > 0 || aContacter.length > 0 || fortPotentiel.length > 0 || fortPotentielAffaires.length > 0 || courtTerme.length > 0) && (
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {relancesEchues.length > 0 && (
-            <button
-              onClick={() => { clearFilters(); setSortKey("relance_asc"); }}
-              className="text-left"
-            >
-              <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 hover:shadow-sm transition-shadow cursor-pointer">
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                    <span className="text-lg font-bold text-red-600">{relancesEchues.length}</span>
-                  </div>
-                  <p className="text-[11px] text-red-600/80 mt-0.5">Relances en retard</p>
-                </CardContent>
-              </Card>
-            </button>
-          )}
-          {relancesBientot.length > 0 && (
-            <button
-              onClick={() => { clearFilters(); setSortKey("relance_asc"); }}
-              className="text-left"
-            >
-              <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 hover:shadow-sm transition-shadow cursor-pointer">
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    <span className="text-lg font-bold text-amber-600">{relancesBientot.length}</span>
-                  </div>
-                  <p className="text-[11px] text-amber-600/80 mt-0.5">Relances cette semaine</p>
-                </CardContent>
-              </Card>
-            </button>
-          )}
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        {prioriteA.length > 0 && (
           <button
-            onClick={() => { clearFilters(); setFilterStatut("a_contacter"); }}
+            onClick={() => { clearFilters(); setFilterPriorite("A"); }}
             className="text-left"
           >
-            <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 hover:shadow-sm transition-shadow cursor-pointer">
+            <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="pt-3 pb-3">
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-blue-500" />
-                  <span className="text-lg font-bold text-blue-600">{aContacter.length}</span>
+                  <Star className="h-4 w-4 text-red-500" />
+                  <span className="text-lg font-bold text-red-600">{prioriteA.length}</span>
                 </div>
-                <p className="text-[11px] text-blue-600/80 mt-0.5">A contacter / sans demarche</p>
+                <p className="text-[11px] text-red-600/80 mt-0.5">Priorite A</p>
               </CardContent>
             </Card>
           </button>
+        )}
+        {relancesEchues.length > 0 && (
           <button
-            onClick={() => { clearFilters(); setFilterPotentiel("fort"); }}
+            onClick={() => { clearFilters(); setSortKey("relance_asc"); }}
             className="text-left"
           >
-            <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 hover:shadow-sm transition-shadow cursor-pointer">
+            <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="pt-3 pb-3">
                 <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-emerald-500" />
-                  <span className="text-lg font-bold text-emerald-600">{fortPotentiel.length}</span>
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <span className="text-lg font-bold text-red-600">{relancesEchues.length}</span>
                 </div>
-                <p className="text-[11px] text-emerald-600/80 mt-0.5">Forte probabilite</p>
+                <p className="text-[11px] text-red-600/80 mt-0.5">Relances en retard</p>
               </CardContent>
             </Card>
           </button>
-          {fortPotentielAffaires.length > 0 && (
-            <button
-              onClick={() => { clearFilters(); setFilterPotentielAffaires("strategique"); }}
-              className="text-left"
-            >
-              <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 hover:shadow-sm transition-shadow cursor-pointer">
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-orange-500" />
-                    <span className="text-lg font-bold text-orange-600">{fortPotentielAffaires.length}</span>
-                  </div>
-                  <p className="text-[11px] text-orange-600/80 mt-0.5">Fort potentiel affaires</p>
-                </CardContent>
-              </Card>
-            </button>
-          )}
+        )}
+        {relancesBientot.length > 0 && (
           <button
-            onClick={() => { clearFilters(); setFilterHorizon("court"); }}
+            onClick={() => { clearFilters(); setSortKey("relance_asc"); }}
             className="text-left"
           >
-            <Card className="border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 hover:shadow-sm transition-shadow cursor-pointer">
+            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="pt-3 pb-3">
                 <div className="flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4 text-violet-500" />
-                  <span className="text-lg font-bold text-violet-600">{courtTerme.length}</span>
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  <span className="text-lg font-bold text-amber-600">{relancesBientot.length}</span>
                 </div>
-                <p className="text-[11px] text-violet-600/80 mt-0.5">Court terme</p>
+                <p className="text-[11px] text-amber-600/80 mt-0.5">Relances cette semaine</p>
               </CardContent>
             </Card>
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => { clearFilters(); setFilterStatut("a_contacter"); }}
+          className="text-left"
+        >
+          <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-blue-500" />
+                <span className="text-lg font-bold text-blue-600">{aContacter.length}</span>
+              </div>
+              <p className="text-[11px] text-blue-600/80 mt-0.5">A contacter / sans demarche</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button
+          onClick={() => { clearFilters(); setFilterPotentiel("fort"); }}
+          className="text-left"
+        >
+          <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-500" />
+                <span className="text-lg font-bold text-emerald-600">{fortPotentiel.length}</span>
+              </div>
+              <p className="text-[11px] text-emerald-600/80 mt-0.5">Forte probabilite</p>
+            </CardContent>
+          </Card>
+        </button>
+        {fortPotentielAffaires.length > 0 && (
+          <button
+            onClick={() => { clearFilters(); setFilterPotentielAffaires("strategique"); }}
+            className="text-left"
+          >
+            <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="pt-3 pb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <span className="text-lg font-bold text-orange-600">{fortPotentielAffaires.length}</span>
+                </div>
+                <p className="text-[11px] text-orange-600/80 mt-0.5">Fort potentiel affaires</p>
+              </CardContent>
+            </Card>
+          </button>
+        )}
+        <button
+          onClick={() => { clearFilters(); setFilterHorizon("court"); }}
+          className="text-left"
+        >
+          <Card className="border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-violet-500" />
+                <span className="text-lg font-bold text-violet-600">{courtTerme.length}</span>
+              </div>
+              <p className="text-[11px] text-violet-600/80 mt-0.5">Court terme</p>
+            </CardContent>
+          </Card>
+        </button>
+      </div>
 
       {/* Toolbar: filters + sort */}
       <div className="flex items-center justify-between gap-4">
@@ -325,7 +390,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
             Filtres
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                {[filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon].filter((f) => f !== "all").length}
+                {[filterCategorie, filterType, filterStatut, filterPotentiel, filterPotentielAffaires, filterHorizon, filterPriorite].filter((f) => f !== "all").length}
               </Badge>
             )}
           </Button>
@@ -356,7 +421,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
       {showFilters && (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Categorie</Label>
                 <Select value={filterCategorie} onValueChange={setFilterCategorie}>
@@ -372,15 +437,15 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Type relation</Label>
+                <Label className="text-xs text-muted-foreground">Role</Label>
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous</SelectItem>
-                    {TYPES_RELATION_RESEAU.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                    {ROLES_RESEAU.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -441,6 +506,20 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Priorite</Label>
+                <Select value={filterPriorite} onValueChange={setFilterPriorite}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes</SelectItem>
+                    <SelectItem value="A">A — Haute</SelectItem>
+                    <SelectItem value="B">B — Moyenne</SelectItem>
+                    <SelectItem value="C">C — Basse</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -459,21 +538,27 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
             const catConfig = CATEGORIES_RESEAU.find((c) => c.id === client.categorieReseau);
             const statutConfig = STATUTS_CLIENT.find((s) => s.id === client.statut);
             const srConfig = STATUTS_RESEAU.find((s) => s.id === client.statutReseau);
-            const typeConfig = TYPES_RELATION_RESEAU.find((t) => t.id === client.typeRelation);
             const horizonConfig = HORIZONS_ACTIVATION.find((h) => h.id === client.horizonActivation);
             const relanceOverdue = isOverdue(client.dateRelanceReseau);
             const relanceSoon = isDueSoon(client.dateRelanceReseau, 7);
+            const roles = getEffectiveRoles(client);
+            const priorite = computePrioriteReseau(client.niveauPotentiel, client.potentielAffaires);
 
             return (
               <Card
                 key={client.id}
-                className={`transition-colors ${relanceOverdue ? "border-red-300 bg-red-50/30 dark:bg-red-950/10" : relanceSoon ? "border-amber-200 bg-amber-50/20 dark:bg-amber-950/10" : ""}`}
+                className={`transition-all hover:shadow-md hover:border-foreground/20 ${relanceOverdue ? "border-red-300 bg-red-50/30 dark:bg-red-950/10" : relanceSoon ? "border-amber-200 bg-amber-50/20 dark:bg-amber-950/10" : ""}`}
               >
                 <CardContent className="py-3 px-4">
                   <div className="flex items-start justify-between gap-4">
                     {/* Left: identity + meta */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {priorite && (
+                          <Badge className={`text-[9px] px-1.5 py-0 font-bold ${PRIORITES_RESEAU_CONFIG[priorite].bgClass}`}>
+                            {priorite}
+                          </Badge>
+                        )}
                         <Link href={`/clients/${client.id}`} className="font-medium text-sm hover:underline truncate">
                           {clientDisplayName(client)}
                         </Link>
@@ -496,11 +581,29 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                             {srConfig.label}
                           </Badge>
                         )}
-                        {typeConfig && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5">
-                            {typeConfig.label}
-                          </Badge>
-                        )}
+                        {/* Multi-role badges */}
+                        {roles.map((roleId) => {
+                          const roleConfig = ROLES_RESEAU.find((r) => r.id === roleId);
+                          return roleConfig ? (
+                            <Badge
+                              key={roleId}
+                              variant="secondary"
+                              className="text-[10px] px-1.5"
+                              style={{ backgroundColor: roleConfig.color + "20", color: roleConfig.color, borderColor: roleConfig.color + "40" }}
+                            >
+                              {roleConfig.label}
+                            </Badge>
+                          ) : null;
+                        })}
+                        {/* Fallback: show old typeRelation if no roles */}
+                        {roles.length === 0 && client.typeRelation && (() => {
+                          const typeConfig = TYPES_RELATION_RESEAU.find((t) => t.id === client.typeRelation);
+                          return typeConfig ? (
+                            <Badge variant="secondary" className="text-[10px] px-1.5">
+                              {typeConfig.label}
+                            </Badge>
+                          ) : null;
+                        })()}
                         {client.niveauPotentiel && NIVEAUX_POTENTIEL.find((n) => n.id === client.niveauPotentiel) && (
                           <Badge
                             variant="secondary"
@@ -571,18 +674,18 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
 
                     {/* Right: actions */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openQuickEdit(client)} title="Mise a jour rapide">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950" onClick={() => openQuickEdit(client)} title="Mise a jour rapide">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Link href={`/clients/${client.id}`}>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Voir la fiche">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950" title="Voir la fiche">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                       </Link>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-600"
+                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                         onClick={() => { setDeleteClient(client); setDeleteConfirmText(""); setDeleteError(null); }}
                         title="Supprimer definitivement"
                       >
@@ -641,7 +744,14 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                 Annuler
               </Button>
               <Button size="sm" onClick={handleQuickSave} disabled={saving}>
-                {saving ? "Enregistrement..." : "Enregistrer"}
+                {saving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  "Enregistrer"
+                )}
               </Button>
             </div>
           </div>
@@ -683,7 +793,14 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
               onClick={handleForceDelete}
               disabled={deleteConfirmText.trim().toLowerCase() !== (deleteClient ? clientDisplayName(deleteClient) : "").trim().toLowerCase() || deleting}
             >
-              {deleting ? "Suppression..." : "Supprimer definitivement"}
+              {deleting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Suppression...
+                </>
+              ) : (
+                "Supprimer definitivement"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

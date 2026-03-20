@@ -4,9 +4,12 @@ import { BarChart3, TrendingUp, Target, Lightbulb } from "lucide-react";
 import {
   CATEGORIES_RESEAU,
   TYPES_RELATION_RESEAU,
+  ROLES_RESEAU,
   HORIZONS_ACTIVATION,
   COEFFICIENTS_STATUT_RESEAU,
   STATUTS_RESEAU,
+  computePrioriteReseau,
+  PRIORITES_RESEAU_CONFIG,
 } from "@/lib/constants";
 
 type ForecastContact = {
@@ -14,6 +17,7 @@ type ForecastContact = {
   raisonSociale: string;
   categorieReseau: string | null;
   typeRelation: string | null;
+  rolesReseau: string[];
   statutReseau: string | null;
   niveauPotentiel: string | null;
   potentielAffaires: string | null;
@@ -31,6 +35,7 @@ type ForecastData = {
   byCategorie: { id: string; label: string; color: string; brut: number; pondere: number; count: number }[];
   byType: { id: string; label: string; brut: number; pondere: number; count: number }[];
   byHorizon: { id: string; label: string; brut: number; pondere: number; count: number }[];
+  byPriorite: { id: string; label: string; color: string; count: number; brut: number; pondere: number }[];
   insights: string[];
 };
 
@@ -76,15 +81,20 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     return { id: cat.id, label: cat.label, color: cat.color, brut, pondere, count: catContacts.length };
   }).filter((c) => c.count > 0);
 
-  // Breakdown by type relation
-  const byType = TYPES_RELATION_RESEAU.map((type) => {
-    const typeContacts = withPotentiel.filter((c) => c.typeRelation === type.id);
-    const brut = typeContacts.reduce((s, c) => s + (c.potentielEstimeAnnuel ?? 0), 0);
-    const pondere = typeContacts.reduce((s, c) => {
+  // Breakdown by role (multi-role aware — a contact counted in each role it has)
+  const byType = ROLES_RESEAU.map((role) => {
+    const roleContacts = withPotentiel.filter((c) => {
+      if (c.rolesReseau && c.rolesReseau.length > 0) return c.rolesReseau.includes(role.id);
+      // Backward compat: map old typeRelation
+      const map: Record<string, string> = { client_potentiel_direct: "prospect_direct", prescripteur: "prescripteur_potentiel", partenaire: "partenaire", ancien_client: "ancien_client" };
+      return c.typeRelation ? map[c.typeRelation] === role.id : false;
+    });
+    const brut = roleContacts.reduce((s, c) => s + (c.potentielEstimeAnnuel ?? 0), 0);
+    const pondere = roleContacts.reduce((s, c) => {
       const coeff = COEFFICIENTS_STATUT_RESEAU[c.statutReseau ?? ""] ?? 0;
       return s + (c.potentielEstimeAnnuel ?? 0) * coeff;
     }, 0);
-    return { id: type.id, label: type.label, brut, pondere, count: typeContacts.length };
+    return { id: role.id, label: role.label, brut, pondere, count: roleContacts.length };
   }).filter((t) => t.count > 0);
 
   // Breakdown by horizon
@@ -97,6 +107,19 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     }, 0);
     return { id: h.id, label: h.label, brut, pondere, count: hContacts.length };
   }).filter((h) => h.count > 0);
+
+  // Breakdown by priority class
+  const byPriorite = (["A", "B", "C"] as const).map((prio) => {
+    const config = PRIORITES_RESEAU_CONFIG[prio];
+    const prioContacts = contacts.filter((c) => computePrioriteReseau(c.niveauPotentiel, c.potentielAffaires) === prio);
+    const prioWithPot = prioContacts.filter((c) => c.potentielEstimeAnnuel != null && c.potentielEstimeAnnuel > 0);
+    const brut = prioWithPot.reduce((s, c) => s + (c.potentielEstimeAnnuel ?? 0), 0);
+    const pondere = prioWithPot.reduce((s, c) => {
+      const coeff = COEFFICIENTS_STATUT_RESEAU[c.statutReseau ?? ""] ?? 0;
+      return s + (c.potentielEstimeAnnuel ?? 0) * coeff;
+    }, 0);
+    return { id: prio, label: config.label, color: config.color, count: prioContacts.length, brut, pondere };
+  }).filter((p) => p.count > 0);
 
   // Operational insights
   const insights: string[] = [];
@@ -161,6 +184,7 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     byCategorie,
     byType,
     byHorizon,
+    byPriorite,
     insights,
   };
 }
@@ -245,12 +269,12 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
               </div>
             )}
 
-            {/* By type relation */}
+            {/* By role */}
             {forecast.byType.length > 0 && (
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  Par type de relation
+                  Par role
                 </h4>
                 <div className="space-y-1.5">
                   {forecast.byType.map((type) => (
@@ -292,6 +316,32 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Priority breakdown */}
+        {forecast.byPriorite.length > 0 && (
+          <div>
+            <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+              <Target className="h-3 w-3" />
+              Repartition par priorite
+              <span className="text-[10px] font-normal ml-1">(probabilite x potentiel affaires)</span>
+            </h4>
+            <div className="flex gap-3">
+              {forecast.byPriorite.map((p) => (
+                <div key={p.id} className="flex-1 rounded-lg border p-3" style={{ borderColor: p.color + "40" }}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge className={`text-[10px] px-1.5 py-0 ${PRIORITES_RESEAU_CONFIG[p.id]?.bgClass ?? ""}`}>
+                      {p.label}
+                    </Badge>
+                  </div>
+                  <p className="text-lg font-bold" style={{ color: p.color }}>{p.count}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {p.brut > 0 && `${formatCurrency(p.pondere)} pondere`}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

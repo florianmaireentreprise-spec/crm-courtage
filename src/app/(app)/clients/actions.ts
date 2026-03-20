@@ -12,7 +12,8 @@ export async function createClient(formData: FormData) {
   const session = await auth();
   const actorId = getActorId(session);
 
-  const raw = Object.fromEntries(formData.entries());
+  const rolesReseau = formData.getAll("rolesReseau") as string[];
+  const raw = { ...Object.fromEntries(formData.entries()), rolesReseau };
   const parsed = clientSchema.safeParse(raw);
 
   if (!parsed.success) {
@@ -51,8 +52,10 @@ export async function createClient(formData: FormData) {
       trancheEffectifs: data.trancheEffectifs || null,
       categorieReseau: data.categorieReseau || null,
       typeRelation: data.typeRelation || null,
+      rolesReseau: data.rolesReseau,
       statutReseau: data.statutReseau || null,
       niveauPotentiel: data.niveauPotentiel || null,
+      potentielAffaires: data.potentielAffaires || null,
       potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
       horizonActivation: data.horizonActivation || null,
       prochaineActionReseau: data.prochaineActionReseau || null,
@@ -99,7 +102,8 @@ export async function updateClient(id: string, formData: FormData) {
   const session = await auth();
   const actorId = getActorId(session);
 
-  const raw = Object.fromEntries(formData.entries());
+  const rolesReseau = formData.getAll("rolesReseau") as string[];
+  const raw = { ...Object.fromEntries(formData.entries()), rolesReseau };
   const parsed = clientSchema.safeParse(raw);
 
   if (!parsed.success) {
@@ -139,8 +143,10 @@ export async function updateClient(id: string, formData: FormData) {
       trancheEffectifs: data.trancheEffectifs || null,
       categorieReseau: data.categorieReseau || null,
       typeRelation: data.typeRelation || null,
+      rolesReseau: data.rolesReseau,
       statutReseau: data.statutReseau || null,
       niveauPotentiel: data.niveauPotentiel || null,
+      potentielAffaires: data.potentielAffaires || null,
       potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
       horizonActivation: data.horizonActivation || null,
       prochaineActionReseau: data.prochaineActionReseau || null,
