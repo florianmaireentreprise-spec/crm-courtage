@@ -146,6 +146,7 @@ model Client {
   opportunites         OpportuniteCommerciale[]
   documents            Document[]
   preconisations       Preconisation[]
+  potentielOverrides   ClientPotentielOverride[]
 }
 
 model Dirigeant {
@@ -672,6 +673,34 @@ model Preconisation {
 }
 
 // -- Audit Trail --
+
+// ── Potentiel CA: Global base assumptions + client-level overrides ──
+
+model PotentielBaseAssumption {
+  id                      String   @id @default(cuid())
+  typeProduit             String   @unique
+  label                   String
+  estimatedPremium        Float    // Annual premium estimate (per-employee if isPerEmployee)
+  isPerEmployee           Boolean  @default(false)
+  perTenEmployeeIncrement Float    @default(0) // Additional premium per 10 employees (RCP_PRO pattern)
+  commissionRate          Float    // Decimal (0.07 = 7%)
+  isRecurring             Boolean  @default(true) // false = upfront (PER)
+  enabled                 Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+}
+
+model ClientPotentielOverride {
+  id                String   @id @default(cuid())
+  clientId          String
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  typeProduit       String
+  recurringOverride Float?   // null = use derived estimate
+  upfrontOverride   Float?   // null = use derived estimate
+  updatedAt         DateTime @updatedAt
+
+  @@unique([clientId, typeProduit])
+  @@index([clientId])
+}
 
 model AuditLog {
   id            String   @id @default(cuid())

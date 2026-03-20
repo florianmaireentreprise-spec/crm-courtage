@@ -693,7 +693,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
 
                     {/* Right: actions */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950" onClick={() => openRichEdit(client)} title="Mise a jour rapide">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950" onClick={() => openRichEdit(client)} title="Modifier le contact">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Link href={`/clients/${client.id}`}>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X, Info } from "lucide-react";
+import { TrendingUp, ChevronDown, ChevronUp, Pencil, Check, X, Info, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 export type PotentielProduit = {
@@ -15,6 +15,7 @@ export type PotentielProduit = {
   upfront: number;
   total: number;
   basis: string;
+  source: "base" | "override";
 };
 
 type Props = {
@@ -25,6 +26,8 @@ type Props = {
   nbSalaries: number | null;
   clientId: string;
   updateNbSalariesAction: (clientId: string, nbSalaries: number | null) => Promise<{ error?: string } | void>;
+  upsertOverrideAction: (formData: FormData) => Promise<{ error?: string } | void>;
+  deleteOverrideAction: (clientId: string, typeProduit: string) => Promise<{ error?: string } | void>;
 };
 
 function formatCurrency(n: number): string {
@@ -43,11 +46,16 @@ export function PotentielCADetail({
   nbSalaries,
   clientId,
   updateNbSalariesAction,
+  upsertOverrideAction,
+  deleteOverrideAction,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingNb, setEditingNb] = useState(false);
   const [nbValue, setNbValue] = useState<string>(nbSalaries?.toString() ?? "");
   const [saving, setSaving] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<string | null>(null);
+  const [editRecurring, setEditRecurring] = useState("");
+  const [editUpfront, setEditUpfront] = useState("");
 
   async function handleSaveNb() {
     setSaving(true);
@@ -67,7 +75,42 @@ export function PotentielCADetail({
     }
   }
 
-  if (potentielTotal <= 0) return null;
+  function startProductEdit(p: PotentielProduit) {
+    setEditingProduct(p.typeProduit);
+    setEditRecurring(p.source === "override" ? p.recurring.toString() : "");
+    setEditUpfront(p.source === "override" ? p.upfront.toString() : "");
+  }
+
+  async function handleSaveOverride(typeProduit: string) {
+    setSaving(true);
+    const formData = new FormData();
+    formData.set("clientId", clientId);
+    formData.set("typeProduit", typeProduit);
+    formData.set("recurringOverride", editRecurring);
+    formData.set("upfrontOverride", editUpfront);
+    const result = await upsertOverrideAction(formData);
+    setSaving(false);
+    if (result && "error" in result) {
+      toast.error("Erreur", { description: result.error });
+    } else {
+      toast.success("Surcharge enregistree");
+      setEditingProduct(null);
+    }
+  }
+
+  async function handleDeleteOverride(typeProduit: string) {
+    setSaving(true);
+    const result = await deleteOverrideAction(clientId, typeProduit);
+    setSaving(false);
+    if (result && "error" in result) {
+      toast.error("Erreur");
+    } else {
+      toast.success("Surcharge supprimee — retour a l'estimation de base");
+      setEditingProduct(null);
+    }
+  }
+
+  if (potentielTotal <= 0 && produits.length === 0) return null;
 
   return (
     <Card>
@@ -165,36 +208,124 @@ export function PotentielCADetail({
 
         {expanded && (
           <div className="space-y-2">
-            {produits.map((p) => (
-              <div
-                key={p.typeProduit}
-                className="rounded-md border px-3 py-2 text-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-xs">{p.label}</span>
-                  <span className="font-semibold text-xs">{formatCurrency(p.total)}</span>
-                </div>
-                <div className="flex items-center gap-3 mt-1">
-                  {p.recurring > 0 && (
-                    <span className="text-[10px] text-blue-600">
-                      Recurrent: {formatCurrency(p.recurring)}
-                    </span>
+            {produits.map((p) => {
+              const isEditing = editingProduct === p.typeProduit;
+
+              return (
+                <div
+                  key={p.typeProduit}
+                  className={`rounded-md border px-3 py-2 text-sm ${p.source === "override" ? "border-violet-200 bg-violet-50/30 dark:bg-violet-950/10" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-xs">{p.label}</span>
+                      {p.source === "override" ? (
+                        <Badge variant="secondary" className="text-[9px] bg-violet-100 text-violet-700">Surcharge</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px]">Base</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs">{formatCurrency(p.total)}</span>
+                      {!isEditing && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => startProductEdit(p)}
+                          title="Surcharger cette valeur"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="mt-2 space-y-2 bg-muted/30 rounded p-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">Recurrent annuel</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={editRecurring}
+                            onChange={(e) => setEditRecurring(e.target.value)}
+                            className="h-7 text-xs"
+                            placeholder="Vide = estimation"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">Ponctuel (entree)</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={editUpfront}
+                            onChange={(e) => setEditUpfront(e.target.value)}
+                            className="h-7 text-xs"
+                            placeholder="Vide = estimation"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 justify-end">
+                        {p.source === "override" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-[10px] text-violet-600"
+                            onClick={() => handleDeleteOverride(p.typeProduit)}
+                            disabled={saving}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Retour a l&apos;estimation
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setEditingProduct(null)}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleSaveOverride(p.typeProduit)}
+                          disabled={saving}
+                        >
+                          <Check className="h-3 w-3 text-green-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 mt-1">
+                        {p.recurring > 0 && (
+                          <span className="text-[10px] text-blue-600">
+                            Recurrent: {formatCurrency(p.recurring)}
+                          </span>
+                        )}
+                        {p.upfront > 0 && (
+                          <span className="text-[10px] text-amber-600">
+                            Ponctuel: {formatCurrency(p.upfront)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{p.basis}</p>
+                    </>
                   )}
-                  {p.upfront > 0 && (
-                    <span className="text-[10px] text-amber-600">
-                      Ponctuel: {formatCurrency(p.upfront)}
-                    </span>
-                  )}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{p.basis}</p>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="flex items-start gap-1.5 mt-2 text-[10px] text-muted-foreground">
               <Info className="h-3 w-3 shrink-0 mt-0.5" />
               <p>
-                Estimation theorique basee sur les produits manquants et des hypotheses internes.
-                Ce n&apos;est ni du CA signe ni une probabilite de closing.
+                Estimation basee sur les hypotheses globales et les donnees client.
+                Les valeurs marquees &quot;Surcharge&quot; sont des ajustements manuels.
+                Les valeurs &quot;Base&quot; derivent des hypotheses generales (Parametres &gt; Hypotheses).
               </p>
             </div>
           </div>

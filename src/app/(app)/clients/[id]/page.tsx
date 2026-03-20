@@ -26,6 +26,8 @@ import { PreconisationsTab } from "@/components/clients/PreconisationsTab";
 import { THEMES_PRECONISATION, STATUTS_PRECONISATION, PRIORITES_PRECONISATION } from "@/lib/constants";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 import { PotentielCADetail } from "@/components/clients/PotentielCADetail";
+import { getBaseAssumptions, getClientOverrides } from "@/lib/scoring/assumptions";
+import { upsertPotentielOverride, deletePotentielOverride } from "@/app/(app)/parametres/hypotheses/actions";
 import { archiveClient, unarchiveClient, deleteClient, forceDeleteClient, updateNbSalaries } from "../actions";
 
 export default async function ClientDetailPage({
@@ -269,8 +271,12 @@ export default async function ClientDetailPage({
   const scoreColor = getScoreColor(score);
   const couvertureColor = getCouvertureColor(scoreCouverture);
 
-  // Potentiel CA detail breakdown (per product, recurring vs upfront)
-  const potentielDetail = calculerPotentielCADetail(client, client.contrats);
+  // Potentiel CA detail breakdown — uses global assumptions + client overrides
+  const [assumptions, clientOverrides] = await Promise.all([
+    getBaseAssumptions(),
+    getClientOverrides(client.id),
+  ]);
+  const potentielDetail = calculerPotentielCADetail(client, client.contrats, assumptions, clientOverrides);
 
   // Compute next actions (defensive — never crash client page)
   let nextActions: ReturnType<typeof calculerProchainesActions> = [];
@@ -412,7 +418,7 @@ export default async function ClientDetailPage({
         <div className="space-y-4">
           <NextActionWidget actions={nextActions} />
 
-          {potentielDetail.total > 0 && (
+          {(potentielDetail.total > 0 || potentielDetail.produits.length > 0) && (
             <PotentielCADetail
               potentielTotal={potentielDetail.total}
               recurringTotal={potentielDetail.recurringTotal}
@@ -421,6 +427,8 @@ export default async function ClientDetailPage({
               nbSalaries={client.nbSalaries}
               clientId={client.id}
               updateNbSalariesAction={updateNbSalaries}
+              upsertOverrideAction={upsertPotentielOverride}
+              deleteOverrideAction={deletePotentielOverride}
             />
           )}
 

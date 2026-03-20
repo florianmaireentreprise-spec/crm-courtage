@@ -6,7 +6,7 @@ import { CommissionSettings } from "@/components/parametres/CommissionSettings";
 import { CabinetSettings } from "@/components/parametres/CabinetSettings";
 import { FeedbackStatsCard, type FeedbackStats } from "@/components/parametres/FeedbackStatsCard";
 import { getSettings, getTauxCommission } from "@/lib/settings";
-import { FileBarChart, ChevronRight } from "lucide-react";
+import { FileBarChart, ChevronRight, Calculator } from "lucide-react";
 
 async function getFeedbackStats(): Promise<FeedbackStats> {
   const [feedbacks, oppByRule] = await Promise.all([
@@ -84,6 +84,20 @@ export default async function ParametresPage() {
 
       {/* Liens rapides */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link href="/parametres/hypotheses">
+          <Card className="hover:border-emerald-300 transition-colors cursor-pointer">
+            <CardContent className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <Calculator className="h-5 w-5 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium">Hypotheses potentiel CA</p>
+                  <p className="text-xs text-muted-foreground">Table de base des estimations par produit</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/parametres/rapports">
           <Card className="hover:border-blue-300 transition-colors cursor-pointer">
             <CardContent className="flex items-center justify-between p-4">

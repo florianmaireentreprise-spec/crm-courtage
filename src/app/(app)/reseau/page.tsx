@@ -7,18 +7,44 @@ import { ReseauObjectifForm } from "@/components/reseau/ReseauObjectifForm";
 import { AddContactButton } from "@/components/reseau/AddContactButton";
 import { ReseauContactList } from "@/components/reseau/ReseauContactList";
 import { ReseauForecast } from "@/components/reseau/ReseauForecast";
+import { calculerPotentielCADetail } from "@/lib/scoring/potentiel";
+import { getBaseAssumptions, getClientOverridesBatch } from "@/lib/scoring/assumptions";
 
 export default async function ReseauPage() {
   const clientsReseau = await prisma.client.findMany({
     where: { categorieReseau: { not: null } },
     include: {
       _count: { select: { contrats: true, deals: true } },
+      contrats: {
+        where: { statut: "actif" },
+        select: { typeProduit: true, statut: true },
+      },
     },
     orderBy: { raisonSociale: "asc" },
   });
 
   const objectifs = await prisma.reseauObjectif.findMany();
 
+  // ── Fetch global assumptions + client overrides for effective potentiel ──
+  const clientIds = clientsReseau.map((c) => c.id);
+  const [assumptions, allOverrides] = await Promise.all([
+    getBaseAssumptions(),
+    getClientOverridesBatch(clientIds),
+  ]);
+
+  // ── Compute effective potentiel per client ──
+  const effectivePotentiels = new Map<string, { total: number; recurring: number; upfront: number }>();
+  for (const c of clientsReseau) {
+    const clientOverrides = allOverrides.filter((o) => o.clientId === c.id);
+    const detail = calculerPotentielCADetail(c, c.contrats, assumptions, clientOverrides);
+    effectivePotentiels.set(c.id, {
+      total: detail.total,
+      recurring: detail.recurringTotal,
+      upfront: detail.upfrontTotal,
+    });
+  }
+
+  // ── Category performance table — uses effective potentiels ──
   const categorieStats = CATEGORIES_RESEAU.map((cat) => {
     const clients = clientsReseau.filter((c) => c.categorieReseau === cat.id);
     const prospects = clients.filter((c) => c.statut === "prospect").length;
@@ -27,10 +53,13 @@ export default async function ReseauPage() {
     const tauxConversionReel = total > 0 ? (actifs / total) * 100 : 0;
     const obj = objectifs.find((o) => o.categorie === cat.id);
 
+    // Effective potentiel per category (sum of all client effective potentiels)
+    const potentielEffectifTotal = clients.reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
+    const potentielEffectifMoyen = total > 0 ? Math.round(potentielEffectifTotal / total) : 0;
+
+    // Objective data (kept for conversion targets)
     const contactsObj = obj?.contactsObjectif ?? 0;
     const tauxObj = obj?.tauxConversionObj ?? 0;
-    const potentielUnit = obj?.potentielUnitaire ?? 0;
-    const potentielTotal = contactsObj * tauxObj * potentielUnit;
 
     return {
       ...cat,
@@ -42,8 +71,8 @@ export default async function ReseauPage() {
       objectif: obj,
       contactsObj,
       tauxConversionObj: tauxObj * 100,
-      potentielUnit,
-      potentielTotal,
+      potentielEffectifMoyen,
+      potentielEffectifTotal,
     };
   });
 
@@ -51,9 +80,9 @@ export default async function ReseauPage() {
   const totalProspects = clientsReseau.filter((c) => c.statut === "prospect").length;
   const totalActifs = clientsReseau.filter((c) => c.statut === "client_actif").length;
   const tauxConversionGlobal = totalReseau > 0 ? (totalActifs / totalReseau) * 100 : 0;
-  const potentielGlobal = categorieStats.reduce((sum, c) => sum + c.potentielTotal, 0);
+  const potentielGlobal = clientsReseau.reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
 
-  // Forecast data (per-contact potentiel for ReseauForecast)
+  // Forecast data — uses effective potentiel (not manual potentielEstimeAnnuel)
   const forecastContacts = clientsReseau.map((c) => ({
     id: c.id,
     raisonSociale: c.raisonSociale,
@@ -63,12 +92,12 @@ export default async function ReseauPage() {
     statutReseau: c.statutReseau,
     niveauPotentiel: c.niveauPotentiel,
     potentielAffaires: c.potentielAffaires,
-    potentielEstimeAnnuel: c.potentielEstimeAnnuel,
+    // KEY CHANGE: use effective potentiel from heuristic model instead of manual field
+    potentielEstimeAnnuel: effectivePotentiels.get(c.id)?.total ?? 0,
     horizonActivation: c.horizonActivation,
   }));
 
   // Serialize for client component (dates → ISO strings)
-  // Includes all fields needed for the rich edit dialog
   const clientsForList = clientsReseau.map((c) => ({
     id: c.id,
     raisonSociale: c.raisonSociale,
@@ -84,7 +113,8 @@ export default async function ReseauPage() {
     statutReseau: c.statutReseau,
     niveauPotentiel: c.niveauPotentiel,
     potentielAffaires: c.potentielAffaires,
-    potentielEstimeAnnuel: c.potentielEstimeAnnuel,
+    // Use effective potentiel in the contact list display
+    potentielEstimeAnnuel: effectivePotentiels.get(c.id)?.total ?? c.potentielEstimeAnnuel,
     horizonActivation: c.horizonActivation,
     prochaineActionReseau: c.prochaineActionReseau,
     dateRelanceReseau: c.dateRelanceReseau?.toISOString() ?? null,
@@ -145,7 +175,7 @@ export default async function ReseauPage() {
             <p className="text-2xl font-bold text-emerald-600">
               {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(potentielGlobal)}
             </p>
-            <p className="text-xs text-muted-foreground">Potentiel CA total</p>
+            <p className="text-xs text-muted-foreground">Potentiel CA total (effectif)</p>
           </CardContent>
         </Card>
       </div>
@@ -168,8 +198,8 @@ export default async function ReseauPage() {
                   <th className="pb-2 font-medium text-center">Actifs</th>
                   <th className="pb-2 font-medium text-center">Conv. reel</th>
                   <th className="pb-2 font-medium text-center">Conv. objectif</th>
-                  <th className="pb-2 font-medium text-right">Potentiel/client</th>
-                  <th className="pb-2 font-medium text-right">Potentiel total</th>
+                  <th className="pb-2 font-medium text-right">Pot. moyen/client</th>
+                  <th className="pb-2 font-medium text-right">Pot. total effectif</th>
                   <th className="pb-2 font-medium text-center">Parametres</th>
                 </tr>
               </thead>
@@ -196,13 +226,13 @@ export default async function ReseauPage() {
                       {cat.tauxConversionObj > 0 ? `${cat.tauxConversionObj.toFixed(0)}%` : "-"}
                     </td>
                     <td className="py-3 text-right text-muted-foreground">
-                      {cat.potentielUnit > 0
-                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cat.potentielUnit)
+                      {cat.potentielEffectifMoyen > 0
+                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cat.potentielEffectifMoyen)
                         : "-"}
                     </td>
                     <td className="py-3 text-right font-medium">
-                      {cat.potentielTotal > 0
-                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cat.potentielTotal)
+                      {cat.potentielEffectifTotal > 0
+                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cat.potentielEffectifTotal)
                         : "-"}
                     </td>
                     <td className="py-3 text-center">
@@ -213,6 +243,9 @@ export default async function ReseauPage() {
               </tbody>
             </table>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Les colonnes Pot. moyen/client et Pot. total effectif sont calcules a partir des hypotheses globales, des donnees client et des surcharges manuelles.
+          </p>
         </CardContent>
       </Card>
 
