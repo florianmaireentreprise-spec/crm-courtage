@@ -509,12 +509,13 @@ export function ClientForm({ client, users, prescripteurs, action }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Horizon activation</Label>
+                    <Label>Moment d&apos;activation</Label>
                     <Select name="horizonActivation" defaultValue={client?.horizonActivation ?? ""}>
                       <SelectTrigger>
                         <SelectValue placeholder="-" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__clear__">— Aucun —</SelectItem>
                         {HORIZONS_ACTIVATION.map((h) => (
                           <SelectItem key={h.id} value={h.id}>
                             {h.label}

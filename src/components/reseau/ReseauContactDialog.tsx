@@ -332,12 +332,13 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Horizon activation</Label>
+                <Label className="text-xs">Moment d&apos;activation</Label>
                 <Select name="horizonActivation" defaultValue={editData?.horizonActivation ?? undefined}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="-" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__clear__">— Aucun —</SelectItem>
                     {HORIZONS_ACTIVATION.map((h) => (
                       <SelectItem key={h.id} value={h.id}>
                         {h.label}

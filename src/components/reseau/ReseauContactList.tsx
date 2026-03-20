@@ -236,7 +236,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const relancesBientot = useMemo(() => clients.filter((c) => isDueSoon(c.dateRelanceReseau, 7) && !isOverdue(c.dateRelanceReseau)), [clients]);
   const fortPotentiel = useMemo(() => clients.filter((c) => c.niveauPotentiel === "fort"), [clients]);
   const fortPotentielAffaires = useMemo(() => clients.filter((c) => c.potentielAffaires === "fort" || c.potentielAffaires === "strategique"), [clients]);
-  const courtTerme = useMemo(() => clients.filter((c) => c.horizonActivation === "court"), [clients]);
+  const courtTerme = useMemo(() => clients.filter((c) => c.horizonActivation === "lancement"), [clients]);
   const prioriteA = useMemo(() => clients.filter((c) => computePrioriteReseau(c.niveauPotentiel, c.potentielAffaires) === "A"), [clients]);
 
   function openRichEdit(client: ReseauClient) {
@@ -386,7 +386,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
           </button>
         )}
         <button
-          onClick={() => { clearFilters(); setFilterHorizon("court"); }}
+          onClick={() => { clearFilters(); setFilterHorizon("lancement"); }}
           className="text-left"
         >
           <Card className="border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 hover:shadow-md transition-shadow cursor-pointer">
@@ -395,7 +395,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
                 <CalendarClock className="h-4 w-4 text-violet-500" />
                 <span className="text-lg font-bold text-violet-600">{courtTerme.length}</span>
               </div>
-              <p className="text-[11px] text-violet-600/80 mt-0.5">Court terme</p>
+              <p className="text-[11px] text-violet-600/80 mt-0.5">Au lancement</p>
             </CardContent>
           </Card>
         </button>

@@ -28,7 +28,7 @@ const STATUTS_RESEAU_IDS = [
 const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
 const POTENTIELS_AFFAIRES_IDS = ["faible", "moyen", "fort", "strategique"] as const;
 
-const HORIZONS_ACTIVATION_IDS = ["court", "moyen", "long"] as const;
+const HORIZONS_ACTIVATION_IDS = ["lancement", "deuxieme_phase", "installe"] as const;
 
 // ── Date coercion helper ──
 // HTML date inputs submit "" for empty fields. We normalize:
@@ -78,7 +78,7 @@ export const clientSchema = z.object({
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().nullable().or(z.literal("")),
   potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().nullable().or(z.literal("")),
   potentielEstimeAnnuel: z.coerce.number().min(0).optional().nullable(),
-  horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().nullable().or(z.literal("")),
+  horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().nullable().or(z.literal("")).or(z.literal("__clear__")).transform((v) => v === "__clear__" ? "" : v),
   prochaineActionReseau: z.string().optional().nullable(),
   dateRelanceReseau: optionalDate,
   dateDernierContact: optionalDate,

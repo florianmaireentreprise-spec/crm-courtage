@@ -251,9 +251,9 @@ export const POTENTIELS_AFFAIRES = [
 ] as const;
 
 export const HORIZONS_ACTIVATION = [
-  { id: "court", label: "Court terme (< 3 mois)" },
-  { id: "moyen", label: "Moyen terme (3-6 mois)" },
-  { id: "long", label: "Long terme (> 6 mois)" },
+  { id: "lancement", label: "Au lancement" },
+  { id: "deuxieme_phase", label: "En deuxieme phase" },
+  { id: "installe", label: "Une fois installe" },
 ] as const;
 
 // ── Enrichissement entreprise (SIRENE) ──

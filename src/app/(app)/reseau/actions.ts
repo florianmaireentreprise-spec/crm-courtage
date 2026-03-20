@@ -21,7 +21,7 @@ const STATUTS_RESEAU_IDS = [
 
 const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
 const POTENTIELS_AFFAIRES_IDS = ["faible", "moyen", "fort", "strategique"] as const;
-const HORIZONS_ACTIVATION_IDS = ["court", "moyen", "long"] as const;
+const HORIZONS_ACTIVATION_IDS = ["lancement", "deuxieme_phase", "installe"] as const;
 
 // ── Date coercion helper ──
 const optionalDate = z
@@ -96,7 +96,7 @@ const addContactSchema = z.object({
   niveauPotentiel: z.enum(NIVEAUX_POTENTIEL_IDS).optional().or(z.literal("")),
   potentielAffaires: z.enum(POTENTIELS_AFFAIRES_IDS).optional().or(z.literal("")),
   potentielEstimeAnnuel: z.coerce.number().min(0).optional(),
-  horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().or(z.literal("")),
+  horizonActivation: z.enum(HORIZONS_ACTIVATION_IDS).optional().or(z.literal("")).or(z.literal("__clear__")).transform((v) => v === "__clear__" ? "" : v),
   prochaineActionReseau: z.string().optional(),
   dateDernierContact: optionalDate,
   notes: z.string().optional(),

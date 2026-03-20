@@ -52,9 +52,9 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     return sum + (c.potentielEstimeAnnuel ?? 0) * coeff;
   }, 0);
 
-  // Court terme = pondere where horizonActivation === "court"
+  // Lancement = pondere where horizonActivation === "lancement"
   const potentielCourtTerme = withPotentiel
-    .filter((c) => c.horizonActivation === "court")
+    .filter((c) => c.horizonActivation === "lancement")
     .reduce((sum, c) => {
       const coeff = COEFFICIENTS_STATUT_RESEAU[c.statutReseau ?? ""] ?? 0;
       return sum + (c.potentielEstimeAnnuel ?? 0) * coeff;
@@ -136,13 +136,13 @@ function computeForecast(contacts: ForecastContact[]): ForecastData {
     );
   }
 
-  // 2. Court terme + high probability or high value
-  const courtTermeFort = contacts.filter(
-    (c) => c.horizonActivation === "court" && (c.niveauPotentiel === "fort" || (c.potentielEstimeAnnuel ?? 0) >= 5000)
+  // 2. Lancement + high probability or high value
+  const lancementFort = contacts.filter(
+    (c) => c.horizonActivation === "lancement" && (c.niveauPotentiel === "fort" || (c.potentielEstimeAnnuel ?? 0) >= 5000)
   );
-  if (courtTermeFort.length > 0) {
+  if (lancementFort.length > 0) {
     insights.push(
-      `${courtTermeFort.length} contact${courtTermeFort.length > 1 ? "s" : ""} court terme a forte probabilite — activables rapidement pour le lancement.`
+      `${lancementFort.length} contact${lancementFort.length > 1 ? "s" : ""} "Au lancement" a forte probabilite — activables immediatement.`
     );
   }
 
@@ -225,7 +225,7 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
           </div>
           <div className="rounded-lg border p-3 border-violet-200 bg-violet-50/30 dark:bg-violet-950/10">
             <p className="text-lg font-bold text-violet-600">{formatCurrency(forecast.potentielCourtTerme)}</p>
-            <p className="text-[11px] text-muted-foreground">Court terme pondere</p>
+            <p className="text-[11px] text-muted-foreground">Au lancement (pondere)</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-lg font-bold text-amber-600">{forecast.nbActivables}</p>
@@ -298,7 +298,7 @@ export function ReseauForecast({ contacts }: { contacts: ForecastContact[] }) {
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                   <BarChart3 className="h-3 w-3" />
-                  Par horizon
+                  Par moment d&apos;activation
                 </h4>
                 <div className="space-y-1.5">
                   {forecast.byHorizon.map((h) => (
