@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { ClientEmailHistory } from "@/components/clients/ClientEmailHistory";
 import { fr } from "date-fns/locale";
 import { calculerScoreProspect, getScoreColor, getScoreLabel } from "@/lib/scoring/prospect";
-import { calculerPotentielCA } from "@/lib/scoring/potentiel";
+import { calculerPotentielCA, calculerPotentielCADetail } from "@/lib/scoring/potentiel";
 import { calculerCouverture360, getCouvertureColor } from "@/lib/scoring/couverture360";
 import { persisterScoresClient } from "@/lib/scoring/persist";
 import { calculerProchainesActions } from "@/lib/scoring/next-actions";
@@ -25,7 +25,8 @@ import { ClientTaskActions } from "@/components/clients/ClientTaskActions";
 import { PreconisationsTab } from "@/components/clients/PreconisationsTab";
 import { THEMES_PRECONISATION, STATUTS_PRECONISATION, PRIORITES_PRECONISATION } from "@/lib/constants";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
-import { archiveClient, unarchiveClient, deleteClient, forceDeleteClient } from "../actions";
+import { PotentielCADetail } from "@/components/clients/PotentielCADetail";
+import { archiveClient, unarchiveClient, deleteClient, forceDeleteClient, updateNbSalaries } from "../actions";
 
 export default async function ClientDetailPage({
   params,
@@ -268,6 +269,9 @@ export default async function ClientDetailPage({
   const scoreColor = getScoreColor(score);
   const couvertureColor = getCouvertureColor(scoreCouverture);
 
+  // Potentiel CA detail breakdown (per product, recurring vs upfront)
+  const potentielDetail = calculerPotentielCADetail(client, client.contrats);
+
   // Compute next actions (defensive — never crash client page)
   let nextActions: ReturnType<typeof calculerProchainesActions> = [];
   try {
@@ -388,6 +392,11 @@ export default async function ClientDetailPage({
                 {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(potentiel)}
               </p>
               <p className="text-xs text-muted-foreground">Potentiel CA</p>
+              {potentielDetail.recurringTotal > 0 && (
+                <p className="text-[10px] text-blue-600 mt-0.5">
+                  dont {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(potentielDetail.recurringTotal)} recurrent
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -402,6 +411,18 @@ export default async function ClientDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-4">
           <NextActionWidget actions={nextActions} />
+
+          {potentielDetail.total > 0 && (
+            <PotentielCADetail
+              potentielTotal={potentielDetail.total}
+              recurringTotal={potentielDetail.recurringTotal}
+              upfrontTotal={potentielDetail.upfrontTotal}
+              produits={potentielDetail.produits}
+              nbSalaries={client.nbSalaries}
+              clientId={client.id}
+              updateNbSalariesAction={updateNbSalaries}
+            />
+          )}
 
           <CommercialMemoryCard
             temperatureCommerciale={client.temperatureCommerciale}

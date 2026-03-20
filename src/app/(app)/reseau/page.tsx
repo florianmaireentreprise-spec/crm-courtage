@@ -68,6 +68,7 @@ export default async function ReseauPage() {
   }));
 
   // Serialize for client component (dates → ISO strings)
+  // Includes all fields needed for the rich edit dialog
   const clientsForList = clientsReseau.map((c) => ({
     id: c.id,
     raisonSociale: c.raisonSociale,
@@ -89,6 +90,17 @@ export default async function ReseauPage() {
     dateRelanceReseau: c.dateRelanceReseau?.toISOString() ?? null,
     dateDernierContact: c.dateDernierContact?.toISOString() ?? null,
     _count: c._count,
+    // Additional fields for rich edit modal
+    civilite: c.civilite,
+    secteurActivite: c.secteurActivite,
+    notes: c.notes,
+    siret: c.siret,
+    formeJuridique: c.formeJuridique,
+    codeNAF: c.codeNAF,
+    trancheEffectifs: c.trancheEffectifs,
+    nbSalaries: c.nbSalaries,
+    adresse: c.adresse,
+    codePostal: c.codePostal,
   }));
 
   return (

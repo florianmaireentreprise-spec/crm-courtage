@@ -173,6 +173,29 @@ export async function updateClient(id: string, formData: FormData) {
   redirect(`/clients/${id}`);
 }
 
+export async function updateNbSalaries(
+  clientId: string,
+  nbSalaries: number | null
+): Promise<{ error?: string } | void> {
+  const session = await auth();
+  const actorId = getActorId(session);
+
+  if (nbSalaries !== null && (isNaN(nbSalaries) || nbSalaries < 0)) {
+    return { error: "Nombre invalide" };
+  }
+
+  await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      nbSalaries,
+      updatedByUserId: actorId,
+    },
+  });
+
+  revalidatePath(`/clients/${clientId}`);
+  return;
+}
+
 export async function archiveClient(id: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Non authentifie" };

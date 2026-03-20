@@ -50,9 +50,10 @@ import {
   computePrioriteReseau,
   PRIORITES_RESEAU_CONFIG,
 } from "@/lib/constants";
-import { quickUpdateReseau } from "@/app/(app)/reseau/actions";
+import { updateContactReseau } from "@/app/(app)/reseau/actions";
 import { forceDeleteClient } from "@/app/(app)/clients/actions";
 import { toast } from "sonner";
+import { ReseauContactDialog, type ReseauContactData } from "./ReseauContactDialog";
 
 type ReseauClient = {
   id: string;
@@ -75,6 +76,17 @@ type ReseauClient = {
   dateRelanceReseau: string | null;
   dateDernierContact: string | null;
   _count: { contrats: number; deals: number };
+  // Fields needed for rich edit dialog
+  civilite: string | null;
+  secteurActivite: string | null;
+  notes: string | null;
+  siret: string | null;
+  formeJuridique: string | null;
+  codeNAF: string | null;
+  trancheEffectifs: string | null;
+  nbSalaries: number | null;
+  adresse: string | null;
+  codePostal: string | null;
 };
 
 type SortKey = "alpha" | "potentiel_desc" | "relance_asc" | "dernier_contact_asc" | "priorite_desc";
@@ -145,12 +157,8 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("priorite_desc");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Quick edit
+  // Rich edit dialog (same as create)
   const [editClient, setEditClient] = useState<ReseauClient | null>(null);
-  const [editStatut, setEditStatut] = useState("");
-  const [editAction, setEditAction] = useState("");
-  const [editRelance, setEditRelance] = useState("");
-  const [saving, setSaving] = useState(false);
 
   // Force delete
   const [deleteClient, setDeleteClient] = useState<ReseauClient | null>(null);
@@ -231,29 +239,40 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
   const courtTerme = useMemo(() => clients.filter((c) => c.horizonActivation === "court"), [clients]);
   const prioriteA = useMemo(() => clients.filter((c) => computePrioriteReseau(c.niveauPotentiel, c.potentielAffaires) === "A"), [clients]);
 
-  function openQuickEdit(client: ReseauClient) {
+  function openRichEdit(client: ReseauClient) {
     setEditClient(client);
-    setEditStatut(client.statutReseau ?? "");
-    setEditAction(client.prochaineActionReseau ?? "");
-    setEditRelance(client.dateRelanceReseau ? new Date(client.dateRelanceReseau).toISOString().slice(0, 10) : "");
   }
 
-  async function handleQuickSave() {
-    if (!editClient) return;
-    setSaving(true);
-    const result = await quickUpdateReseau({
-      clientId: editClient.id,
-      statutReseau: editStatut,
-      prochaineActionReseau: editAction,
-      dateRelanceReseau: editRelance,
-    });
-    setSaving(false);
-    if (result && "error" in result) {
-      toast.error("Erreur", { description: typeof result.error === "string" ? result.error : "Erreur inconnue" });
-    } else {
-      toast.success("Mise a jour enregistree");
-    }
-    setEditClient(null);
+  // Convert ReseauClient to ReseauContactData for the shared dialog
+  function toEditData(client: ReseauClient): ReseauContactData {
+    return {
+      id: client.id,
+      raisonSociale: client.raisonSociale,
+      civilite: client.civilite,
+      prenom: client.prenom,
+      nom: client.nom,
+      email: client.email,
+      telephone: client.telephone,
+      ville: client.ville,
+      secteurActivite: client.secteurActivite,
+      categorieReseau: client.categorieReseau,
+      rolesReseau: getEffectiveRoles(client),
+      statutReseau: client.statutReseau,
+      niveauPotentiel: client.niveauPotentiel,
+      potentielAffaires: client.potentielAffaires,
+      potentielEstimeAnnuel: client.potentielEstimeAnnuel,
+      horizonActivation: client.horizonActivation,
+      prochaineActionReseau: client.prochaineActionReseau,
+      dateDernierContact: client.dateDernierContact,
+      notes: client.notes,
+      siret: client.siret,
+      formeJuridique: client.formeJuridique,
+      codeNAF: client.codeNAF,
+      trancheEffectifs: client.trancheEffectifs,
+      nbSalaries: client.nbSalaries,
+      adresse: client.adresse,
+      codePostal: client.codePostal,
+    };
   }
 
   async function handleForceDelete() {
@@ -674,7 +693,7 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
 
                     {/* Right: actions */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950" onClick={() => openQuickEdit(client)} title="Mise a jour rapide">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950" onClick={() => openRichEdit(client)} title="Mise a jour rapide">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Link href={`/clients/${client.id}`}>
@@ -700,63 +719,16 @@ export function ReseauContactList({ clients }: { clients: ReseauClient[] }) {
         </div>
       )}
 
-      {/* Quick edit dialog */}
-      <Dialog open={!!editClient} onOpenChange={(open) => { if (!open) setEditClient(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Mise a jour rapide</DialogTitle>
-            <DialogDescription>
-              {editClient ? clientDisplayName(editClient) : ""}{editClient?.raisonSociale ? ` — ${editClient.prenom} ${editClient.nom}` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs">Statut reseau</Label>
-              <Select value={editStatut} onValueChange={setEditStatut}>
-                <SelectTrigger>
-                  <SelectValue placeholder="-" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUTS_RESEAU.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Prochaine action</Label>
-              <Input
-                value={editAction}
-                onChange={(e) => setEditAction(e.target.value)}
-                placeholder="Ex: Appeler pour proposer un RDV"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Date de relance</Label>
-              <Input
-                type="date"
-                value={editRelance}
-                onChange={(e) => setEditRelance(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditClient(null)}>
-                Annuler
-              </Button>
-              <Button size="sm" onClick={handleQuickSave} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  "Enregistrer"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Rich edit dialog (same as create modal) */}
+      {editClient && (
+        <ReseauContactDialog
+          mode="edit"
+          open={!!editClient}
+          onOpenChange={(open) => { if (!open) setEditClient(null); }}
+          onSubmit={updateContactReseau}
+          editData={toEditData(editClient)}
+        />
+      )}
 
       {/* Force delete confirmation dialog */}
       <Dialog open={!!deleteClient} onOpenChange={(open) => { if (!open) { setDeleteClient(null); setDeleteConfirmText(""); setDeleteError(null); } }}>

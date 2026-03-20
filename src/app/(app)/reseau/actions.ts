@@ -153,6 +153,62 @@ export async function addContactReseau(formData: FormData) {
   redirect("/reseau");
 }
 
+// ── Update contact reseau (full edit via shared dialog) ──
+
+const updateContactSchema = addContactSchema.extend({
+  clientId: z.string().min(1),
+});
+
+export async function updateContactReseau(formData: FormData) {
+  // Extract rolesReseau separately (FormData.getAll for multi-value)
+  const rolesReseau = formData.getAll("rolesReseau") as string[];
+  const raw = { ...Object.fromEntries(formData.entries()), rolesReseau };
+  const parsed = updateContactSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const { clientId, ...data } = parsed.data;
+
+  await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      raisonSociale: data.raisonSociale || "",
+      civilite: data.civilite || null,
+      prenom: data.prenom,
+      nom: data.nom,
+      email: data.email || null,
+      telephone: data.telephone || null,
+      categorieReseau: data.categorieReseau,
+      // SIRENE enrichment
+      siret: data.siret || null,
+      formeJuridique: data.formeJuridique || null,
+      codeNAF: data.codeNAF || null,
+      trancheEffectifs: data.trancheEffectifs || null,
+      nbSalaries: typeof data.nbSalaries === "number" ? data.nbSalaries : null,
+      adresse: data.adresse || null,
+      codePostal: data.codePostal || null,
+      // Qualification reseau
+      typeRelation: data.typeRelation || null,
+      rolesReseau: data.rolesReseau,
+      statutReseau: data.statutReseau || "aucune_demarche",
+      niveauPotentiel: data.niveauPotentiel || null,
+      potentielAffaires: data.potentielAffaires || null,
+      potentielEstimeAnnuel: data.potentielEstimeAnnuel ?? null,
+      horizonActivation: data.horizonActivation || null,
+      prochaineActionReseau: data.prochaineActionReseau || null,
+      dateDernierContact: data.dateDernierContact,
+      ville: data.ville || null,
+      secteurActivite: data.secteurActivite || null,
+      notes: data.notes || null,
+    },
+  });
+
+  revalidatePath("/reseau");
+  return { success: true };
+}
+
 // ── Quick update schema ──
 
 const quickUpdateSchema = z.object({
