@@ -61,6 +61,7 @@ export function EmailCard({ email, onClick, opportunityInfo }: Props) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [treated, setTreated] = useState(email.actionTraitee);
+  const [treating, setTreating] = useState(false);
 
   async function handleAnalyze(e: React.MouseEvent) {
     e.stopPropagation();
@@ -86,8 +87,10 @@ export function EmailCard({ email, onClick, opportunityInfo }: Props) {
 
   async function handleMarkTreated(e: React.MouseEvent) {
     e.stopPropagation();
+    setTreating(true);
     await markActionTraitee(email.id);
     setTreated(true);
+    setTreating(false);
   }
 
   const isSortant = email.direction === "sortant";
@@ -194,9 +197,14 @@ export function EmailCard({ email, onClick, opportunityInfo }: Props) {
                 size="sm"
                 className="h-6 px-2 text-[10px] text-orange-600 border-orange-200 hover:bg-orange-50"
                 onClick={handleMarkTreated}
+                disabled={treating}
               >
-                <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                Traiter
+                {treating ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-0.5" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                )}
+                {treating ? "..." : "Traiter"}
               </Button>
             )}
             {treated && email.actionRequise && (
@@ -227,6 +235,7 @@ export function EmailCard({ email, onClick, opportunityInfo }: Props) {
                 size="sm"
                 className="h-7 px-2 text-xs"
                 onClick={handleAnalyze}
+                disabled={analyzing}
               >
                 <Sparkles className="h-3 w-3 mr-1" />
                 {email.analyseStatut === "erreur" ? "Réessayer" : "Analyser"}

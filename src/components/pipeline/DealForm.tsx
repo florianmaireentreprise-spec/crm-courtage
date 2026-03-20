@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -34,8 +36,17 @@ export function DealForm({ open, onClose, clients, users, prescripteurs }: Props
   const formRef = useRef<HTMLFormElement>(null);
 
   async function handleSubmit(formData: FormData) {
-    await createDeal(formData);
-    onClose();
+    try {
+      const result = await createDeal(formData);
+      if (result && "error" in result) {
+        toast.error("Erreur", { description: "Verifiez les champs du formulaire." });
+        return;
+      }
+      toast.success("Opportunite creee");
+      onClose();
+    } catch {
+      toast.error("Erreur inattendue");
+    }
   }
 
   return (
@@ -171,7 +182,7 @@ export function DealForm({ open, onClose, clients, users, prescripteurs }: Props
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit">Creer</Button>
+            <SubmitButton pendingText="Creation...">Creer</SubmitButton>
           </div>
         </form>
       </DialogContent>

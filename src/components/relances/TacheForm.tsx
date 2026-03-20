@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -35,12 +37,26 @@ export function TacheForm({ open, onClose, clients, users, tache }: Props) {
   const isEdit = !!tache;
 
   async function handleSubmit(formData: FormData) {
-    if (isEdit && tache) {
-      await updateTache(tache.id, formData);
-    } else {
-      await createTache(formData);
+    try {
+      if (isEdit && tache) {
+        const result = await updateTache(tache.id, formData);
+        if (result && "error" in result) {
+          toast.error("Erreur", { description: "Verifiez les champs du formulaire." });
+          return;
+        }
+        toast.success("Tache mise a jour");
+      } else {
+        const result = await createTache(formData);
+        if (result && "error" in result) {
+          toast.error("Erreur", { description: "Verifiez les champs du formulaire." });
+          return;
+        }
+        toast.success("Tache creee");
+      }
+      onClose();
+    } catch {
+      toast.error("Erreur inattendue");
     }
-    onClose();
   }
 
   return (
@@ -152,7 +168,9 @@ export function TacheForm({ open, onClose, clients, users, tache }: Props) {
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit">{isEdit ? "Enregistrer" : "Creer"}</Button>
+            <SubmitButton pendingText={isEdit ? "Enregistrement..." : "Creation..."}>
+              {isEdit ? "Enregistrer" : "Creer"}
+            </SubmitButton>
           </div>
         </form>
       </DialogContent>

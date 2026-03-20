@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Calendar } from "lucide-react";
 import { deleteDeal } from "@/app/(app)/pipeline/actions";
 import { TYPES_PRODUITS } from "@/lib/constants";
+import { toast } from "sonner";
 import type { DealWithClient } from "@/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -52,6 +53,7 @@ export function DealCard({ deal, index, onClick, isSelected, onDeleted }: Props)
   async function handleDelete() {
     setDeleting(true);
     await deleteDeal(deal.id);
+    toast.success("Opportunite supprimee");
     onDeleted?.();
     setDeleting(false);
     setConfirmDelete(false);

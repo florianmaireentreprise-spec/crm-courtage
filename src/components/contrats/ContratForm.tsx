@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   TYPES_PRODUITS,
   TAUX_COMMISSION_DEFAUT,
@@ -219,7 +220,9 @@ export function ContratForm({ contrat, action, clients, compagnies }: ContratFor
         </CardContent>
       </Card>
 
-      <Button type="submit">{isEdit ? "Enregistrer les modifications" : "Creer le contrat"}</Button>
+      <SubmitButton pendingText={isEdit ? "Enregistrement..." : "Creation..."}>
+        {isEdit ? "Enregistrer les modifications" : "Creer le contrat"}
+      </SubmitButton>
     </form>
   );
 }
