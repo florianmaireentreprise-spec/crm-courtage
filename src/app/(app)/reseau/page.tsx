@@ -9,6 +9,7 @@ import { ReseauContactList } from "@/components/reseau/ReseauContactList";
 import { ReseauForecast } from "@/components/reseau/ReseauForecast";
 import { calculerPotentielCADetail } from "@/lib/scoring/potentiel";
 import { getBaseAssumptions, getClientOverridesBatch } from "@/lib/scoring/assumptions";
+import { isPurePrescripteurReseau } from "@/lib/constants";
 
 export default async function ReseauPage() {
   const clientsReseau = await prisma.client.findMany({
@@ -53,9 +54,10 @@ export default async function ReseauPage() {
     const tauxConversionReel = total > 0 ? (actifs / total) * 100 : 0;
     const obj = objectifs.find((o) => o.categorie === cat.id);
 
-    // Effective potentiel per category (sum of all client effective potentiels)
-    const potentielEffectifTotal = clients.reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
-    const potentielEffectifMoyen = total > 0 ? Math.round(potentielEffectifTotal / total) : 0;
+    // Effective potentiel per category — exclude pure prescripteurs from direct potential
+    const directProspectClients = clients.filter((c) => !isPurePrescripteurReseau(c.rolesReseau, c.typeRelation));
+    const potentielEffectifTotal = directProspectClients.reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
+    const potentielEffectifMoyen = directProspectClients.length > 0 ? Math.round(potentielEffectifTotal / directProspectClients.length) : 0;
 
     // Objective data (kept for conversion targets)
     const contactsObj = obj?.contactsObjectif ?? 0;
@@ -80,7 +82,10 @@ export default async function ReseauPage() {
   const totalProspects = clientsReseau.filter((c) => c.statut === "prospect").length;
   const totalActifs = clientsReseau.filter((c) => c.statut === "client_actif").length;
   const tauxConversionGlobal = totalReseau > 0 ? (totalActifs / totalReseau) * 100 : 0;
-  const potentielGlobal = clientsReseau.reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
+  // Global potentiel — exclude pure prescripteurs
+  const potentielGlobal = clientsReseau
+    .filter((c) => !isPurePrescripteurReseau(c.rolesReseau, c.typeRelation))
+    .reduce((sum, c) => sum + (effectivePotentiels.get(c.id)?.total ?? 0), 0);
 
   // Forecast data — uses effective potentiel (not manual potentielEstimeAnnuel)
   const forecastContacts = clientsReseau.map((c) => ({
@@ -92,8 +97,10 @@ export default async function ReseauPage() {
     statutReseau: c.statutReseau,
     niveauPotentiel: c.niveauPotentiel,
     potentielAffaires: c.potentielAffaires,
-    // KEY CHANGE: use effective potentiel from heuristic model instead of manual field
-    potentielEstimeAnnuel: effectivePotentiels.get(c.id)?.total ?? 0,
+    // Use effective potentiel — zero for pure prescripteurs (filtered in computeForecast too)
+    potentielEstimeAnnuel: isPurePrescripteurReseau(c.rolesReseau, c.typeRelation)
+      ? 0
+      : (effectivePotentiels.get(c.id)?.total ?? 0),
     horizonActivation: c.horizonActivation,
   }));
 

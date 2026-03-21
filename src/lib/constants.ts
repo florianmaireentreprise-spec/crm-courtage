@@ -293,6 +293,18 @@ export const NATURES_JURIDIQUES: Record<string, string> = {
   "5202": "SNC",
 };
 
+// ── Pure prescripteur detection ──
+// A contact is a "pure prescripteur" if they have prescripteur_potentiel role
+// but NOT prospect_direct. Pure prescripteurs should not contribute to direct Potentiel CA.
+export function isPurePrescripteurReseau(rolesReseau: string[], typeRelation?: string | null): boolean {
+  // Multi-role path
+  if (rolesReseau && rolesReseau.length > 0) {
+    return rolesReseau.includes("prescripteur_potentiel") && !rolesReseau.includes("prospect_direct");
+  }
+  // Backward compat: old typeRelation
+  return typeRelation === "prescripteur";
+}
+
 // Coefficients de ponderation par statut reseau pour le forecasting
 // Represente la probabilite de conversion en CA reel
 export const COEFFICIENTS_STATUT_RESEAU: Record<string, number> = {

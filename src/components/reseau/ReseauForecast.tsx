@@ -10,6 +10,7 @@ import {
   STATUTS_RESEAU,
   computePrioriteReseau,
   PRIORITES_RESEAU_CONFIG,
+  isPurePrescripteurReseau,
 } from "@/lib/constants";
 
 type ForecastContact = {
@@ -40,8 +41,12 @@ type ForecastData = {
 };
 
 function computeForecast(contacts: ForecastContact[]): ForecastData {
-  // Filter contacts with potentielEstimeAnnuel
-  const withPotentiel = contacts.filter((c) => c.potentielEstimeAnnuel != null && c.potentielEstimeAnnuel > 0);
+  // Filter contacts with potentielEstimeAnnuel, excluding pure prescripteurs from direct potential
+  const withPotentiel = contacts.filter((c) =>
+    c.potentielEstimeAnnuel != null &&
+    c.potentielEstimeAnnuel > 0 &&
+    !isPurePrescripteurReseau(c.rolesReseau, c.typeRelation)
+  );
 
   // Potentiel brut = sum of all potentielEstimeAnnuel
   const potentielBrut = withPotentiel.reduce((sum, c) => sum + (c.potentielEstimeAnnuel ?? 0), 0);

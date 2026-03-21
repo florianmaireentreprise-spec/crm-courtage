@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ import {
 import { CompanySearchButton } from "@/components/clients/CompanySearchButton";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { toast } from "sonner";
+import { AlertTriangle, ExternalLink, Info } from "lucide-react";
 
 type SireneOverrides = {
   raisonSociale?: string;
@@ -76,6 +78,17 @@ export type ReseauContactData = {
   codePostal: string | null;
 };
 
+type DuplicateCandidate = {
+  id: string;
+  raisonSociale: string;
+  prenom: string;
+  nom: string;
+  email: string | null;
+  ville: string | null;
+  categorieReseau: string | null;
+  rolesReseau: string[];
+};
+
 type Props = {
   mode: "create" | "edit";
   open: boolean;
@@ -83,6 +96,63 @@ type Props = {
   onSubmit: (formData: FormData) => Promise<{ error?: unknown } | void>;
   editData?: ReseauContactData;
 };
+
+// ── Duplicate detection hook ──
+
+function useDuplicateCheck(mode: "create" | "edit", excludeId?: string) {
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
+  const [checking, setChecking] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastQueryRef = useRef("");
+
+  const check = useCallback((nom: string, prenom: string, raisonSociale: string) => {
+    if (mode === "edit") return; // Skip duplicate check in edit mode
+
+    const queryKey = `${nom}|${prenom}|${raisonSociale}`;
+    if (queryKey === lastQueryRef.current) return;
+    lastQueryRef.current = queryKey;
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    const trimNom = nom.trim();
+    const trimPrenom = prenom.trim();
+    const trimRS = raisonSociale.trim();
+
+    // Need at least a last name (2+ chars) to check
+    if (trimNom.length < 2 && trimRS.length < 3) {
+      setDuplicates([]);
+      return;
+    }
+
+    setChecking(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        if (trimNom) params.set("nom", trimNom);
+        if (trimPrenom) params.set("prenom", trimPrenom);
+        if (trimRS) params.set("raisonSociale", trimRS);
+        if (excludeId) params.set("excludeId", excludeId);
+
+        const res = await fetch(`/api/reseau/check-duplicates?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDuplicates(data.duplicates ?? []);
+        }
+      } catch {
+        // Silent fail — duplicate check is best-effort
+      } finally {
+        setChecking(false);
+      }
+    }, 400);
+  }, [mode, excludeId]);
+
+  const reset = useCallback(() => {
+    setDuplicates([]);
+    lastQueryRef.current = "";
+  }, []);
+
+  return { duplicates, checking, check, reset };
+}
 
 export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editData }: Props) {
   const [sirene, setSirene] = useState<SireneOverrides>({});
@@ -92,6 +162,18 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
   const [livePotentiel, setLivePotentiel] = useState<string>(editData?.potentielAffaires ?? "");
   const [selectedRoles, setSelectedRoles] = useState<string[]>(editData?.rolesReseau ?? []);
 
+  // Live identity fields for duplicate detection
+  const [liveNom, setLiveNom] = useState(editData?.nom ?? "");
+  const [livePrenom, setLivePrenom] = useState(editData?.prenom ?? "");
+  const [liveRS, setLiveRS] = useState(editData?.raisonSociale ?? "");
+
+  const { duplicates, checking, check, reset: resetDuplicates } = useDuplicateCheck(mode, editData?.id);
+
+  // Trigger duplicate check when identity fields change
+  useEffect(() => {
+    check(liveNom, livePrenom, liveRS);
+  }, [liveNom, livePrenom, liveRS, check]);
+
   // Reset state when editData changes (open different contact)
   const editId = editData?.id ?? "";
   const [lastEditId, setLastEditId] = useState(editId);
@@ -100,14 +182,32 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
     setLiveProba(editData?.niveauPotentiel ?? "");
     setLivePotentiel(editData?.potentielAffaires ?? "");
     setSelectedRoles(editData?.rolesReseau ?? []);
+    setLiveNom(editData?.nom ?? "");
+    setLivePrenom(editData?.prenom ?? "");
+    setLiveRS(editData?.raisonSociale ?? "");
     setSirene({});
     setFormKey((k) => k + 1);
+    resetDuplicates();
   }
+
+  // Reset on dialog open/close
+  useEffect(() => {
+    if (!open) {
+      resetDuplicates();
+      setLiveNom(editData?.nom ?? "");
+      setLivePrenom(editData?.prenom ?? "");
+      setLiveRS(editData?.raisonSociale ?? "");
+    }
+  }, [open, editData, resetDuplicates]);
 
   const livePriorite = useMemo(
     () => computePrioriteReseau(liveProba || null, livePotentiel || null),
     [liveProba, livePotentiel]
   );
+
+  // PART C/D: Derive whether this is a pure prescripteur (no prospect_direct)
+  const isPurePrescripteur = selectedRoles.includes("prescripteur_potentiel") && !selectedRoles.includes("prospect_direct");
+  const hasProspectDirect = selectedRoles.includes("prospect_direct");
 
   async function handleSubmit(formData: FormData) {
     const result = await onSubmit(formData);
@@ -143,6 +243,7 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
       trancheEffectifs: company.trancheEffectifs ?? undefined,
       nbSalaries: company.nbSalaries ?? undefined,
     });
+    setLiveRS(company.raisonSociale);
     setFormKey((k) => k + 1);
   }, []);
 
@@ -201,14 +302,18 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
           <input type="hidden" name="formeJuridique" value={dv("formeJuridique")} />
           <input type="hidden" name="codeNAF" value={dv("codeNAF")} />
           <input type="hidden" name="trancheEffectifs" value={dv("trancheEffectifs")} />
-          <input type="hidden" name="nbSalaries" value={dv("nbSalaries")} />
           <input type="hidden" name="adresse" value={dv("adresse")} />
           <input type="hidden" name="codePostal" value={dv("codePostal")} />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Entreprise / Structure</Label>
-              <Input name="raisonSociale" placeholder="Ex: Cabinet Dr. Martin (optionnel)" defaultValue={dv("raisonSociale")} />
+              <Input
+                name="raisonSociale"
+                placeholder="Ex: Cabinet Dr. Martin (optionnel)"
+                defaultValue={dv("raisonSociale")}
+                onChange={(e) => setLiveRS(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Categorie reseau *</Label>
@@ -244,13 +349,55 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
             </div>
             <div className="space-y-2">
               <Label>Prenom *</Label>
-              <Input name="prenom" required defaultValue={editData?.prenom ?? ""} />
+              <Input
+                name="prenom"
+                required
+                defaultValue={editData?.prenom ?? ""}
+                onChange={(e) => setLivePrenom(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Nom *</Label>
-              <Input name="nom" required defaultValue={editData?.nom ?? ""} />
+              <Input
+                name="nom"
+                required
+                defaultValue={editData?.nom ?? ""}
+                onChange={(e) => setLiveNom(e.target.value)}
+              />
             </div>
           </div>
+
+          {/* PART A: Duplicate warning */}
+          {duplicates.length > 0 && mode === "create" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">
+                  {duplicates.length === 1 ? "Un contact similaire existe deja" : `${duplicates.length} contacts similaires trouves`}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {duplicates.map((dup) => (
+                  <div key={dup.id} className="flex items-center justify-between text-xs bg-white/60 dark:bg-black/20 rounded px-2 py-1.5">
+                    <div className="min-w-0">
+                      <span className="font-medium">{dup.prenom} {dup.nom}</span>
+                      {dup.raisonSociale && <span className="text-muted-foreground"> — {dup.raisonSociale}</span>}
+                      {dup.ville && <span className="text-muted-foreground"> ({dup.ville})</span>}
+                    </div>
+                    <Link href={`/clients/${dup.id}`} target="_blank" className="shrink-0 ml-2">
+                      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]">
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Voir
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                Verifiez qu&apos;il ne s&apos;agit pas d&apos;un doublon avant de continuer.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -272,6 +419,23 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
               <Label>Secteur d&apos;activite</Label>
               <Input name="secteurActivite" placeholder="Medecine, Droit..." defaultValue={dv("secteurActivite")} />
             </div>
+          </div>
+
+          {/* PART B: Approximate employee count — visible field */}
+          <div className="space-y-2">
+            <Label className="text-xs">Nombre approximatif de salaries</Label>
+            <Input
+              name="nbSalaries"
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Ex: 15"
+              className="h-9 w-40"
+              defaultValue={dv("nbSalaries")}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Utile pour estimer le potentiel CA. Laissez vide si non applicable.
+            </p>
           </div>
 
           {/* Qualification reseau */}
@@ -315,6 +479,17 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
               ))}
             </div>
 
+            {/* PART D: Prescripteur-only hint */}
+            {isPurePrescripteur && (
+              <div className="flex items-start gap-2 rounded-md border border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 p-2.5">
+                <Info className="h-3.5 w-3.5 text-violet-500 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-violet-700 dark:text-violet-300">
+                  Ce contact est un prescripteur pur — il ne sera pas comptabilise dans le potentiel CA direct du reseau.
+                  Pour qu&apos;il contribue au potentiel, ajoutez egalement le role &quot;Prospect direct&quot;.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Statut reseau</Label>
@@ -349,7 +524,8 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Qualification fields — visually muted when pure prescripteur */}
+            <div className={`grid grid-cols-2 gap-4 ${isPurePrescripteur ? "opacity-50" : ""}`}>
               <div className="space-y-2">
                 <Label className="text-xs">Probabilite de signature</Label>
                 <Select
@@ -390,7 +566,7 @@ export function ReseauContactDialog({ mode, open, onOpenChange, onSubmit, editDa
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid grid-cols-2 gap-4 ${isPurePrescripteur ? "opacity-50" : ""}`}>
               <div className="space-y-2">
                 <Label className="text-xs">Potentiel estime annuel</Label>
                 <Input name="potentielEstimeAnnuel" type="number" min={0} step={100} placeholder="EUR/an" className="h-9" defaultValue={editData?.potentielEstimeAnnuel ?? ""} />
