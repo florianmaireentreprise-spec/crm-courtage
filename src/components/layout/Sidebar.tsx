@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -43,9 +43,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => {
+  const fetchCount = useCallback(() => {
     getPendingActionCount().then(setPendingCount).catch(() => {});
-  }, [pathname]);
+  }, []);
+
+  useEffect(() => {
+    fetchCount();
+    const timer = setInterval(fetchCount, 60_000);
+    return () => clearInterval(timer);
+  }, [fetchCount]);
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sidebar text-sidebar-foreground">
