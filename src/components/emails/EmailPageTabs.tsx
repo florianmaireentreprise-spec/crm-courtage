@@ -31,9 +31,10 @@ import {
   reanalyzeUnprocessed,
   batchProcessAllPending,
 } from "@/app/(app)/emails/actions";
-import type { Email, Client } from "@prisma/client";
+import type { Email } from "@prisma/client";
 
-type EmailWithClient = Email & { client: Client | null };
+type EmailClient = { id: string; raisonSociale: string; email: string | null; telephone: string | null; statut: string };
+export type EmailWithClient = Email & { client: EmailClient | null };
 
 type Props = {
   emails: EmailWithClient[];

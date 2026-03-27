@@ -5,27 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TYPES_COMMISSION, STATUTS_COMMISSION } from "@/lib/constants";
 
 export default async function CommissionsPage() {
-  const commissions = await prisma.commission.findMany({
-    include: {
-      contrat: {
-        include: {
-          client: true,
-          compagnie: true,
+  const [commissions, compagnies] = await Promise.all([
+    prisma.commission.findMany({
+      include: {
+        contrat: {
+          include: {
+            client: true,
+            compagnie: true,
+          },
         },
       },
-    },
-    orderBy: { periode: "desc" },
-  });
-
-  const compagnies = await prisma.compagnie.findMany({
-    include: {
-      contrats: {
-        where: { statut: "actif" },
-        include: { commissions: true },
+      orderBy: { periode: "desc" },
+    }),
+    prisma.compagnie.findMany({
+      include: {
+        contrats: {
+          where: { statut: "actif" },
+          include: { commissions: true },
+        },
       },
-    },
-    orderBy: { nom: "asc" },
-  });
+      orderBy: { nom: "asc" },
+    }),
+  ]);
 
   // KPIs
   const totalPrevu = commissions

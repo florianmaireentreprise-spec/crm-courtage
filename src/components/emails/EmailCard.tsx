@@ -9,10 +9,11 @@ import { analyzeEmail, markEmailRead, markActionTraitee } from "@/app/(app)/emai
 import { AnalysisPanel } from "./AnalysisPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Email, Client } from "@prisma/client";
+import type { Email } from "@prisma/client";
+import type { EmailWithClient } from "./EmailPageTabs";
 
 type Props = {
-  email: Email & { client: Client | null };
+  email: EmailWithClient;
   onClick?: () => void;
   opportunityInfo?: { count: number; statuts: string[] } | null;
 };

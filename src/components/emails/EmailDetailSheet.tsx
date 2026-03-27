@@ -16,10 +16,10 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AnalysisPanel } from "./AnalysisPanel";
-import type { Email, Client } from "@prisma/client";
+import type { EmailWithClient } from "./EmailPageTabs";
 
 type Props = {
-  email: (Email & { client: Client | null }) | null;
+  email: EmailWithClient | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };

@@ -114,20 +114,20 @@ export default async function ClientDetailPage({
     console.error("[cross-sell] persistence error for client", client.id, err);
   }
 
-  // Fetch completed + cancelled tasks for the timeline
-  const tachesTerminees = await prisma.tache.findMany({
-    where: { clientId: id, statut: { in: ["terminee", "annulee"] } },
-    orderBy: { dateRealisation: "desc" },
-    take: 30,
-  });
-
-  // Fetch recent documents for the timeline
-  const documentsRecents = await prisma.document.findMany({
-    where: { clientId: id, archive: false },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    select: { id: true, nomAffiche: true, categorie: true, typeDocument: true, createdAt: true },
-  });
+  // Fetch completed tasks + recent documents for the timeline (parallel)
+  const [tachesTerminees, documentsRecents] = await Promise.all([
+    prisma.tache.findMany({
+      where: { clientId: id, statut: { in: ["terminee", "annulee"] } },
+      orderBy: { dateRealisation: "desc" },
+      take: 30,
+    }),
+    prisma.document.findMany({
+      where: { clientId: id, archive: false },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, nomAffiche: true, categorie: true, typeDocument: true, createdAt: true },
+    }),
+  ]);
 
   // Build timeline events
   type TimelineEvent = { date: Date; type: string; icon: string; title: string; detail?: string; color: string };

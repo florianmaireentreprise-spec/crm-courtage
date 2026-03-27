@@ -40,7 +40,7 @@ export default async function EmailsPage({
   const emails = connection && userId
     ? await prisma.email.findMany({
         where: { userId },
-        include: { client: true },
+        include: { client: { select: { id: true, raisonSociale: true, email: true, telephone: true, statut: true } } },
         orderBy: { dateEnvoi: "desc" },
         take: 200,
       })

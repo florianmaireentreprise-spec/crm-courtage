@@ -4,20 +4,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { isToday, isBefore, startOfDay } from "date-fns";
 
 export default async function RelancesPage() {
-  const taches = await prisma.tache.findMany({
-    where: { statut: { in: ["a_faire", "en_cours"] } },
-    include: { client: true },
-    orderBy: { dateEcheance: "asc" },
-  });
-
-  const clients = await prisma.client.findMany({
-    select: { id: true, raisonSociale: true },
-    orderBy: { raisonSociale: "asc" },
-  });
-
-  const users = await prisma.user.findMany({
-    select: { id: true, prenom: true, nom: true },
-  });
+  const [taches, clients, users] = await Promise.all([
+    prisma.tache.findMany({
+      where: { statut: { in: ["a_faire", "en_cours"] } },
+      include: { client: true },
+      orderBy: { dateEcheance: "asc" },
+    }),
+    prisma.client.findMany({
+      select: { id: true, raisonSociale: true },
+      orderBy: { raisonSociale: "asc" },
+    }),
+    prisma.user.findMany({
+      select: { id: true, prenom: true, nom: true },
+    }),
+  ]);
 
   const now = startOfDay(new Date());
   const enRetard = taches.filter((t) => isBefore(t.dateEcheance, now)).length;

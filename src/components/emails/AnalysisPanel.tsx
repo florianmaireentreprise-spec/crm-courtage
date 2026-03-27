@@ -44,10 +44,10 @@ import {
   ignorerEmail,
   ajouterNoteEmail,
 } from "@/app/(app)/emails/actions";
-import type { Email, Client } from "@prisma/client";
+import type { EmailWithClient } from "./EmailPageTabs";
 
 type Props = {
-  email: Email & { client: Client | null };
+  email: EmailWithClient;
 };
 
 const PRODUCT_LABELS: Record<string, string> = {

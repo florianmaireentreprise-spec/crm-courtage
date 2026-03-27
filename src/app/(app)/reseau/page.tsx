@@ -12,19 +12,20 @@ import { getBaseAssumptions, getClientOverridesBatch } from "@/lib/scoring/assum
 import { isPurePrescripteurReseau } from "@/lib/constants";
 
 export default async function ReseauPage() {
-  const clientsReseau = await prisma.client.findMany({
-    where: { categorieReseau: { not: null } },
-    include: {
-      _count: { select: { contrats: true, deals: true } },
-      contrats: {
-        where: { statut: "actif" },
-        select: { typeProduit: true, statut: true },
+  const [clientsReseau, objectifs] = await Promise.all([
+    prisma.client.findMany({
+      where: { categorieReseau: { not: null } },
+      include: {
+        _count: { select: { contrats: true, deals: true } },
+        contrats: {
+          where: { statut: "actif" },
+          select: { typeProduit: true, statut: true },
+        },
       },
-    },
-    orderBy: { raisonSociale: "asc" },
-  });
-
-  const objectifs = await prisma.reseauObjectif.findMany();
+      orderBy: { raisonSociale: "asc" },
+    }),
+    prisma.reseauObjectif.findMany(),
+  ]);
 
   // ── Fetch global assumptions + client overrides for effective potentiel ──
   const clientIds = clientsReseau.map((c) => c.id);
