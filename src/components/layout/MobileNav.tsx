@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { getPendingActionCount } from "@/app/(app)/emails/actions";
 import {
   Menu,
   BarChart3,
@@ -21,6 +22,7 @@ import {
   UserCheck,
   Handshake,
   Network,
+  Zap,
 } from "lucide-react";
 
 const navigation = [
@@ -35,6 +37,7 @@ const navigation = [
   { name: "Relances", href: "/relances", icon: Clock },
   { name: "Objectifs", href: "/objectifs", icon: TrendingUp },
   { name: "Emails", href: "/emails", icon: Mail },
+  { name: "Sequences", href: "/sequences", icon: Zap },
   { name: "Compagnies", href: "/compagnies", icon: Building2 },
   { name: "Parametres", href: "/parametres", icon: Settings },
 ];
@@ -42,6 +45,17 @@ const navigation = [
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchCount = useCallback(() => {
+    getPendingActionCount().then(setPendingCount).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchCount();
+    const timer = setInterval(fetchCount, 60_000);
+    return () => clearInterval(timer);
+  }, [fetchCount]);
 
   return (
     <div className="lg:hidden">
@@ -78,6 +92,11 @@ export function MobileNav() {
                 >
                   <item.icon className="h-4 w-4" />
                   {item.name}
+                  {item.name === "Emails" && pendingCount > 0 && (
+                    <span className="ml-auto inline-flex items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
