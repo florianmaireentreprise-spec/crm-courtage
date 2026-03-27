@@ -7,6 +7,7 @@ import { Mail, Inbox } from "lucide-react";
 import { isJunkEmail } from "@/lib/email/sync";
 
 export const metadata = { title: "Emails — CRM Courtage" };
+export const dynamic = "force-dynamic";
 
 export default async function EmailsPage({
   searchParams,

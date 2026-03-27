@@ -1,34 +1,12 @@
 import { z } from "zod";
-
-// ── Enum whitelists for reseau qualification fields ──
-const TYPES_RELATION_IDS = [
-  "client_potentiel_direct",
-  "prescripteur",
-  "partenaire",
-  "ancien_client",
-] as const;
-
-const ROLES_RESEAU_IDS = [
-  "prospect_direct",
-  "prescripteur_potentiel",
-  "partenaire",
-  "ancien_client",
-] as const;
-
-const STATUTS_RESEAU_IDS = [
-  "aucune_demarche",
-  "a_qualifier",
-  "a_contacter",
-  "premier_echange",
-  "suivi_en_cours",
-  "actif",
-  "sans_suite",
-] as const;
-
-const NIVEAUX_POTENTIEL_IDS = ["faible", "moyen", "fort"] as const;
-const POTENTIELS_AFFAIRES_IDS = ["faible", "moyen", "fort", "strategique"] as const;
-
-const HORIZONS_ACTIVATION_IDS = ["lancement", "deuxieme_phase", "installe"] as const;
+import {
+  TYPES_RELATION_IDS,
+  ROLES_RESEAU_IDS,
+  STATUTS_RESEAU_IDS,
+  NIVEAUX_POTENTIEL_IDS,
+  POTENTIELS_AFFAIRES_IDS,
+  HORIZONS_ACTIVATION_IDS,
+} from "@/lib/constants/taxonomies";
 
 // ── Date coercion helper ──
 // HTML date inputs submit "" for empty fields. We normalize:

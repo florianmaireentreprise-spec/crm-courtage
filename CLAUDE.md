@@ -201,9 +201,8 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 - **No multi-user permissions**: single gerant user, no role-based access beyond basic auth
 
 ### Technical debt / open issues
-- Railway still auto-deploys from repo (build fails). Should disconnect from Railway dashboard
-- Junk filter retroactive cleanup on `/emails` page may have Vercel SSR caching issue
-- Duplicated enum whitelists (TYPES_RELATION_IDS, STATUTS_RESEAU_IDS) in validators/client.ts and reseau/actions.ts — intentional for server action isolation but requires manual sync on taxonomy changes
+- **Railway auto-deploy (MANUAL ACTION NEEDED)**: Railway still auto-deploys from repo (build fails). Go to Railway dashboard → project settings → disconnect the GitHub repo. No code change needed — `output: "standalone"` has been removed from next.config.ts
+- Taxonomy enums now consolidated in `src/lib/constants/taxonomies.ts` — single source of truth for both validators/client.ts and reseau/actions.ts
 
 ### Deployment model (see DEPLOYMENTS.md for runbook)
 - **Real/production**: Vercel project `crm-courtage`, deploys from `main` branch
