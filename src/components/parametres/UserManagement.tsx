@@ -22,17 +22,25 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil } from "lucide-react";
 import { createUser, updateUser } from "@/app/(app)/parametres/actions";
-import type { User } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+type UserSafe = {
+  id: string;
+  email: string;
+  prenom: string;
+  nom: string;
+  role: string;
+  dateCreation: Date;
+};
+
 type Props = {
-  users: User[];
+  users: UserSafe[];
 };
 
 export function UserManagement({ users }: Props) {
   const [showCreate, setShowCreate] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserSafe | null>(null);
 
   async function handleCreate(formData: FormData) {
     const result = await createUser(formData);

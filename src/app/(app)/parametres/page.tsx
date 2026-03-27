@@ -63,7 +63,10 @@ async function getFeedbackStats(): Promise<FeedbackStats> {
 
 export default async function ParametresPage() {
   const [users, settings, feedbackStats] = await Promise.all([
-    prisma.user.findMany({ orderBy: { dateCreation: "asc" } }),
+    prisma.user.findMany({
+      select: { id: true, email: true, prenom: true, nom: true, role: true, dateCreation: true },
+      orderBy: { dateCreation: "asc" },
+    }),
     getSettings(),
     getFeedbackStats(),
   ]);
