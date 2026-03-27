@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandSeparator,
 } from "@/components/ui/command";
-import { Building2, FileText, Target, Users, Mail, Search, UserCheck, Briefcase, FolderOpen } from "lucide-react";
+import { Building2, FileText, Target, Users, Mail, Search, UserCheck, Briefcase, FolderOpen, Calendar } from "lucide-react";
 
 type SearchResults = {
   clients: { id: string; raisonSociale: string; nom: string; prenom: string; statut: string; ville: string | null }[];
@@ -22,6 +22,7 @@ type SearchResults = {
   compagnies: { id: string; nom: string; type: string | null; nbContratsActifs: number | null }[];
   documents: { id: string; nomAffiche: string; categorie: string; typeDocument: string; clientId: string; client: { raisonSociale: string } }[];
   emails: { id: string; sujet: string; expediteur: string; dateEnvoi: string; clientId: string | null }[];
+  comptesRendus: { id: string; dateRDV: string; typeRDV: string; resume: string; clientId: string; client: { raisonSociale: string } }[];
 };
 
 export function SearchDialog() {
@@ -91,7 +92,8 @@ export function SearchDialog() {
       results.prescripteurs.length > 0 ||
       results.compagnies.length > 0 ||
       results.documents.length > 0 ||
-      results.emails.length > 0);
+      results.emails.length > 0 ||
+      results.comptesRendus?.length > 0);
 
   let groupIndex = 0;
 
@@ -303,6 +305,34 @@ export function SearchDialog() {
                     </div>
                   </CommandItem>
                 ))}
+              </CommandGroup>
+            </>
+          )}
+
+          {/* Comptes-rendus RDV */}
+          {results?.comptesRendus && results.comptesRendus.length > 0 && (
+            <>
+              {groupIndex++ > 0 && <CommandSeparator />}
+              <CommandGroup heading="Comptes-rendus RDV">
+                {results.comptesRendus.map((cr) => {
+                  const typeLabels: Record<string, string> = {
+                    decouverte: "Découverte", audit: "Audit", recommandation: "Recommandation",
+                    signature: "Signature", suivi: "Suivi", autre: "Autre",
+                  };
+                  const dateStr = new Date(cr.dateRDV).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+                  return (
+                    <CommandItem key={cr.id} value={`cr-${cr.id}`} onSelect={() => navigate(`/clients/${cr.clientId}`)}>
+                      <Calendar className="h-4 w-4 text-sky-500" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{dateStr} — {typeLabels[cr.typeRDV] ?? cr.typeRDV}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">{cr.client.raisonSociale}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {cr.resume.length > 60 ? cr.resume.slice(0, 60) + "..." : cr.resume}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </>
           )}

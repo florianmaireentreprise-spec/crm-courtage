@@ -49,6 +49,23 @@ npx tsx scripts/migrate-reseau-taxonomy.ts # One-off: migre les anciennes valeur
 - Taches/relances system (manual + auto-generated)
 - Reseau de prospection (category-based objectives)
 - Sequences de prospection
+- Comptes-rendus RDV (CRUD on client page, timeline integration, global search)
+- Qualification prospect (scoring by field completeness, auto-recalculated on client/dirigeant/CR changes)
+
+### Qualification & Dossier Prospect (implemented March 2026)
+- **CompteRenduRDV model**: full CRUD via server actions, workspace-scoped, linked to Client + Deal (optional)
+  - Types: decouverte, audit, recommandation, signature, suivi, autre
+  - Lieux: cabinet, client, visio, telephone, autre
+  - Content: resume (required), pointsCles (JSON array), decisionsActions (JSON array), prochainRDV, notes
+  - Attribution: createdByUserId, updatedByUserId
+- **Qualification scoring** (`lib/scoring/qualification.ts`): calculerQualification() returns { statut, score, champsManquants[] }
+  - 4 categories: Entreprise (6), Contact (4), Couverture (4), Dirigeant (5 — excluded if no dirigeant exists)
+  - Score = filled/total x 100. Statut: >=80% qualifie, >=50% en_cours, <50% non_qualifie
+  - Auto-recalculated on: updateClient, updateDirigeant, createCompteRendu
+  - Persisted on Client: qualificationStatut, dateQualification, qualificationNotes
+- **NBA rule 16**: prospect with qualification < 50% and no scheduled RDV → suggest discovery meeting
+- **Global search**: 9th entity type — searches resume, interlocuteurs, notes (contains/insensitive)
+- **UI**: RDV tab on client page (accordion cards), QualificationCard in intelligence column (badge + progress bar + clickable missing fields)
 
 ### Email Intelligence (stable)
 - Gmail sync (OAuth2, bidirectional via n8n WF07)
@@ -127,7 +144,7 @@ The client detail page (`clients/[id]/page.tsx`) renders three intelligence card
 
 ### Global Search (implemented, browser-validated)
 - Cmd+K or click search bar → CommandDialog
-- 8 entity types: clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails
+- 9 entity types: clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails, comptesRendus
 - Server-side search via `/api/search?q=` (Prisma contains/insensitive, max 5 per type)
 - Critical fix: `shouldFilter={false}` on cmdk CommandDialog (without this, cmdk's client-side filter hides async-loaded results)
 - **Validation status**: API confirmed returning correct results. UI confirmed displaying results and navigating to client page via browser automation (March 13, 2026). Not yet validated by human manual testing.
@@ -144,7 +161,7 @@ The CRM now operates as the **Real CRM** by default. Old demo data is isolated a
 - Email model is NOT workspace-scoped (intentional — email is live plumbing, not demo data)
 
 **Phase 1 workspace-aware models (10):**
-Client, Dirigeant, Contrat, Commission, Deal, Tache, Prescripteur, Compagnie, Document, OpportuniteCommerciale
+Client, Dirigeant, Contrat, Commission, Deal, Tache, Prescripteur, Compagnie, Document, OpportuniteCommerciale, CompteRenduRDV
 
 **NOT workspace-scoped (by design):**
 Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceInscription, Objectif, ReseauObjectif, RapportHebdo, N8nLog, Settings
@@ -233,7 +250,7 @@ Email, SignalCommercial, FeedbackIA, GmailConnection, User, Sequence, SequenceIn
 Based on actual business direction (pre-launch cabinet tool, network-driven launch):
 
 1. **Real-world usage validation** — start using the CRM with real prospects and verify all flows work in practice. Monitor email analysis quality, opportunity detection accuracy, and scoring calibration
-2. **Stronger prospect/client dossier structure** — currently prospect → client transition is a status field change. Needs structured qualification data, meeting notes, needs assessment before the recommendation phase
+2. **Prospect dossier structure** — now implemented: CompteRenduRDV for meeting notes, qualification scoring for field completeness tracking. Next: recueil besoins formalize, DDA compliance checkpoints
 3. **Search stabilization** — confirm human manual validation of global search, fix any edge cases found
 4. **Compliance/DDA layers** — postponed until real activity/product reality is clearer. Will need DDA compliance checkpoints, document checklist per product type
 5. **Reseau further refinements** — taxonomy is now clean (4 typeRelation, 7 statutReseau), forecasting works. Next: conversion funnel analytics, activity logging per contact

@@ -23,6 +23,9 @@ import { DocumentsTab } from "@/components/clients/DocumentsTab";
 import { ClientArchiveActions } from "@/components/clients/ClientArchiveActions";
 import { ClientTaskActions } from "@/components/clients/ClientTaskActions";
 import { PreconisationsTab } from "@/components/clients/PreconisationsTab";
+import { CompteRenduTab } from "@/components/clients/CompteRenduTab";
+import { QualificationCard } from "@/components/clients/QualificationCard";
+import { calculerQualification } from "@/lib/scoring/qualification";
 import { THEMES_PRECONISATION, STATUTS_PRECONISATION, PRIORITES_PRECONISATION } from "@/lib/constants";
 import { persisterOpportunitesCrossSell } from "@/lib/scoring/opportunities";
 import { PotentielCADetail } from "@/components/clients/PotentielCADetail";
@@ -114,8 +117,8 @@ export default async function ClientDetailPage({
     console.error("[cross-sell] persistence error for client", client.id, err);
   }
 
-  // Fetch completed tasks + recent documents for the timeline (parallel)
-  const [tachesTerminees, documentsRecents] = await Promise.all([
+  // Fetch completed tasks, recent documents, and comptes-rendus for the timeline (parallel)
+  const [tachesTerminees, documentsRecents, comptesRendus] = await Promise.all([
     prisma.tache.findMany({
       where: { clientId: id, statut: { in: ["terminee", "annulee"] } },
       orderBy: { dateRealisation: "desc" },
@@ -126,6 +129,10 @@ export default async function ClientDetailPage({
       orderBy: { createdAt: "desc" },
       take: 20,
       select: { id: true, nomAffiche: true, categorie: true, typeDocument: true, createdAt: true },
+    }),
+    prisma.compteRenduRDV.findMany({
+      where: { clientId: id },
+      orderBy: { dateRDV: "desc" },
     }),
   ]);
 
@@ -248,8 +255,27 @@ export default async function ClientDetailPage({
     }
   }
 
+  // Comptes-rendus RDV
+  const typeRDVLabels: Record<string, string> = {
+    decouverte: "Découverte", audit: "Audit", recommandation: "Recommandation",
+    signature: "Signature", suivi: "Suivi", autre: "RDV",
+  };
+  for (const cr of comptesRendus) {
+    timeline.push({
+      date: cr.dateRDV,
+      type: "rdv",
+      icon: "Calendar",
+      title: `RDV ${typeRDVLabels[cr.typeRDV] ?? cr.typeRDV} — ${cr.interlocuteurs}`,
+      detail: cr.resume.length > 100 ? cr.resume.slice(0, 100) + "..." : cr.resume,
+      color: "#0EA5E9",
+    });
+  }
+
   // Sort by date descending
   timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Qualification scoring
+  const qualification = calculerQualification(client);
 
   const statutConfig = STATUTS_CLIENT.find((s) => s.id === client.statut);
   const caRecurrent = client.contrats
@@ -291,6 +317,7 @@ export default async function ClientDetailPage({
       dirigeant: client.dirigeant,
       opportunites: client.opportunites,
       sequenceInscriptions: client.sequenceInscriptions,
+      comptesRendus,
     });
   } catch (err) {
     console.error("[client page] NBA computation error:", err);
@@ -417,6 +444,12 @@ export default async function ClientDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-4">
           <NextActionWidget actions={nextActions} />
+
+          <QualificationCard
+            qualification={qualification}
+            clientId={client.id}
+            hasDirigeant={!!client.dirigeant}
+          />
 
           {(potentielDetail.total > 0 || potentielDetail.produits.length > 0) && (
             <PotentielCADetail
@@ -662,6 +695,10 @@ export default async function ClientDetailPage({
                 <ClipboardList className="h-3.5 w-3.5 mr-1" />
                 Preconisations ({client.preconisations.length})
               </TabsTrigger>
+              <TabsTrigger value="rdv">
+                <Calendar className="h-3.5 w-3.5 mr-1" />
+                RDV ({comptesRendus.length})
+              </TabsTrigger>
               <TabsTrigger value="taches">Taches ({client.taches.length})</TabsTrigger>
               <TabsTrigger value="emails">Emails ({client.emails.length})</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -768,6 +805,14 @@ export default async function ClientDetailPage({
                 }))}
                 clientId={client.id}
                 deals={client.deals.map((d) => ({ id: d.id, label: d.titre }))}
+              />
+            </TabsContent>
+
+            <TabsContent value="rdv" className="mt-4">
+              <CompteRenduTab
+                comptesRendus={comptesRendus}
+                clientId={client.id}
+                deals={client.deals.map((d) => ({ id: d.id, titre: d.titre }))}
               />
             </TabsContent>
 

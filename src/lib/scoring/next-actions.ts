@@ -11,7 +11,7 @@ export type NextAction = {
   lien?: string;
 };
 
-type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSalaries" | "scoreCouverture" | "temperatureCommerciale" | "produitsDiscutes" | "objectionsConnues" | "besoinsIdentifies" | "dernierSignalDate" | "dernierSignalResume"> & {
+type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSalaries" | "scoreCouverture" | "temperatureCommerciale" | "produitsDiscutes" | "objectionsConnues" | "besoinsIdentifies" | "dernierSignalDate" | "dernierSignalResume" | "qualificationStatut"> & {
   contrats: Pick<Contrat, "id" | "typeProduit" | "statut" | "dateEcheance" | "dateRenouvellement">[];
   taches: Pick<Tache, "id" | "titre" | "statut" | "dateEcheance" | "priorite" | "sourceAuto" | "emailId">[];
   emails: Pick<Email, "id" | "sujet" | "actionRequise" | "actionTraitee" | "urgence" | "analyseStatut" | "direction" | "dateEnvoi">[];
@@ -26,6 +26,7 @@ type ClientData = Pick<Client, "id" | "statut" | "derniereInteraction" | "nbSala
     dateInscription: Date;
     sequence: { nom: string; etapes: string };
   }[];
+  comptesRendus?: { prochainRDV: Date | null }[];
 };
 
 /**
@@ -371,6 +372,22 @@ export function calculerProchainesActions(client: ClientData): NextAction[] {
       });
       break; // max 1 sequence action per client
     }
+  }
+
+  // 16. Prospect non qualifié sans RDV planifié → suggérer découverte
+  if (
+    client.statut === "prospect" &&
+    (!client.qualificationStatut || client.qualificationStatut === "non_qualifie") &&
+    !(client.comptesRendus ?? []).some((cr) => cr.prochainRDV && cr.prochainRDV.getTime() > now)
+  ) {
+    actions.push({
+      id: "qualification-rdv",
+      priorite: "haute",
+      titre: "Planifier un RDV de découverte",
+      detail: "Ce prospect a un score de qualification < 50% et aucun RDV planifié",
+      type: "relance",
+      lien: `/clients/${client.id}`,
+    });
   }
 
   // Sort by priority and limit to 10

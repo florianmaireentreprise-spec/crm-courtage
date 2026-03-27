@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { recalculerQualificationClient } from "@/lib/scoring/recalculerQualification";
 
 const dirigeantSchema = z.object({
   clientId: z.string().min(1),
@@ -82,7 +83,7 @@ export async function updateDirigeant(id: string, formData: FormData) {
   }
 
   const data = parsed.data;
-  await prisma.dirigeant.update({
+  const dirigeant = await prisma.dirigeant.update({
     where: { id },
     data: {
       civilite: data.civilite || null,
@@ -103,7 +104,11 @@ export async function updateDirigeant(id: string, formData: FormData) {
       objectifsRetraite: data.objectifsRetraite || null,
       notes: data.notes || null,
     },
+    select: { clientId: true },
   });
+
+  // Recalcul qualification après modification dirigeant
+  await recalculerQualificationClient(dirigeant.clientId);
 
   revalidatePath("/dirigeants");
   revalidatePath("/clients");

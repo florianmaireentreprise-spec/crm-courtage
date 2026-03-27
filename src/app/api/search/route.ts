@@ -13,10 +13,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       clients: [], dirigeants: [], contrats: [], deals: [],
       prescripteurs: [], compagnies: [], documents: [], emails: [],
+      comptesRendus: [],
     });
   }
 
-  const [clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails] = await Promise.all([
+  const [clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails, comptesRendus] = await Promise.all([
     prisma.client.findMany({
       where: {
         archived: false,
@@ -121,9 +122,23 @@ export async function GET(req: NextRequest) {
       select: { id: true, sujet: true, expediteur: true, dateEnvoi: true, clientId: true },
       take: 5,
     }),
+    prisma.compteRenduRDV.findMany({
+      where: {
+        OR: [
+          { resume: { contains: q, mode: "insensitive" } },
+          { interlocuteurs: { contains: q, mode: "insensitive" } },
+          { notes: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      select: {
+        id: true, dateRDV: true, typeRDV: true, resume: true, clientId: true,
+        client: { select: { raisonSociale: true } },
+      },
+      take: 5,
+    }),
   ]);
 
   return NextResponse.json({
-    clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails,
+    clients, dirigeants, contrats, deals, prescripteurs, compagnies, documents, emails, comptesRendus,
   });
 }

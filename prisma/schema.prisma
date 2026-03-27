@@ -30,6 +30,7 @@ model Workspace {
   documents            Document[]
   opportunites         OpportuniteCommerciale[]
   preconisations       Preconisation[]
+  comptesRendus        CompteRenduRDV[]
 }
 
 model User {
@@ -51,6 +52,8 @@ model User {
   preconisationsCreated   Preconisation[]          @relation("PreconisationCreatedBy")
   preconisationsUpdated   Preconisation[]          @relation("PreconisationUpdatedBy")
   auditLogs               AuditLog[]
+  comptesRendusCreated    CompteRenduRDV[]         @relation("CRCreatedBy")
+  comptesRendusUpdated    CompteRenduRDV[]         @relation("CRUpdatedBy")
 }
 
 model Client {
@@ -130,6 +133,10 @@ model Client {
   dernierSignalDate       DateTime?  // Date du dernier signal commercial
   dernierSignalResume     String?    // Court texte max 200 chars
   nbSignaux               Int?       // Nombre total de signaux
+  // Qualification prospect
+  qualificationStatut  String?   // non_qualifie | en_cours | qualifie | incomplet
+  dateQualification    DateTime? // Date de qualification complete
+  qualificationNotes   String?
   // Attribution
   createdByUserId      String?
   createdByUser        User?     @relation("ClientCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -147,6 +154,7 @@ model Client {
   documents            Document[]
   preconisations       Preconisation[]
   potentielOverrides   ClientPotentielOverride[]
+  comptesRendus        CompteRenduRDV[]
 }
 
 model Dirigeant {
@@ -331,6 +339,7 @@ model Deal {
   assigneA              String?
   // Relations
   preconisations        Preconisation[]
+  comptesRendus         CompteRenduRDV[]
 }
 
 model Commission {
@@ -715,4 +724,37 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorUserId])
   @@index([createdAt])
+}
+
+// -- Comptes-rendus de RDV --
+
+model CompteRenduRDV {
+  id                String    @id @default(cuid())
+  workspaceId       String?
+  workspace         Workspace? @relation(fields: [workspaceId], references: [id])
+  clientId          String
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dealId            String?
+  deal              Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  // Contenu
+  dateRDV           DateTime
+  typeRDV           String    // decouverte | audit | recommandation | signature | suivi | autre
+  lieu              String    // cabinet | client | visio | telephone | autre
+  interlocuteurs    String    // Noms libres des personnes presentes
+  resume            String    // Resume de ce qui s'est dit
+  pointsCles        String?   // JSON array — points importants
+  decisionsActions  String?   // JSON array — decisions prises et actions
+  prochainRDV       DateTime? // Date du prochain RDV si convenu
+  notes             String?
+  // Attribution
+  createdByUserId   String?
+  createdByUser     User?     @relation("CRCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId   String?
+  updatedByUser     User?     @relation("CRUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([dateRDV])
 }

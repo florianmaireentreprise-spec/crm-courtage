@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { emitN8nEvent } from "@/lib/n8n";
 import { logAudit, getActorId } from "@/lib/audit";
+import { recalculerQualificationClient } from "@/lib/scoring/recalculerQualification";
 
 export async function createClient(formData: FormData) {
   const session = await auth();
@@ -167,6 +168,9 @@ export async function updateClient(id: string, formData: FormData) {
     action: "update",
     actorUserId: actorId,
   });
+
+  // Recalcul qualification après modification des champs client
+  await recalculerQualificationClient(id);
 
   revalidatePath("/clients");
   revalidatePath(`/clients/${id}`);
