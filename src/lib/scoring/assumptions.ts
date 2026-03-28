@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma";
 import type { PotentielBaseAssumption, ClientPotentielOverride } from "@prisma/client";
 
 // ── Default assumptions (seed values and fallback) ──
-// These match the original hardcoded formulas in calculerPotentielCA:
-//   SANTE_COLLECTIVE: nbSal * 100 * 12 * 0.07   → estimatedPremium=1200/sal/year
-//   PREVOYANCE_COLLECTIVE: nbSal * 450 * 0.10    → estimatedPremium=450/sal/year
-//   RCP_PRO: (800 + floor(nbSal/10)*200) * 0.15  → base=800, perTenEmpInc=200
-//   PREVOYANCE_MADELIN: 2000 * 0.20              → flat=2000
-//   SANTE_MADELIN: 2400 * 0.12                   → flat=2400
-//   PER: 5000 * 0.03                             → flat=5000, upfront
+// Each product can now express both a recurring commission rate (gestion)
+// and an upfront commission rate (apport). Either can be null if not applicable.
+//
+// Examples:
+//   SANTE_COLLECTIVE: recurring 7%, no upfront
+//   PER: upfront 3%, no recurring
+//   A product could have both if the business model warrants it.
 
 export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedAt">[] = [
   {
@@ -17,8 +17,10 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 1200,
     isPerEmployee: true,
     perTenEmployeeIncrement: 0,
-    commissionRate: 0.07,
-    isRecurring: true,
+    recurringCommissionRate: 0.07,
+    upfrontCommissionRate: null,
+    commissionRate: null, // deprecated
+    isRecurring: null, // deprecated
     enabled: true,
   },
   {
@@ -27,8 +29,10 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 450,
     isPerEmployee: true,
     perTenEmployeeIncrement: 0,
-    commissionRate: 0.10,
-    isRecurring: true,
+    recurringCommissionRate: 0.10,
+    upfrontCommissionRate: null,
+    commissionRate: null,
+    isRecurring: null,
     enabled: true,
   },
   {
@@ -37,8 +41,10 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 800,
     isPerEmployee: false,
     perTenEmployeeIncrement: 200,
-    commissionRate: 0.15,
-    isRecurring: true,
+    recurringCommissionRate: 0.15,
+    upfrontCommissionRate: null,
+    commissionRate: null,
+    isRecurring: null,
     enabled: true,
   },
   {
@@ -47,8 +53,10 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 2000,
     isPerEmployee: false,
     perTenEmployeeIncrement: 0,
-    commissionRate: 0.20,
-    isRecurring: true,
+    recurringCommissionRate: 0.20,
+    upfrontCommissionRate: null,
+    commissionRate: null,
+    isRecurring: null,
     enabled: true,
   },
   {
@@ -57,8 +65,10 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 2400,
     isPerEmployee: false,
     perTenEmployeeIncrement: 0,
-    commissionRate: 0.12,
-    isRecurring: true,
+    recurringCommissionRate: 0.12,
+    upfrontCommissionRate: null,
+    commissionRate: null,
+    isRecurring: null,
     enabled: true,
   },
   {
@@ -67,14 +77,17 @@ export const DEFAULT_ASSUMPTIONS: Omit<PotentielBaseAssumption, "id" | "updatedA
     estimatedPremium: 5000,
     isPerEmployee: false,
     perTenEmployeeIncrement: 0,
-    commissionRate: 0.03,
-    isRecurring: false,
+    recurringCommissionRate: null,
+    upfrontCommissionRate: 0.03,
+    commissionRate: null,
+    isRecurring: null,
     enabled: true,
   },
 ];
 
 /**
  * Fetch base assumptions from DB (auto-seeds if empty).
+ * Also auto-migrates from old commissionRate+isRecurring to new dual rates if needed.
  * Returns all assumptions sorted by typeProduit.
  */
 export async function getBaseAssumptions(): Promise<PotentielBaseAssumption[]> {
@@ -92,7 +105,28 @@ export async function getBaseAssumptions(): Promise<PotentielBaseAssumption[]> {
     });
   }
 
-  return assumptions;
+  // Auto-migrate from old single commissionRate + isRecurring to new dual rates.
+  // This runs once per row that still has old data and no new rates.
+  for (const a of assumptions) {
+    const raw = a as PotentielBaseAssumption & { commissionRate?: number | null; isRecurring?: boolean | null };
+    if (raw.commissionRate != null && a.recurringCommissionRate == null && a.upfrontCommissionRate == null) {
+      const update: { recurringCommissionRate?: number; upfrontCommissionRate?: number } = {};
+      if (raw.isRecurring === false) {
+        update.upfrontCommissionRate = raw.commissionRate;
+      } else {
+        update.recurringCommissionRate = raw.commissionRate;
+      }
+      await prisma.potentielBaseAssumption.update({
+        where: { id: a.id },
+        data: update,
+      });
+    }
+  }
+
+  // Re-fetch after possible migration
+  return prisma.potentielBaseAssumption.findMany({
+    orderBy: { typeProduit: "asc" },
+  });
 }
 
 /**

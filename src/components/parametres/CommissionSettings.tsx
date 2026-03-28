@@ -67,7 +67,8 @@ export function CommissionSettings({ taux }: Props) {
             })}
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            Ces taux sont appliques automatiquement lors de la creation d&apos;un contrat.
+            Ces taux sont appliques automatiquement lors de la creation d&apos;un contrat reel.
+            Ils sont distincts des hypotheses de potentiel CA (qui servent a estimer le potentiel theorique avant signature).
             Ils peuvent etre modifies individuellement sur chaque contrat.
           </p>
         </CardContent>

@@ -686,16 +686,20 @@ model Preconisation {
 // ── Potentiel CA: Global base assumptions + client-level overrides ──
 
 model PotentielBaseAssumption {
-  id                      String   @id @default(cuid())
-  typeProduit             String   @unique
-  label                   String
-  estimatedPremium        Float    // Annual premium estimate (per-employee if isPerEmployee)
-  isPerEmployee           Boolean  @default(false)
-  perTenEmployeeIncrement Float    @default(0) // Additional premium per 10 employees (RCP_PRO pattern)
-  commissionRate          Float    // Decimal (0.07 = 7%)
-  isRecurring             Boolean  @default(true) // false = upfront (PER)
-  enabled                 Boolean  @default(true)
-  updatedAt               DateTime @updatedAt
+  id                        String   @id @default(cuid())
+  typeProduit               String   @unique
+  label                     String
+  estimatedPremium          Float    // Annual premium estimate (per-employee if isPerEmployee)
+  isPerEmployee             Boolean  @default(false)
+  perTenEmployeeIncrement   Float    @default(0) // Additional premium per 10 employees (RCP_PRO pattern)
+  // NEW: dual commission rates (nullable — a product can have either or both)
+  recurringCommissionRate   Float?   // Decimal (0.07 = 7%) — recurring (gestion) component
+  upfrontCommissionRate     Float?   // Decimal (0.03 = 3%) — upfront (apport) component
+  // DEPRECATED: kept temporarily for safe migration. Will be removed after data migration.
+  commissionRate            Float?   // @deprecated — use recurringCommissionRate / upfrontCommissionRate
+  isRecurring               Boolean? // @deprecated — replaced by nullable dual rates
+  enabled                   Boolean  @default(true)
+  updatedAt                 DateTime @updatedAt
 }
 
 model ClientPotentielOverride {

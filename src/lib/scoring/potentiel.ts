@@ -20,14 +20,21 @@ export type PotentielCADetailResult = {
   produits: PotentielProduitDetail[];
 };
 
+// ── Assumption type used by computation (Pick from model) ──
+
+type AssumptionInput = Pick<
+  PotentielBaseAssumption,
+  "typeProduit" | "label" | "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "recurringCommissionRate" | "upfrontCommissionRate" | "enabled"
+>;
+
 // ── Core computation ──
 
 /**
- * Compute per-product commission estimate from an assumption row + client data.
+ * Compute the gross premium from an assumption row + client data.
  * Pure function — no DB access.
  */
-function computeDerivedCommission(
-  assumption: Pick<PotentielBaseAssumption, "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "commissionRate">,
+function computeGrossPremium(
+  assumption: Pick<PotentielBaseAssumption, "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement">,
   nbSal: number
 ): number {
   let premium = assumption.estimatedPremium;
@@ -35,25 +42,33 @@ function computeDerivedCommission(
     premium = assumption.estimatedPremium * nbSal;
   }
   premium += Math.floor(nbSal / 10) * assumption.perTenEmployeeIncrement;
-  return Math.round(premium * assumption.commissionRate);
+  return premium;
 }
 
 /**
  * Build a human-readable basis string for a derived estimate.
  */
 function buildBasis(
-  assumption: Pick<PotentielBaseAssumption, "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "commissionRate">,
+  assumption: Pick<PotentielBaseAssumption, "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "recurringCommissionRate" | "upfrontCommissionRate">,
   nbSal: number
 ): string {
-  const rate = `${(assumption.commissionRate * 100).toFixed(0)}%`;
+  const rates: string[] = [];
+  if (assumption.recurringCommissionRate != null) {
+    rates.push(`${(assumption.recurringCommissionRate * 100).toFixed(0)}% recurrent`);
+  }
+  if (assumption.upfrontCommissionRate != null) {
+    rates.push(`${(assumption.upfrontCommissionRate * 100).toFixed(0)}% ponctuel`);
+  }
+  const rateStr = rates.join(" + ");
+
   if (assumption.isPerEmployee) {
-    return `${nbSal} sal. x ${assumption.estimatedPremium} EUR/an x ${rate} commission`;
+    return `${nbSal} sal. x ${assumption.estimatedPremium} EUR/an x ${rateStr}`;
   }
   if (assumption.perTenEmployeeIncrement > 0) {
     const premium = assumption.estimatedPremium + Math.floor(nbSal / 10) * assumption.perTenEmployeeIncrement;
-    return `Prime estimee ${premium} EUR (base ${assumption.estimatedPremium} + ${Math.floor(nbSal / 10)}x${assumption.perTenEmployeeIncrement}) x ${rate} commission`;
+    return `Prime estimee ${premium} EUR (base ${assumption.estimatedPremium} + ${Math.floor(nbSal / 10)}x${assumption.perTenEmployeeIncrement}) x ${rateStr}`;
   }
-  return `Prime estimee ${assumption.estimatedPremium} EUR x ${rate} commission`;
+  return `Prime estimee ${assumption.estimatedPremium} EUR x ${rateStr}`;
 }
 
 /**
@@ -62,18 +77,15 @@ function buildBasis(
  * 2. Client data (nbSalaries, active contracts)
  * 3. Client-level manual overrides
  *
+ * Each assumption can now express both recurring and upfront commission rates.
+ *
  * Effective-value hierarchy:
  *   override if present → otherwise derived from assumptions + client data
- *
- * @param client - must include nbSalaries
- * @param contratsExistants - active contracts (used to exclude existing products)
- * @param assumptions - global base assumptions (pass DEFAULT_ASSUMPTIONS as fallback)
- * @param overrides - client-level overrides (empty array if none)
  */
 export function calculerPotentielCADetail(
   client: Pick<Client, "nbSalaries">,
   contratsExistants: Pick<Contrat, "typeProduit" | "statut">[],
-  assumptions?: Pick<PotentielBaseAssumption, "typeProduit" | "label" | "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "commissionRate" | "isRecurring" | "enabled">[],
+  assumptions?: AssumptionInput[],
   overrides?: Pick<ClientPotentielOverride, "typeProduit" | "recurringOverride" | "upfrontOverride">[]
 ): PotentielCADetailResult {
   const nbSal = client.nbSalaries || 1;
@@ -108,15 +120,19 @@ export function calculerPotentielCADetail(
       });
     } else {
       // Derive from base assumptions + client data
-      const commission = computeDerivedCommission(assumption, nbSal);
-      const recurring = assumption.isRecurring ? commission : 0;
-      const upfront = assumption.isRecurring ? 0 : commission;
+      const grossPremium = computeGrossPremium(assumption, nbSal);
+      const recurring = assumption.recurringCommissionRate != null
+        ? Math.round(grossPremium * assumption.recurringCommissionRate)
+        : 0;
+      const upfront = assumption.upfrontCommissionRate != null
+        ? Math.round(grossPremium * assumption.upfrontCommissionRate)
+        : 0;
       produits.push({
         typeProduit: assumption.typeProduit,
         label: assumption.label,
         recurring,
         upfront,
-        total: commission,
+        total: recurring + upfront,
         basis: buildBasis(assumption, nbSal),
         source: "base",
       });
@@ -136,7 +152,7 @@ export function calculerPotentielCADetail(
 export function calculerPotentielCA(
   client: Pick<Client, "nbSalaries">,
   contratsExistants: Pick<Contrat, "typeProduit" | "statut">[],
-  assumptions?: Pick<PotentielBaseAssumption, "typeProduit" | "label" | "estimatedPremium" | "isPerEmployee" | "perTenEmployeeIncrement" | "commissionRate" | "isRecurring" | "enabled">[]
+  assumptions?: AssumptionInput[]
 ): number {
   const detail = calculerPotentielCADetail(client, contratsExistants, assumptions);
   return detail.total;

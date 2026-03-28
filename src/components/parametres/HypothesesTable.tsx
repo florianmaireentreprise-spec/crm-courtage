@@ -17,8 +17,8 @@ type Assumption = {
   estimatedPremium: number;
   isPerEmployee: boolean;
   perTenEmployeeIncrement: number;
-  commissionRate: number;
-  isRecurring: boolean;
+  recurringCommissionRate: number | null;
+  upfrontCommissionRate: number | null;
   enabled: boolean;
 };
 
@@ -26,17 +26,24 @@ function formatCurrency(n: number): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 }
 
+function rateToPercent(rate: number | null): string {
+  if (rate == null) return "";
+  return (rate * 100).toFixed(1);
+}
+
 export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPremium, setEditPremium] = useState("");
-  const [editRate, setEditRate] = useState("");
+  const [editRecurringRate, setEditRecurringRate] = useState("");
+  const [editUpfrontRate, setEditUpfrontRate] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
   function startEdit(a: Assumption) {
     setEditingId(a.id);
     setEditPremium(a.estimatedPremium.toString());
-    setEditRate((a.commissionRate * 100).toFixed(1));
+    setEditRecurringRate(rateToPercent(a.recurringCommissionRate));
+    setEditUpfrontRate(rateToPercent(a.upfrontCommissionRate));
     setEditEnabled(a.enabled);
   }
 
@@ -49,7 +56,8 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
     const formData = new FormData();
     formData.set("id", id);
     formData.set("estimatedPremium", editPremium);
-    formData.set("commissionRate", editRate);
+    formData.set("recurringCommissionRate", editRecurringRate);
+    formData.set("upfrontCommissionRate", editUpfrontRate);
     if (editEnabled) formData.set("enabled", "true");
 
     const result = await updateBaseAssumption(formData);
@@ -70,7 +78,7 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
           Hypotheses de base — potentiel CA
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Ces valeurs servent de base au calcul theorique du potentiel. Les estimations client derivent de ces hypotheses, sauf surcharge manuelle.
+          Ces valeurs servent de base au calcul theorique du potentiel avant signature. Elles sont distinctes des taux de commission contrat (qui s&apos;appliquent lors de la creation d&apos;un contrat reel).
         </p>
       </CardHeader>
       <CardContent>
@@ -81,8 +89,8 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
                 <th className="pb-2 font-medium">Produit</th>
                 <th className="pb-2 font-medium text-right">Prime estimee</th>
                 <th className="pb-2 font-medium text-center">Mode</th>
-                <th className="pb-2 font-medium text-right">Commission</th>
-                <th className="pb-2 font-medium text-center">Type</th>
+                <th className="pb-2 font-medium text-right">Recurrent</th>
+                <th className="pb-2 font-medium text-right">Ponctuel</th>
                 <th className="pb-2 font-medium text-center">Actif</th>
                 <th className="pb-2 font-medium text-right">Exemple (10 sal.)</th>
                 <th className="pb-2 font-medium text-center">Actions</th>
@@ -95,7 +103,11 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
                 let examplePremium = a.estimatedPremium;
                 if (a.isPerEmployee) examplePremium *= 10;
                 examplePremium += Math.floor(10 / 10) * a.perTenEmployeeIncrement;
-                const exampleCommission = Math.round(examplePremium * a.commissionRate);
+                const exRecurring = a.recurringCommissionRate != null
+                  ? Math.round(examplePremium * a.recurringCommissionRate) : 0;
+                const exUpfront = a.upfrontCommissionRate != null
+                  ? Math.round(examplePremium * a.upfrontCommissionRate) : 0;
+                const exTotal = exRecurring + exUpfront;
 
                 return (
                   <tr key={a.id} className={`border-b last:border-0 ${!a.enabled ? "opacity-50" : ""}`}>
@@ -137,21 +149,46 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
                             min={0}
                             max={100}
                             step={0.1}
-                            value={editRate}
-                            onChange={(e) => setEditRate(e.target.value)}
+                            value={editRecurringRate}
+                            onChange={(e) => setEditRecurringRate(e.target.value)}
+                            placeholder="—"
                             className="h-7 w-20 text-xs"
                           />
                           <span className="text-xs text-muted-foreground">%</span>
                         </div>
                       ) : (
-                        <span className="font-mono text-xs">{(a.commissionRate * 100).toFixed(1)}%</span>
+                        <span className="font-mono text-xs">
+                          {a.recurringCommissionRate != null ? (
+                            <>{(a.recurringCommissionRate * 100).toFixed(1)}%</>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </span>
                       )}
                     </td>
-                    <td className="py-3 text-center">
-                      {a.isRecurring ? (
-                        <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100">Recurrent</Badge>
+                    <td className="py-3 text-right">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.1}
+                            value={editUpfrontRate}
+                            onChange={(e) => setEditUpfrontRate(e.target.value)}
+                            placeholder="—"
+                            className="h-7 w-20 text-xs"
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                        </div>
                       ) : (
-                        <Badge className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-100">Ponctuel</Badge>
+                        <span className="font-mono text-xs">
+                          {a.upfrontCommissionRate != null ? (
+                            <>{(a.upfrontCommissionRate * 100).toFixed(1)}%</>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 text-center">
@@ -164,7 +201,14 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
                       )}
                     </td>
                     <td className="py-3 text-right">
-                      <span className="font-mono text-xs text-muted-foreground">{formatCurrency(exampleCommission)}</span>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {formatCurrency(exTotal)}
+                        {exRecurring > 0 && exUpfront > 0 && (
+                          <span className="block text-[10px]">
+                            {formatCurrency(exRecurring)} rec. + {formatCurrency(exUpfront)} ponc.
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 text-center">
                       {isEditing ? (
@@ -208,7 +252,7 @@ export function HypothesesTable({ assumptions }: { assumptions: Assumption[] }) 
         <div className="flex items-start gap-1.5 mt-4 text-[10px] text-muted-foreground border-t pt-3">
           <Info className="h-3 w-3 shrink-0 mt-0.5" />
           <p>
-            Les colonnes Prime et Commission sont editables. Le mode (par salarie / forfait) et le type (recurrent / ponctuel) sont fixes.
+            Les colonnes Prime, Recurrent et Ponctuel sont editables. Un produit peut avoir les deux composantes (recurrent + ponctuel). Laissez vide pour desactiver une composante.
             L&apos;exemple est calcule pour 10 salaries. Les surcharges client s&apos;appliquent par-dessus ces hypotheses.
           </p>
         </div>

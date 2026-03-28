@@ -4,10 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+// Nullable rate: empty string or missing → null, otherwise percentage → decimal
+const optionalRate = z.union([z.coerce.number().min(0).max(100), z.literal(""), z.null(), z.undefined()])
+  .transform((v) => (typeof v === "number" && !isNaN(v) && v > 0) ? v : null);
+
 const updateAssumptionSchema = z.object({
   id: z.string().min(1),
   estimatedPremium: z.coerce.number().min(0),
-  commissionRate: z.coerce.number().min(0).max(100), // Input as percentage, stored as decimal
+  recurringCommissionRate: optionalRate,
+  upfrontCommissionRate: optionalRate,
   enabled: z.coerce.boolean(),
 });
 
@@ -21,13 +26,14 @@ export async function updateBaseAssumption(formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { id, estimatedPremium, commissionRate, enabled } = parsed.data;
+  const { id, estimatedPremium, recurringCommissionRate, upfrontCommissionRate, enabled } = parsed.data;
 
   await prisma.potentielBaseAssumption.update({
     where: { id },
     data: {
       estimatedPremium,
-      commissionRate: commissionRate / 100, // Store as decimal
+      recurringCommissionRate: recurringCommissionRate != null ? recurringCommissionRate / 100 : null,
+      upfrontCommissionRate: upfrontCommissionRate != null ? upfrontCommissionRate / 100 : null,
       enabled,
     },
   });
